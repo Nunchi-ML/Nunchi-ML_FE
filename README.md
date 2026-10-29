@@ -4,9 +4,9 @@
 
 # Nunchi-ML_FE
 
-머신러닝 결과 웹사이트 — 데이터 살펴보기 · 모델 비교 · 예측해 보기
+☀️ 운전석 햇빛 시뮬레이터 — 달리면서 눈부심 위험 예측을 보는 화면
 
-![화면 기술](https://img.shields.io/badge/%ED%99%94%EB%A9%B4%20%EA%B8%B0%EC%88%A0-Streamlit%20%EB%98%90%EB%8A%94%20React%20%28%EA%B2%B0%EC%A0%95%20%EC%98%88%EC%A0%95%29-64748B?style=flat-square)
+![React](https://img.shields.io/badge/React-20232A?style=flat-square&logo=react&logoColor=61DAFB) ![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white) ![three.js](https://img.shields.io/badge/three.js-000000?style=flat-square&logo=threedotjs&logoColor=white) ![react--three--fiber](https://img.shields.io/badge/react--three--fiber-222222?style=flat-square) ![zustand](https://img.shields.io/badge/zustand-443E38?style=flat-square) ![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-222222?style=flat-square&logo=githubpages&logoColor=white)
 
 [![Notion](https://img.shields.io/badge/Notion-%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8%20%ED%99%88-000000?style=flat-square&logo=notion&logoColor=white)](https://app.notion.com/p/40554fa7e143815680c0cfb0ff414d78) [![GitHub](https://img.shields.io/badge/GitHub-Nunchi--ML-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/Nunchi-ML)
 
@@ -16,25 +16,35 @@
 
 ## 👥 담당
 
-FE (1일차에 정해요)
+FE · PM
+
+## 🧰 기술 스택
+
+| 하는 일 | 기술 |
+|---|---|
+| 화면 틀 | React · Vite · TypeScript |
+| 3D 운전석 | three.js · react-three-fiber · drei |
+| 눈부심 연출 | @react-three/postprocessing (빛 번짐 · 빛줄기 · 톤 매핑으로 눈 적응 표현) |
+| 상태 (시간 · 위치 · 예측값) | zustand |
+| 도로 · 건물 | OpenStreetMap 데이터 (달구벌대로 · 신천대로) |
+| 배포 | GitHub Pages |
 
 ## 🎨 화면 — 노션 「웹사이트 명세」가 정본
 
 | 화면 ID | 화면 | 보이는 것 |
 |---|---|---|
-| `S-01` | 🏠 소개 | 프로젝트 한 줄 소개 · 데이터 · 예측 대상 |
-| `S-02` | 📊 데이터 살펴보기 | EDA 그래프 (타깃 분포 · 주요 변수) |
-| `S-03` | 🏆 모델 비교 | 모델별 검증 점수 · 최종 모델 |
-| `S-04` | 🔍 중요 변수 | 변수 중요도 그래프 · 쉬운 말 설명 |
-| `S-05` | 🔮 예측해 보기 | 값 입력 → 예측 · 확률 · 크게 작용한 변수 3개 |
+| `S-01` | 🚗 운전석 시뮬레이터 | 날짜 · 시간을 바꾸면 해가 움직이고, 직접 달리며 역마다 예측 사고 건수 · 지금 화면의 눈부심 상태 |
+| `S-02` | 🗺️ 위험 지도 | 달구벌대로 · 신천대로 구간별 예측 위험 · 내 위치 |
+| `S-03` | 🏆 모델 결과 | 모델 ① · ② 검증 점수 · 비교 기준선 · 중요 변수 |
+| `S-04` | 🎬 실제 영상 모드 | 유튜브 공식 플레이어 위에 위치 · 예측을 겹쳐 보기 |
 
 > 발표 때는 시연하지 않고, 최종 모델 결과가 반영된 화면을 캡처해서 PPT에 넣어요.
 
 ## 📌 원칙
 
-- 주고받는 데이터 형식은 노션 「웹사이트 명세」의 API 칸을 따릅니다
-- 화면 기술은 노션 「웹사이트 명세」의 기술 스택 칸에서 정한 뒤 이 README를 고칩니다
-
+- 예측은 BE API(`/segments` · `/predict/risk` · `/predict/glare`)에서 받습니다
+- **API가 안 되면 미리 뽑아 둔 JSON으로 자동 전환**합니다 — 발표 캡처가 서버 상태에 걸리지 않게
+- 주고받는 형식은 노션 「웹사이트 명세」의 API 칸을 따릅니다
 
 <details>
 <summary><b>🤝 작업 규칙</b> (펼치기)</summary>
