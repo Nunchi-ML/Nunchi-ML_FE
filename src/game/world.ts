@@ -4,6 +4,7 @@ import { D, ROAD_W, TOTAL, at, kmToS, stationLabel } from './road';
 import { createVehicles, type Vehicle } from './vehicles';
 import { buildCity } from './city';
 import { buildIntersections, nearCrossing } from './intersections';
+import { buildOsmMarkers } from './osm';
 
 /** 결정적 난수 (매번 같은 도시) */
 export function makeRand(seed = 7) { let r = seed; return () => (r = (r * 16807) % 2147483647) / 2147483647; }
@@ -74,7 +75,7 @@ export function createWorld(): World {
 
   const sky = new Sky(); sky.scale.setScalar(20000); scene.add(sky);
   const u = sky.material.uniforms;
-  u.turbidity.value = 6; u.rayleigh.value = 1.6; u.mieCoefficient.value = 0.0025; u.mieDirectionalG.value = 0.95;
+  u.turbidity.value = 6; u.rayleigh.value = 1.6; u.mieCoefficient.value = 0.0016; u.mieDirectionalG.value = 0.985;
 
   const hemi = new THREE.HemisphereLight(0xfff1dc, 0x4a3a30, 0.6); scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xffe2b0, 2.4); sun.castShadow = true;
@@ -84,14 +85,15 @@ export function createWorld(): World {
   scene.fog = new THREE.Fog(0xf0c89a, 700, 5200);
 
   // 해 원반: 실제 시직경(약 0.53°)에 가깝게 — 6000 m 거리에 반지름 30 m
-  const sunDisc = new THREE.Mesh(new THREE.SphereGeometry(30, 24, 16), new THREE.MeshBasicMaterial({ color: 0xfff3c4, fog: false }));
+  const sunDisc = new THREE.Mesh(new THREE.SphereGeometry(26, 24, 16), new THREE.MeshBasicMaterial({ color: 0xfff3c4, fog: false }));
   scene.add(sunDisc);
 
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(60000, 60000), new THREE.MeshLambertMaterial({ color: 0x86765f }));
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(60000, 60000), new THREE.MeshLambertMaterial({ color: 0x86765f, polygonOffset: true, polygonOffsetFactor: 8, polygonOffsetUnits: 16 }));
   ground.rotation.x = -Math.PI / 2; ground.position.y = -0.05; ground.receiveShadow = true; scene.add(ground);
 
-  ribbon(scene, ROAD_W + 14, 0.01, new THREE.MeshLambertMaterial({ color: 0xb8a990, side: THREE.DoubleSide }));   // 보도
-  ribbon(scene, ROAD_W + 1.2, 0.06, new THREE.MeshLambertMaterial({ color: 0xcfc6b4, side: THREE.DoubleSide }));   // 연석
+  // 보도 · 연석 · 차도가 몇 cm 차이로 겹쳐 있어 멀리서 서로 번갈아 비침(깜빡임) → 아래 층을 깊이 쪽으로 밀어 차도가 늘 위에 그려지게
+  ribbon(scene, ROAD_W + 14, 0.01, new THREE.MeshLambertMaterial({ color: 0xb8a990, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 4, polygonOffsetUnits: 8 }));   // 보도
+  ribbon(scene, ROAD_W + 1.2, 0.06, new THREE.MeshLambertMaterial({ color: 0xcfc6b4, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 4 }));   // 연석
   ribbon(scene, ROAD_W, 0.08, new THREE.MeshLambertMaterial({ map: roadTexture(), side: THREE.DoubleSide }));  // 차도
 
   /* ---------- 건물: OpenStreetMap 실제 건물 윤곽 · 층수 (없으면 용도별 추정) ---------- */
@@ -135,6 +137,7 @@ export function createWorld(): World {
 
   /* ---------- 역마다 사거리 · 횡단보도 · 신호등 · 지하철 출입구 ---------- */
   buildIntersections(scene);
+  if (new URLSearchParams(location.search).has('osm')) buildOsmMarkers(scene);   // 실제 시설물 자리 확인용
 
   /* ---------- 역 이정표 ---------- */
   const poleSignMat = new THREE.MeshLambertMaterial({ color: 0x4a3a30 });

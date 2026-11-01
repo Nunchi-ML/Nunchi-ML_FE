@@ -13,7 +13,7 @@ import { drawMinimap, drawSpeedo } from './gauges';
 import { isTouch, useGame } from '../store';
 
 /** 매 프레임 직접 고치는 화면 요소 (React 재렌더 없이) */
-export interface Els { wash?: HTMLElement; glare?: HTMLElement; shade?: HTMLElement; cockpit?: HTMLElement; speedo?: HTMLCanvasElement; minimap?: HTMLCanvasElement }
+export interface Els { wash?: HTMLElement; glare?: HTMLElement; shade?: HTMLElement; cockpit?: HTMLElement; speedo?: HTMLCanvasElement; minimap?: HTMLCanvasElement; phone?: HTMLElement; phoneDim?: HTMLElement }
 
 const SUN_DIST = 6000;
 
@@ -34,8 +34,16 @@ export function createEngine(canvas: HTMLCanvasElement) {
   const mirrorRT = new THREE.WebGLRenderTarget(256, 80);
   mirrorRT.texture.wrapS = THREE.RepeatWrapping; mirrorRT.texture.repeat.x = -1; mirrorRT.texture.offset.x = 1;
   const mirrorCam = new THREE.PerspectiveCamera(30, 320 / 96, 0.3, 1500);
-  mirrorCam.position.set(0.36, 0.27, -0.6); mirrorCam.rotation.y = Math.PI; rig.add(mirrorCam);
+  mirrorCam.position.set(0.36, 0.22, -0.6); mirrorCam.rotation.y = Math.PI; rig.add(mirrorCam);
   CP.mirrorFaceMat.map = mirrorRT.texture; CP.mirrorFaceMat.needsUpdate = true;
+  // 사이드미러: 거울 자리에서 뒤쪽 바깥을 비스듬히 봄 (왼쪽 · 오른쪽)
+  const sideMirrors = ([[-1.06, -0.19, -0.98, Math.PI - 0.22], [1.8, -0.19, -0.98, Math.PI + 0.22]] as const).map(([x, y, z, ry], i) => {
+    const rt = new THREE.WebGLRenderTarget(160, 96);
+    rt.texture.wrapS = THREE.RepeatWrapping; rt.texture.repeat.x = -1; rt.texture.offset.x = 1;
+    const cam = new THREE.PerspectiveCamera(32, 0.17 / 0.1, 0.3, 1200); cam.position.set(x, y, z); cam.rotation.y = ry; rig.add(cam);
+    CP.sideMirrorMats[i].map = rt.texture; CP.sideMirrorMats[i].needsUpdate = true;
+    return { rt, cam };
+  });
   let mirFrame = 0;
 
   // 하늘빛 반사(환경광): 그늘진 면 · 차 뒷면도 하늘색을 받아 너무 어둡지 않게. 해가 꽤 움직였을 때만 다시 계산
@@ -52,7 +60,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
   }
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(W.scene, camera));
-  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.35, 0.35, 0.9);
+  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.3, 0.22, 0.92);
   composer.addPass(bloom); composer.addPass(new OutputPass());
 
   /* ---------- 주행 상태 ---------- */
@@ -162,7 +170,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
   /* ---------- 메인 루프 ---------- */
   let last = performance.now(), mmT = 0, hudT = 0, occT = 0, occluded = false, raf = 0;
   const ray = new THREE.Raycaster();
-  let crashT = 0, shake = 0;
+  let crashT = 0, shake = 0, phoneT = 0;
   let lastSport = false, fpsN = 0, fpsT = 0, fpsV = 0;
   const view = { x: 0, z: 0, init: false };                              // 카메라가 바라보는 수평 방향 (완충)
   const fwd = new THREE.Vector3(), sv = new THREE.Vector3(), tmp = new THREE.Vector3(), horizon = new THREE.Color();
@@ -338,15 +346,15 @@ export function createEngine(canvas: HTMLCanvasElement) {
     const Is = S.I;
     S.glareLv = Is > 0.5 ? 2 : Is > 0.22 ? 1 : 0;
     const sunMat = W.sunDisc.material as THREE.MeshBasicMaterial;
-    sunMat.color.setRGB(1, 0.95, 0.8).multiplyScalar(occluded ? 0.7 : 1.4 + 2.4 * Math.min(1, Is * 1.6));
+    sunMat.color.setRGB(1, 0.95, 0.8).multiplyScalar(occluded ? 0.7 : 1.25 + 1.6 * Math.min(1, Is * 1.6));
     const shadeOn = S.running && st.glass && S.glareLv >= 1 && onScreen && !blocked && S.cam === 'cockpit';
     const eff = shadeOn ? Is * 0.35 : Is;
     if (els.wash) els.wash.style.opacity = (eff * 0.32).toFixed(3);
     if (els.glare) els.glare.style.background = onScreen
-      ? `radial-gradient(circle at ${sxp}px ${syp}px, rgba(255,250,232,${(eff * 0.75).toFixed(2)}) 0, rgba(255,236,190,${(eff * 0.42).toFixed(2)}) 5vh, rgba(255,214,150,${(eff * 0.16).toFixed(2)}) 18vh, rgba(255,210,140,0) 42vh)`
+      ? `radial-gradient(circle at ${sxp}px ${syp}px, rgba(255,250,232,${(eff * 0.7).toFixed(2)}) 0, rgba(255,236,190,${(eff * 0.34).toFixed(2)}) 2.6vh, rgba(255,214,150,${(eff * 0.12).toFixed(2)}) 11vh, rgba(255,210,140,0) 30vh)`
       : 'none';
     if (els.shade) { els.shade.style.opacity = shadeOn ? '1' : '0'; els.shade.style.left = sxp + 'px'; els.shade.style.top = syp + 'px'; }
-    bloom.strength = (st.gfx === 'high' ? 0.32 : 0.24) + eff * 0.55;
+    bloom.strength = (st.gfx === 'high' ? 0.26 : 0.2) + eff * 0.4;
 
     // HUD
     const kmh = S.v * 3.6;
@@ -379,10 +387,33 @@ export function createEngine(canvas: HTMLCanvasElement) {
     } else if (gs.screen === 'menu') {
       S.s = (S.s + dt * 6) % TOTAL || kmToS(st.startKm);                    // 시작 화면 배경: 천천히 앞으로
     }
-    if (rig.visible && (mirFrame = (mirFrame + 1) % 3) === 0) {          // 백미러는 세 프레임에 한 번
+    // 폰: 오른손이 운전대에서 폰을 들어 눈앞으로 → 다 올라오면 화면 폰을 3D 폰 자리에 정확히 겹침
+    const phoneGoal = gs.phoneOpen ? 1 : 0;
+    phoneT = phoneGoal ? Math.min(1, phoneT + dt / 0.7) : Math.max(0, phoneT - dt / 0.6);
+    if (gs.phoneOpen) look_.recenter = true;                                // 폰을 볼 때는 정면으로
+    const inCab = S.running && S.cam === 'cockpit';
+    const anim = inCab && CP.holdPhone(phoneT);
+    if (!inCab) CP.holdPhone(0);
+    if (els.phone) {
+      const ps = els.phone.style;
+      if (anim) {
+        camera.updateMatrixWorld();
+        const r = CP.phoneRect(camera, innerWidth, innerHeight);
+        ps.left = `${r.cx}px`; ps.top = `${r.cy}px`; ps.setProperty('--k', String(r.hpx / 800));
+        ps.opacity = String(Math.max(0, Math.min(1, (phoneT - 0.82) / 0.18)));
+      } else {                                                             // 3인칭 · 손 모델 준비 전: 화면 가운데에 크게
+        ps.left = '50%'; ps.top = '50%';
+        ps.setProperty('--k', String(Math.min((innerHeight * 0.92) / 800, (innerWidth * 0.92) / 390, 1.35)));
+        ps.opacity = gs.phoneOpen ? '1' : '0';
+      }
+    }
+    if (els.phoneDim) els.phoneDim.style.opacity = String(anim ? Math.min(1, phoneT * 1.2) : gs.phoneOpen ? 1 : 0);
+    if (rig.visible) {                                                     // 거울 3개를 프레임마다 돌아가며 하나씩 (각각 세 프레임에 한 번)
+      mirFrame = (mirFrame + 1) % 3;
+      const [rt, cam] = mirFrame === 0 ? [mirrorRT, mirrorCam] : [sideMirrors[mirFrame - 1].rt, sideMirrors[mirFrame - 1].cam];
       CP.mirrorFaces.forEach(f => f.userData.v = f.visible); CP.mirrorFaces.forEach(f => f.visible = false);
       const au = renderer.shadowMap.autoUpdate; renderer.shadowMap.autoUpdate = false;
-      renderer.setRenderTarget(mirrorRT); renderer.render(W.scene, mirrorCam); renderer.setRenderTarget(null);
+      renderer.setRenderTarget(rt); renderer.render(W.scene, cam); renderer.setRenderTarget(null);
       renderer.shadowMap.autoUpdate = au; CP.mirrorFaces.forEach(f => f.visible = f.userData.v);
     }
     composer.render();
@@ -404,7 +435,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
       removeEventListener('resize', resize);
       canvas.removeEventListener('dblclick', onDbl); canvas.removeEventListener('pointerdown', onPDown); canvas.removeEventListener('pointermove', onPMove);
       canvas.removeEventListener('pointerup', onPUp); canvas.removeEventListener('pointercancel', onPUp);
-      W.dispose(); composer.dispose(); mirrorRT.dispose(); envRT?.dispose(); pmrem.dispose(); renderer.dispose();
+      W.dispose(); composer.dispose(); mirrorRT.dispose(); sideMirrors.forEach(m => m.rt.dispose()); envRT?.dispose(); pmrem.dispose(); renderer.dispose();
     },
   };
   (window as unknown as { __nunchi: unknown }).__nunchi = api;            // 시험용
