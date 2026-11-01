@@ -45,7 +45,12 @@ const TAN = P.map((_, i) => {
   return { x: (b.x - a.x) / l, z: (b.z - a.z) / l };
 });
 
-export const kmToS = (km: number) => km / D.total_km * TOTAL;   // 역 km → 도로 길이(m)
+let rawLen = 0;
+for (let i = 1; i < RAW.length; i++) rawLen += Math.hypot(RAW[i].x - RAW[i - 1].x, RAW[i].z - RAW[i - 1].z);
+/** 원래 선(다듬기 전) 위 거리 → 게임 도로 거리 (OSM 시설물 자리 맞출 때) */
+export const rawToS = (s: number) => s / rawLen * TOTAL;
+
+export const kmToS =(km: number) => km / D.total_km * TOTAL;   // 역 km → 도로 길이(m)
 export const sToKm = (s: number) => s / TOTAL * D.total_km;
 
 export interface RoadPoint { x: number; z: number; dx: number; dz: number }
