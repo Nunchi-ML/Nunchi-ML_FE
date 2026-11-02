@@ -41,10 +41,10 @@ jobs:
             echo "ok=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: steps.token.outputs.ok == 'true'
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         if: steps.token.outputs.ok == 'true'
         with:
           node-version: 20
@@ -73,13 +73,14 @@ jobs:
 
       - name: PR 에 미리보기 주소 댓글 (같은 댓글을 고쳐 씀)
         if: steps.token.outputs.ok == 'true' && github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         env:
           URL: ${{ steps.deploy.outputs.url }}
         with:
           script: |
             const mark = '<!-- vercel-preview -->';
-            const body = `${mark}\n🚀 **미리보기 배포**: ${process.env.URL}\n\n커밋 \`${context.sha.slice(0, 7)}\` 기준 · main 에 병합되면 https://nunchi-drive.vercel.app 에 자동 반영돼요.`;
+            const sha = context.payload.pull_request.head.sha;                  // context.sha 는 GitHub 이 만든 임시 병합 커밋이라 PR 커밋을 씀
+            const body = `${mark}\n🚀 **미리보기 배포**: ${process.env.URL}\n\n커밋 \`${sha.slice(0, 7)}\` 기준 · main 에 병합되면 https://nunchi-drive.vercel.app 에 자동 반영돼요.`;
             const { owner, repo } = context.repo, issue_number = context.issue.number;
             const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
             const old = comments.find(c => c.body?.includes(mark));
