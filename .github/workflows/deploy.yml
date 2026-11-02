@@ -1,0 +1,87 @@
+# Vercel 자동 배포
+# - main 에 병합(push)되면 → 운영 배포 (https://nunchi-drive.vercel.app)
+# - PR 을 열거나 커밋을 올리면 → 미리보기 배포 + PR 에 주소 댓글
+# 조직에 Vercel GitHub 앱이 없어서 Vercel CLI 로 직접 배포함. 저장소 비밀값 VERCEL_TOKEN 이 있어야 동작 (README 「자동 배포」 참고)
+name: Vercel 배포
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, reopened, synchronize]
+  workflow_dispatch:
+
+concurrency:
+  group: vercel-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  # 비밀이 아닌 연결 정보 (.vercel/project.json 과 같음)
+  VERCEL_ORG_ID: team_LoJw4PP4GNCM3IlL5gQVwaBX
+  VERCEL_PROJECT_ID: prj_BEG7iBient1IUUMTjuU0GNP9PHO8
+  TARGET: ${{ github.event_name == 'pull_request' && 'preview' || 'production' }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 토큰 확인
+        id: token
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::저장소 비밀값 VERCEL_TOKEN 이 없어 배포를 건너뜀 (README 「자동 배포」 참고)"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.token.outputs.ok == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.token.outputs.ok == 'true'
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Vercel CLI 설치
+        if: steps.token.outputs.ok == 'true'
+        run: npm install --global vercel@latest
+
+      - name: 프로젝트 설정 · 환경 변수 받기
+        if: steps.token.outputs.ok == 'true'
+        run: vercel pull --yes --environment=$TARGET --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: 빌드 (tsc 타입 검사 + vite build)
+        if: steps.token.outputs.ok == 'true'
+        run: vercel build $([ "$TARGET" = production ] && echo --prod) --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: 배포
+        id: deploy
+        if: steps.token.outputs.ok == 'true'
+        run: |
+          url=$(vercel deploy --prebuilt $([ "$TARGET" = production ] && echo --prod) --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "### 🚀 배포 완료 ($TARGET)" >> "$GITHUB_STEP_SUMMARY"
+          echo "$url" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: PR 에 미리보기 주소 댓글 (같은 댓글을 고쳐 씀)
+        if: steps.token.outputs.ok == 'true' && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          URL: ${{ steps.deploy.outputs.url }}
+        with:
+          script: |
+            const mark = '<!-- vercel-preview -->';
+            const body = `${mark}\n🚀 **미리보기 배포**: ${process.env.URL}\n\n커밋 \`${context.sha.slice(0, 7)}\` 기준 · main 에 병합되면 https://nunchi-drive.vercel.app 에 자동 반영돼요.`;
+            const { owner, repo } = context.repo, issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const old = comments.find(c => c.body?.includes(mark));
+            if (old) await github.rest.issues.updateComment({ owner, repo, comment_id: old.id, body });
+            else await github.rest.issues.createComment({ owner, repo, issue_number, body });

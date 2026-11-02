@@ -33,17 +33,6 @@ function roadTexture() {
   t.wrapS = THREE.ClampToEdgeWrapping; t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t;
 }
 
-/** 창문 한 칸 (가로 4 m · 층고 3.5 m) — 건물 크기에 맞춰 반복되게 셰이더에서 UV를 늘림 */
-function windowTexture() {
-  const t = canvasTex(64, 64, g => {
-    g.fillStyle = '#ffffff'; g.fillRect(0, 0, 64, 64);
-    g.fillStyle = '#9fa7ad'; g.fillRect(8, 12, 48, 38);          // 유리
-    g.fillStyle = '#c4ccd1'; g.fillRect(8, 12, 48, 6);           // 위쪽 반사
-    g.fillStyle = '#e6e1d8'; g.fillRect(31, 12, 2, 38);          // 창틀
-    g.fillStyle = '#d8d2c8'; g.fillRect(0, 54, 64, 4);           // 층 띠
-  });
-  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; return t;
-}
 
 function signTex(text: string, bg: string, fg: string, w = 512, h = 128) {
   return canvasTex(w, h, g => {
@@ -97,8 +86,7 @@ export function createWorld(): World {
   ribbon(scene, ROAD_W, 0.08, new THREE.MeshLambertMaterial({ map: roadTexture(), side: THREE.DoubleSide }));  // 차도
 
   /* ---------- 건물: OpenStreetMap 실제 건물 윤곽 · 층수 (없으면 용도별 추정) ---------- */
-  const winTex = windowTexture();
-  const city = buildCity(scene, winTex);
+  const city = buildCity(scene);
   const q = new THREE.Quaternion(), m4 = new THREE.Matrix4(), col = new THREE.Color(), up = new THREE.Vector3(0, 1, 0);
 
   /* ---------- 가로수 · 가로등 ---------- */

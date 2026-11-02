@@ -386,7 +386,8 @@ export function createCockpit(paint = 0xb2331f) {
     placeArm(liveArm, wristNow, ELBOW_WHEEL.clone().lerp(ELBOW_HOLD, e), SHOULDER);
     // 다 올라와 화면 폰이 겹치면 3D 폰 · 손 · 팔은 숨김 (폰 화면만 보이게 — 3D 폰 모서리가 검은 테두리로 비치지 않게)
     const showHand = t < 0.96;
-    phone3D.visible = e > 0.3 && showHand;                                    // 손가락이 펴진 뒤에 폰이 손에 잡힘 R.children.forEach(c => { if (c !== phone3D) c.visible = showHand; }); liveArm.forEach(o => o.visible = showHand);
+    phone3D.visible = e > 0.3 && showHand;                                    // 손가락이 펴진 뒤에 폰이 손에 잡힘
+    R.children.forEach(c => { if (c !== phone3D) c.visible = showHand; }); liveArm.forEach(o => o.visible = showHand);
     return true;
   };
   /** 3D 폰이 화면에 보이는 중심 · 높이 (px) — 화면 폰을 정확히 겹치는 데 씀 */
