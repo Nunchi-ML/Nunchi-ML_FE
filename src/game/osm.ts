@@ -5,7 +5,11 @@ import { at, rawToS } from './road';
 /** OpenStreetMap에서 뽑은 달구벌대로 주변 시설물 (scripts/fetch_osm.py 로 만듦) */
 export interface OsmPoint { x: number; z: number; s: number; off: number; name?: string; shelter?: string }
 /** 사거리: 달구벌대로 가장자리에서 바깥으로 뻗는 옆길 팔들 (실제 좌표 [x, z] 목록) */
-export interface OsmJunction { s: number; name: string; hw: string; lanes?: string; arms: [number, number][][] }
+export interface OsmJunction {
+  s: number; name: string; hw: string; lanes?: string; arms: [number, number][][];
+  an?: string[];                                                               // 팔마다 길 이름
+  to?: string[];                                                               // 팔마다 그쪽 700 m 앞 동네 (브이월드 주소 찾기)
+}
 export type OsmKind = 'signal' | 'crossing' | 'bus_stop' | 'subway' | 'lamp' | 'tree' | 'artwork';
 export const OSM = raw as unknown as Record<OsmKind, OsmPoint[]> & { junction: OsmJunction[] };
 

@@ -142,7 +142,7 @@ def main():
             name = t.get('name', '')
             if '달구벌대로' in name: continue
             r = arms_of([xz(p['lon'], p['lat']) for p in e.get('geometry', [])])
-            if r: out['junction'].append({'s': round(r[0], 1), 'name': name, 'hw': t.get('highway'), 'lanes': t.get('lanes'), 'arms': r[1]})
+            if r: out['junction'].append({'s': round(r[0], 1), 'name': name, 'hw': t.get('highway'), 'lanes': t.get('lanes'), 'arms': r[1], 'an': [name] * len(r[1])})   # an: 팔마다 길 이름
             continue
         if e['type'] == 'node': pts = [(e['lon'], e['lat'])]
         elif k == 'tree':  pts = [(p['lon'], p['lat']) for p in e.get('geometry', [])]          # 가로수 줄 → 꼭짓점마다 한 그루
@@ -161,7 +161,7 @@ def main():
     for j in js:
         m = merged[-1] if merged else None
         if m and j['s'] - m['s'] < 30:
-            m['arms'] += j['arms']
+            m['arms'] += j['arms']; m['an'] += j['an']
             if RANK.get(j['hw'], 0) > RANK.get(m['hw'], 0): m.update(hw=j['hw'], lanes=j['lanes'], name=j['name'] or m['name'])
             elif not m['name']: m['name'] = j['name']
             continue

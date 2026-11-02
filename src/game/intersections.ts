@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ROAD_W, at, rawToS } from './road';
+import { D, ROAD_W, TOTAL, at, kmToS, rawToS, stationLabel } from './road';
 import { OSM, type OsmJunction } from './osm';
 
 /**
@@ -209,4 +209,131 @@ export function buildIntersections(scene: THREE.Scene) {
     const Z = new THREE.Vector3(dir * f.dx, 0, dir * f.dz);
     return place(f.x, f.z, new THREE.Vector3().crossVectors(UP, Z), Z);
   }));
+
+  buildStreetFurniture(scene, metal);
+}
+
+/**
+ * 거리 구조물: 큰 사거리 앞 도로 안내 표지(파란 방향판) · 횡단보도 옆 보행자 울타리 · 볼라드 ·
+ * 보도의 휴지통 · 분전함 · 소화전. 같은 종류는 묶어서 한 번에 그림.
+ */
+function buildStreetFurniture(scene: THREE.Scene, metal: THREE.Material) {
+  /* ---------- 도로 안내 표지: 큰 사거리(2차로급 이상) 45 m 앞, 다가오는 차를 마주봄 ---------- */
+  const SIGNS = JUNCS.filter(j => j.rank >= 3);
+  const stS = D.stations.map(st => ({ s: kmToS(st.km), name: stationLabel(st.name) }));
+  const nextStation = (s: number, dir: number) => {                              // dir 방향으로 이 사거리를 지나 처음 나오는 역
+    const ahead = stS.filter(t => (t.s - s) * dir > 60).sort((a, b) => (a.s - b.s) * dir);
+    return ahead[0]?.name ?? '시내';
+  };
+  const CW = 512, CH = 160, COLS = 4, cells: { s: number; sd: number; i: number }[] = [];
+  SIGNS.forEach(j => [-1, 1].forEach(sd => cells.push({ s: j.s, sd, i: cells.length })));
+  const rows = Math.max(1, Math.ceil(cells.length / COLS));
+  /** 다가오는 차에서 봐서 왼쪽 · 오른쪽 옆길: 큰 글씨 = 그쪽 동네, 작은 글씨 = 길 이름 (양쪽 동네가 같으면 길 이름을 크게) */
+  const sides = (j: Junc, s: number, sd: number) => {
+    const f = frame(s), rx = sd * f.rx, rz = sd * f.rz;                           // 진행 방향의 오른쪽
+    const pick = (want: number) => {
+      const i = j.src.arms.findIndex(a => Math.sign((a[a.length - 1][0] - a[0][0]) * rx + (a[a.length - 1][1] - a[0][1]) * rz) === want);
+      return i < 0 ? null : { to: j.src.to?.[i] || '', road: (j.src.an?.[i] || j.src.name || '').replace(/^.*[ ·]/, '') };
+    };
+    const L = pick(-1), R = pick(1), same = !!(L && R && L.to && L.to === R.to);
+    const label = (a: { to: string; road: string } | null) => a && { big: (same ? a.road : a.to) || a.road || a.to, small: same ? a.to : a.road };
+    return { L: label(L), R: label(R) };
+  };
+  const tex = canvasTex(CW * COLS, CH * rows, g => {
+    cells.forEach(({ s, sd, i }) => {
+      const j = SIGNS[Math.floor(i / 2)], x = (i % COLS) * CW, y = Math.floor(i / COLS) * CH;
+      g.fillStyle = '#1554a8'; g.fillRect(x, y, CW, CH);                          // 한국 일반도로 안내 표지: 파란 바탕 · 흰 글씨 · 흰 테두리
+      g.strokeStyle = '#fff'; g.lineWidth = 5; g.strokeRect(x + 6, y + 6, CW - 12, CH - 12);
+      g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      const fit = (t: string, cx: number, cy: number, w: number, px: number) => { g.font = `900 ${px}px "Noto Sans KR", sans-serif`; const m = g.measureText(t).width; if (m > w) g.font = `900 ${px * w / m}px "Noto Sans KR", sans-serif`; g.fillText(t, cx, cy); };
+      fit(nextStation(s, sd), x + CW / 2, y + 50, 200, 40);                       // 직진: 다음 역
+      g.beginPath(); g.moveTo(x + CW / 2, y + 140); g.lineTo(x + CW / 2, y + 86); g.lineWidth = 9; g.stroke();   // ↑ 화살표
+      g.beginPath(); g.moveTo(x + CW / 2 - 16, y + 96); g.lineTo(x + CW / 2, y + 76); g.lineTo(x + CW / 2 + 16, y + 96); g.fill();
+      const { L, R } = sides(j, s, sd);
+      for (const [a, cx, arrow] of [[L, x + 92, '←'], [R, x + CW - 92, '→']] as const) {
+        if (!a) continue;                                                         // 그쪽 옆길이 없으면 (T자) 비움
+        fit(a.big, cx, y + 58, 150, 34);
+        if (a.small && a.small !== a.big) { g.globalAlpha = 0.85; fit(a.small, cx, y + 92, 140, 20); g.globalAlpha = 1; }
+        g.font = '900 40px sans-serif'; g.fillText(arrow, cx, y + 124);
+      }
+    });
+  });
+  const signMat = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, side: THREE.DoubleSide });
+  const face: number[] = [], uvs: number[] = [], idx: number[] = [];
+  const gantries: THREE.Matrix4[] = [];
+  cells.forEach(({ s, sd, i }) => {
+    const j = SIGNS[Math.floor(i / 2)], sAt = s - sd * (j.w / 2 + 45);           // 사거리 45 m 앞 (그쪽 차로가 다가오는 쪽)
+    const post = frame(sAt, sd * (HALF + 1.6));
+    gantries.push(place(post.x, post.z, new THREE.Vector3(-sd * post.rx, 0, -sd * post.rz), new THREE.Vector3(sd * post.dx, 0, sd * post.dz)));
+    // 표지판 면: 차로 위 (중심선 쪽 2 m ~ 가장자리 13 m), 높이 5.6 ~ 8.4 m
+    const a = frame(sAt, sd * 2.2), b = frame(sAt, sd * 12.2), y0 = 5.6, y1 = 8.4, base = face.length / 3;
+    const [L, R] = [a, b];                                                        // 다가오는 차에서 봐서 왼쪽(중앙선 쪽) · 오른쪽(길가 쪽)
+    face.push(L.x, y0, L.z, L.x, y1, L.z, R.x, y0, R.z, R.x, y1, R.z);
+    const u0 = (i % COLS) / COLS, u1 = u0 + 1 / COLS, v1 = 1 - Math.floor(i / COLS) / rows, v0 = v1 - 1 / rows;
+    uvs.push(u0, v0, u0, v1, u1, v0, u1, v1); idx.push(base, base + 2, base + 1, base + 2, base + 3, base + 1);
+  });
+  if (cells.length) {
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(face, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2)); g.setIndex(idx);
+    scene.add(new THREE.Mesh(g, signMat));
+  }
+  const back = new THREE.MeshStandardMaterial({ color: 0x8d949a, metalness: 0.5, roughness: 0.5 });
+  stamp(scene, [
+    [new THREE.CylinderGeometry(0.22, 0.28, 9, 12), metal, at3(0, 4.5, 0), true],                  // 기둥
+    [new THREE.BoxGeometry(14.2, 0.35, 0.35), metal, at3(7.1, 8.7, 0.1)],                          // 팔 (차로 위로)
+    [new THREE.BoxGeometry(14.2, 0.25, 0.25), metal, at3(7.1, 6.0, 0.1)],
+    [new THREE.BoxGeometry(10.2, 2.9, 0.12), back, at3(9.4, 7.0, 0.12)],                           // 표지판 뒷판 (면과 같은 자리, 차 쪽에서 봐서 뒤)
+  ], gantries);
+
+  /* ---------- 횡단보도 옆 보행자 울타리 · 볼라드 ---------- */
+  const fences: THREE.Matrix4[] = [], bollards: THREE.Matrix4[] = [];
+  const along = (s: number, lat: number) => { const f = frame(s, lat); return place(f.x, f.z, new THREE.Vector3(f.dx, 0, f.dz), new THREE.Vector3(f.rx, 0, f.rz)); };   // x = 도로 방향 (오른손 좌표)
+  const zebraS: number[] = [];
+  BIG.forEach(j => [-1, 1].forEach(e => zebraS.push(j.s + e * (j.w / 2 + 3))));
+  MIDBLOCK.forEach(c => zebraS.push(c.s));
+  zebraS.forEach(zs => {
+    for (const sd of [-1, 1]) {
+      for (const k of [-1, 0, 1]) bollards.push(along(zs + k * 1.6, sd * (HALF + 0.7)));          // 횡단보도 끝 볼라드 3개
+      for (const dir of [-1, 1]) for (let n = 0; n < 6; n++) {                                     // 양옆으로 울타리 15 m
+        const s = zs + dir * (4 + 1.25 + n * 2.5);
+        if (STOPS.some(b => b.sd === sd && Math.abs(b.s - s) < 5) || BIG.some(j => Math.abs(j.s - s) < j.w / 2 + 1)) continue;
+        fences.push(along(s, sd * (HALF + 0.55)));
+      }
+    }
+  });
+  const white = new THREE.MeshStandardMaterial({ color: 0xe9ece8, roughness: 0.5, metalness: 0.3 });
+  const fenceKit: Part[] = [
+    [new THREE.BoxGeometry(2.5, 0.07, 0.07), white, at3(0, 1.0, 0)], [new THREE.BoxGeometry(2.5, 0.05, 0.05), white, at3(0, 0.18, 0)],
+    [new THREE.BoxGeometry(0.08, 1.05, 0.08), white, at3(-1.25, 0.52, 0)],
+    [new THREE.BoxGeometry(2.3, 0.62, 0.02), new THREE.MeshStandardMaterial({ color: 0x9fbf3a, roughness: 0.6, transparent: true, opacity: 0.85 }), at3(0, 0.58, 0)],   // 연두 판
+  ];
+  stamp(scene, fenceKit, fences);
+  stamp(scene, [
+    [new THREE.CylinderGeometry(0.11, 0.13, 0.85, 10), new THREE.MeshStandardMaterial({ color: 0x4a4f54, roughness: 0.5 }), at3(0, 0.42, 0), true],
+    [new THREE.CylinderGeometry(0.115, 0.115, 0.1, 10), new THREE.MeshStandardMaterial({ color: 0xffd23f, emissive: 0x332600 }), at3(0, 0.72, 0)],   // 반사띠
+  ], bollards);
+
+  /* ---------- 보도 소품: 휴지통 · 분전함 · 소화전 (사거리 · 정류장 자리는 비움) ---------- */
+  const bins: THREE.Matrix4[] = [], boxes: THREE.Matrix4[] = [], hydrants: THREE.Matrix4[] = [];
+  let n = 0;
+  for (let s = 40; s < TOTAL; s += 37) {
+    if (nearCrossing(s, 6)) continue;
+    const sd = n % 2 ? 1 : -1, kind = n % 5; n++;
+    if (kind === 0 || kind === 3) bins.push(along(s, sd * (HALF + 1.4)));
+    else if (kind === 1) boxes.push(along(s, sd * (HALF + 6.2)));
+    else if (kind === 2) hydrants.push(along(s, sd * (HALF + 0.9)));
+  }
+  stamp(scene, [
+    [new THREE.CylinderGeometry(0.28, 0.24, 0.9, 12), new THREE.MeshStandardMaterial({ color: 0x2f5d3a, roughness: 0.6 }), at3(0, 0.45, 0), true],
+    [new THREE.CylinderGeometry(0.3, 0.3, 0.08, 12), metal, at3(0, 0.93, 0)],
+  ], bins);
+  stamp(scene, [
+    [new THREE.BoxGeometry(0.9, 1.4, 0.5), new THREE.MeshStandardMaterial({ color: 0xa9adaa, roughness: 0.7, metalness: 0.2 }), at3(0, 0.7, 0), true],
+    [new THREE.BoxGeometry(0.96, 0.06, 0.56), metal, at3(0, 1.42, 0)],
+  ], boxes);
+  const red = new THREE.MeshStandardMaterial({ color: 0xc8261e, roughness: 0.45 });
+  stamp(scene, [
+    [new THREE.CylinderGeometry(0.13, 0.16, 0.75, 10), red, at3(0, 0.37, 0), true],
+    [new THREE.SphereGeometry(0.15, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), red, at3(0, 0.75, 0)],
+    [new THREE.CylinderGeometry(0.06, 0.06, 0.4, 8), red, at3(0, 0.5, 0, 0, 0).multiply(new THREE.Matrix4().makeRotationZ(Math.PI / 2))],
+  ], hydrants);
 }
