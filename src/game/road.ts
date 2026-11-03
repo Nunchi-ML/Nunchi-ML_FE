@@ -56,7 +56,11 @@ export const sToKm = (s: number) => s / TOTAL * D.total_km;
 export interface RoadPoint { x: number; z: number; dx: number; dz: number }
 /** 도로 위 s(m) 지점의 위치와 진행 방향(이정 증가 쪽) */
 export function at(s: number): RoadPoint {
-  s = Math.max(0, Math.min(TOTAL - 0.01, s));
+  // 도로 밖 시야·교통 차량은 끝점 접선을 따라 이어진다. 끝점 한 점에 쌓지 않는다.
+  if (s < 0 || s >= TOTAL) {
+    const i = s < 0 ? 0 : P.length - 1, extra = s < 0 ? s : s - TOTAL;
+    return { x: P[i].x + TAN[i].x * extra, z: P[i].z + TAN[i].z * extra, dx: TAN[i].x, dz: TAN[i].z };
+  }
   let lo = 0, hi = CUM.length - 1;
   while (hi - lo > 1) { const m = (lo + hi) >> 1; if (CUM[m] <= s) lo = m; else hi = m; }
   const t = (s - CUM[lo]) / (CUM[hi] - CUM[lo]);
@@ -66,8 +70,12 @@ export function at(s: number): RoadPoint {
 }
 
 export const ROAD_W = 30;
+export const LANE_COUNT = 4;
+export const LANE_WIDTH = 3.5;
+export const ROAD_EXTENSION = 6000;
+export const LANE_BOUNDARIES = [LANE_WIDTH, LANE_WIDTH * 2, LANE_WIDTH * 3];
 /** 진행 방향 오른쪽 차로 중심 (중앙선 기준, m) */
-export const laneOffset = (lane: number) => 1.75 + lane * 3.3;
+export const laneOffset = (lane: number) => (lane + .5) * LANE_WIDTH;
 
 export const nearestStation = (km: number) =>
   D.stations.reduce((a, b) => Math.abs(b.km - km) < Math.abs(a.km - km) ? b : a);

@@ -1,7 +1,8 @@
 import * as THREE from 'three';
+import { alloyWheel, sculptedBody } from './vehicleGeometry';
 
 /** 차 한 대. 모델은 +z가 앞쪽, 바닥이 y = 0 */
-export interface Vehicle { m: THREE.Group; kind: Kind; len: number; s: number; lane: number; x: number; v: number; want: number; brakeMat: THREE.MeshStandardMaterial }
+export interface Vehicle { m: THREE.Group; kind: Kind; len: number; s: number; lane: number; x: number; v: number; want: number; brakeMat: THREE.MeshStandardMaterial; wheels: THREE.Group[]; wheelRadius: number }
 type Kind = 'sedan' | 'suv' | 'bus';
 
 /** 옆모습 윤곽(z, y)을 폭만큼 밀어낸 몸체 — 상자보다 차처럼 보이게 */
@@ -50,8 +51,8 @@ const SPECS: Record<Kind, Spec> = {
   },
 };
 
-interface Shared { body: THREE.BufferGeometry; glass: THREE.BufferGeometry; wheel: THREE.BufferGeometry; light: THREE.BufferGeometry; rim: THREE.BufferGeometry; win: THREE.BufferGeometry[]; arch: THREE.BufferGeometry }
-const glassMat = new THREE.MeshPhysicalMaterial({ color: 0x141a20, roughness: 0.06, metalness: 0.2, clearcoat: 1, clearcoatRoughness: 0.05 });
+interface Shared { upper: THREE.BufferGeometry | null; body: THREE.BufferGeometry; glass: THREE.BufferGeometry; wheel: THREE.BufferGeometry; light: THREE.BufferGeometry; rim: THREE.BufferGeometry; win: THREE.BufferGeometry[]; arch: THREE.BufferGeometry }
+const glassMat = new THREE.MeshPhysicalMaterial({ color: 0x344b5b, roughness: 0.13, metalness: 0.42, clearcoat: 1, clearcoatRoughness: 0.09, envMapIntensity: 0.8 });
 const trimMat = new THREE.MeshStandardMaterial({ color: 0x141312, roughness: 0.6 });
 const chromeMat = new THREE.MeshStandardMaterial({ color: 0xd9dcdf, roughness: 0.2, metalness: 0.9 });
 const plateMat = (() => {                                                       // 번호판
@@ -61,34 +62,36 @@ const plateMat = (() => {                                                       
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return new THREE.MeshStandardMaterial({ map: t, roughness: 0.5 });
 })();
 const tireMat = new THREE.MeshStandardMaterial({ color: 0x161412, roughness: 0.9 });
-const rimMat = new THREE.MeshStandardMaterial({ color: 0xbfc3c6, roughness: 0.3, metalness: 0.7 });
+const rimMat = new THREE.MeshStandardMaterial({ color: 0xd0d4da, roughness: 0.23, metalness: 0.85 });
 const headMat = new THREE.MeshPhysicalMaterial({ color: 0xf6f4ee, emissive: 0xfff0c8, emissiveIntensity: 0.45, roughness: 0.05, clearcoat: 1 });
 
 export function createVehicles(scene: THREE.Scene, rand: () => number) {
   const shared = {} as Record<Kind, Shared>;
   (Object.keys(SPECS) as Kind[]).forEach(k => {
     const sp = SPECS[k];
-    const wheel = new THREE.CylinderGeometry(sp.wheelR, sp.wheelR, 0.26, 16); wheel.rotateZ(Math.PI / 2);
+    const wheel = new THREE.CylinderGeometry(sp.wheelR, sp.wheelR, 0.26, 24); wheel.rotateZ(Math.PI / 2);
     shared[k] = {
-      body: k === 'bus' ? profileGeo(sp.body, sp.w, 0.08, 1) : profileGeo(sp.body, sp.w, 0.1, 2),
+      upper: k === 'bus' ? profileGeo(sp.body.map(([z, y]) => [z, Math.max(1.08, y)] as [number, number]), sp.w, .08, 1) : null,
+      body: sculptedBody(sp.len, sp.w, k === 'bus' ? .35 : k === 'suv' ? .34 : .28, k === 'bus' ? 1.16 : k === 'suv' ? 1.08 : .9, sp.wheelZ, sp.wheelR),
       glass: k === 'bus' ? profileGeo(sp.glass, sp.w + 0.02, 0.01) : profileGeo(sp.glass, sp.w * 0.88, 0.05, 2),
       wheel, light: new THREE.BoxGeometry(0.42, 0.14, 0.06),
-      rim: new THREE.CylinderGeometry(sp.wheelR * 0.68, sp.wheelR * 0.68, 0.02, 18).rotateZ(Math.PI / 2),
+      rim: alloyWheel(sp.wheelR),
       // 승용차: 옆창(안쪽으로 줄인 윤곽) · 앞유리 · 뒷유리 — 캐빈 자체는 차체색
       win: k === 'bus' ? [] : [
         profileGeo(inset(sp.glass, 0.07), sp.w * 0.88 + 0.014, 0.01, 2),
         paneGeo(sp.glass[0], sp.glass[1], sp.w * 0.88 - 0.16),
         paneGeo(sp.glass[2], sp.glass[3], sp.w * 0.88 - 0.16),
       ],
-      arch: new THREE.TorusGeometry(sp.wheelR + 0.07, 0.04, 6, 18, Math.PI).rotateY(Math.PI / 2),
+      arch: new THREE.TorusGeometry(sp.wheelR + .065, .022, 6, 24, Math.PI).rotateY(Math.PI / 2),
     };
   });
 
   const make = (kind: Kind, color: number): Vehicle => {
     const sp = SPECS[kind], sh = shared[kind], g = new THREE.Group();
-    const paint = new THREE.MeshPhysicalMaterial({ color, roughness: 0.32, metalness: 0.35, clearcoat: 1, clearcoatRoughness: 0.06 });
+    const paint = new THREE.MeshPhysicalMaterial({ color, roughness: 0.25, metalness: 0.55, clearcoat: 0.85, clearcoatRoughness: 0.1, envMapIntensity: 0.9 });
     const body = new THREE.Mesh(sh.body, paint); body.castShadow = true; body.receiveShadow = true;
     const glass = new THREE.Group();                                             // 캐빈(지붕 · 기둥) + 창문 — 내 차는 통째로 숨김
+    if (sh.upper) { const upper = new THREE.Mesh(sh.upper, paint); upper.castShadow = true; glass.add(upper); }
     const cabin = new THREE.Mesh(sh.glass, kind === 'bus' ? glassMat : paint); cabin.castShadow = true; glass.add(cabin);
     for (const w of sh.win) glass.add(new THREE.Mesh(w, glassMat));
     if (kind !== 'bus') {                                                          // B필러 (검은색)
@@ -97,11 +100,13 @@ export function createVehicles(scene: THREE.Scene, rand: () => number) {
       bp.position.set(0, (top + bot) / 2, gl[1][0] * 0.35 + gl[2][0] * 0.65); glass.add(bp);
     }
     g.add(body, glass);
+    const wheels: THREE.Group[] = [];
     for (const z of sp.wheelZ) for (const sx of [-1, 1]) {
-      const w = new THREE.Mesh(sh.wheel, tireMat); w.position.set(sx * (sp.w / 2 - 0.12), sp.wheelR, z); g.add(w);
-      const ar = new THREE.Mesh(sh.arch, trimMat); ar.position.set(sx * (sp.w / 2 + 0.005), sp.wheelR, z); g.add(ar);   // 휠 아치
-      const r = new THREE.Mesh(sh.rim, rimMat); r.position.set(sx * (sp.w / 2 - 0.12 + 0.135), sp.wheelR, z); g.add(r);   // 휠
-      for (let k = 0; k < 5; k++) { const sp5 = new THREE.Mesh(new THREE.BoxGeometry(0.012, sp.wheelR * 1.2, 0.05), chromeMat); sp5.position.copy(r.position).x += sx * 0.012; sp5.rotation.x = k * Math.PI * 2 / 5; g.add(sp5); }   // 휠 살
+      const wheel = new THREE.Group(); wheel.position.set(sx * (sp.w / 2 - 0.12), sp.wheelR, z);
+      const tire = new THREE.Mesh(sh.wheel, tireMat); tire.castShadow = true; wheel.add(tire);
+      const rim = new THREE.Mesh(sh.rim, rimMat); rim.position.x = sx * .14; wheel.add(rim);
+      g.add(wheel); wheels.push(wheel);
+      const arch = new THREE.Mesh(sh.arch, trimMat); arch.position.set(sx * (sp.w / 2 + 0.005), sp.wheelR, z); g.add(arch);
     }
     const brakeMat = new THREE.MeshStandardMaterial({ color: 0x5a0d08, emissive: 0xff2a10, emissiveIntensity: 0.5 });
     const part = (geo: THREE.BufferGeometry, m: THREE.Material, x: number, y: number, z: number) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); g.add(o); return o; };
@@ -125,7 +130,7 @@ export function createVehicles(scene: THREE.Scene, rand: () => number) {
     part(new THREE.PlaneGeometry(0.52, 0.12), plateMat, 0, 0.5, fz + 0.04);                                     // 앞 번호판
     part(new THREE.PlaneGeometry(0.52, 0.12), plateMat, 0, sp.lightY - 0.12, -fz - 0.04).rotation.y = Math.PI; // 뒤 번호판
     scene.add(g);
-    return { m: g, kind, len: sp.len, s: 0, lane: 0, x: 0, v: 0, want: 0, brakeMat };
+    return { m: g, kind, len: sp.len, s: 0, lane: 0, x: 0, v: 0, want: 0, brakeMat, wheels, wheelRadius: sp.wheelR };
   };
 
   const me = make('sedan', 0xf2522e);
@@ -139,7 +144,7 @@ export function createVehicles(scene: THREE.Scene, rand: () => number) {
   return {
     me, softTop, traffic,
     dispose: () => {
-      (Object.values(shared)).forEach(s => { s.body.dispose(); s.glass.dispose(); s.wheel.dispose(); s.light.dispose(); s.rim.dispose(); s.arch.dispose(); s.win.forEach(w => w.dispose()); });
+      (Object.values(shared)).forEach(s => { s.body.dispose(); s.upper?.dispose(); s.glass.dispose(); s.wheel.dispose(); s.light.dispose(); s.rim.dispose(); s.arch.dispose(); s.win.forEach(w => w.dispose()); });
     },
   };
 }
@@ -155,7 +160,7 @@ function addSoftTop(me: Vehicle) {
   g.children[1].visible = false;                                                 // 세단 통유리는 쓰지 않음
   const bodyMesh = g.children[0] as THREE.Mesh, paint = bodyMesh.material as THREE.Material;
   // 낮고 긴 보닛 · 짧은 트렁크의 쐐기형 몸체 (벨트라인 0.86 m)
-  bodyMesh.geometry = profileGeo([[-2.25, 0.3], [2.25, 0.3], [2.32, 0.5], [2.22, 0.68], [1.0, 0.8], [0.9, 0.84], [-1.6, 0.87], [-2.18, 0.82], [-2.3, 0.62]], W, 0.1);
+  bodyMesh.geometry = sculptedBody(4.6, W, .3, .86, [1.38, -1.4], .33, { start: -1.25, end: .75, floor: .48 });
   const dark = new THREE.MeshStandardMaterial({ color: 0x151313, roughness: 0.75 });
   const leather = new THREE.MeshStandardMaterial({ color: 0xb98c5e, roughness: 0.55 });
   const canvas = new THREE.MeshStandardMaterial({ color: 0x1e1d21, roughness: 0.95 });
@@ -167,27 +172,36 @@ function addSoftTop(me: Vehicle) {
     const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.rotation.x = rx; o.castShadow = true; o.receiveShadow = true; parent.add(o); return o;
   };
   // 실내: 트인 객실 · 대시보드 · 좌석 · 운전대 · 운전자 (왼쪽 운전석 = 차 기준 +x)
-  add(new THREE.BoxGeometry(1.56, 0.02, 2.0), dark, 0, 0.875, -0.4);
+  add(new THREE.BoxGeometry(1.4, .025, 1.75), dark, 0, .49, -.28);
+  add(new THREE.BoxGeometry(.18, .18, 1.0), dark, 0, .61, -.3);
   add(new THREE.BoxGeometry(1.56, 0.12, 0.34), dark, 0, 0.93, 0.62);
   for (const x of [-0.4, 0.4]) {
-    add(new THREE.BoxGeometry(0.48, 0.5, 0.1), leather, x, 1.08, -0.82, -0.2);
-    add(new THREE.BoxGeometry(0.26, 0.16, 0.08), leather, x, 1.4, -0.9, -0.2);
+    add(new THREE.BoxGeometry(.5, .12, .55), leather, x, .68, -.5);
+    add(new THREE.BoxGeometry(0.48, 0.5, 0.1), leather, x, 1.02, -0.82, -0.2);
+    add(new THREE.BoxGeometry(0.26, 0.16, 0.08), leather, x, 1.3, -0.9, -0.2);
   }
   const sw = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.02, 8, 24), dark);
-  sw.position.set(0.4, 1.06, 0.22); sw.rotation.x = -1.0; g.add(sw);
+  sw.position.set(0.4, 1.0, -.03); sw.rotation.x = -1.0; g.add(sw);
   // 운전자: 시트에 기대 앉아 어깨가 문 위로 나오고, 두 팔이 운전대를 잡음
-  const torso = add(new THREE.CapsuleGeometry(0.16, 0.22, 6, 12), shirt, 0.4, 1.04, -0.6, -0.2); torso.scale.set(1.15, 1, 0.75);
-  add(new THREE.CylinderGeometry(0.045, 0.05, 0.08, 10), skin, 0.4, 1.27, -0.64);                       // 목
-  add(new THREE.SphereGeometry(0.105, 18, 14), skin, 0.4, 1.38, -0.62);                                 // 머리
-  add(new THREE.SphereGeometry(0.11, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.55), dark, 0.4, 1.4, -0.635); // 머리카락
+  const torso = add(new THREE.CapsuleGeometry(.15, .2, 6, 12), shirt, 0.4, 1.04, -0.6, -0.2); torso.scale.set(1.15, 1, 0.75);
+  add(new THREE.CylinderGeometry(0.045, 0.05, 0.08, 10), skin, 0.4, 1.26, -0.64);                       // 목
+  add(new THREE.SphereGeometry(0.105, 18, 14), skin, 0.4, 1.35, -0.62);                                 // 머리
+  add(new THREE.SphereGeometry(0.11, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.55), dark, 0.4, 1.37, -0.635); // 머리카락
   for (const sx of [-1, 1]) {                                                                             // 어깨 → 팔꿈치 → 손
-    const sh = new THREE.Vector3(0.4 + sx * 0.19, 1.17, -0.6), el = new THREE.Vector3(0.4 + sx * 0.24, 0.98, -0.25), hand = new THREE.Vector3(0.4 + sx * 0.15, 1.06, 0.2);
+    const sh = new THREE.Vector3(0.4 + sx * 0.18, 1.16, -0.6), el = new THREE.Vector3(0.4 + sx * 0.23, .94, -.34), hand = new THREE.Vector3(0.4 + sx * 0.14, 1.0, -.03);
     const parts: [THREE.Vector3, THREE.Vector3, number, THREE.Material][] = [[sh, el, 0.055, shirt], [el, hand, 0.045, skin]];
     for (const [a, b, rad, m] of parts) {
       const len = a.distanceTo(b), arm = new THREE.Mesh(new THREE.CapsuleGeometry(rad, len, 4, 8), m);
       arm.position.copy(a).add(b).multiplyScalar(0.5); arm.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
       arm.castShadow = true; g.add(arm);
     }
+  }
+  const trousers = new THREE.MeshStandardMaterial({ color: 0x273340, roughness: .9 });
+  for (const side of [-1, 1]) {
+    const x = .4 + side * .105;
+    add(new THREE.BoxGeometry(.15, .12, .38), trousers, x, .78, -.29, -.08);
+    add(new THREE.CapsuleGeometry(.055, .17, 4, 8), trousers, x, .65, -.1, -.15);
+    add(new THREE.BoxGeometry(.14, .08, .24), dark, x, .54, -.02);
   }
   // 문 위 몰딩 · 좌석 뒤 차체색 혹 (로드스터 느낌)
   for (const x of [-0.9, 0.9]) add(new THREE.BoxGeometry(0.05, 0.03, 2.0), dark, x, 0.88, -0.4);

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
-import { D, ROAD_W, TOTAL, at, kmToS, stationLabel } from './road';
+import { D, ROAD_W, TOTAL, ROAD_EXTENSION, LANE_BOUNDARIES, LANE_WIDTH, LANE_COUNT, at, kmToS, stationLabel } from './road';
 import { createVehicles, type Vehicle } from './vehicles';
 import { buildCity } from './city';
 import { buildIntersections, nearCrossing } from './intersections';
@@ -24,11 +24,17 @@ function roadTexture() {
   const t = canvasTex(512, 256, g => {
     g.fillStyle = '#56504b'; g.fillRect(0, 0, 512, 256);
     for (let i = 0; i < 2600; i++) { g.fillStyle = `rgba(${Math.random() < .5 ? '255,255,255' : '0,0,0'},${Math.random() * .05})`; g.fillRect(Math.random() * 512, Math.random() * 256, 2, 2); }
-    const lane = 512 / 9;
+    const pixel = (offset: number) => (offset / ROAD_W + .5) * 512;
+    const paintWidth = .12 / ROAD_W * 512;
     g.fillStyle = '#e8dfc8';
-    for (const k of [1, 2, 3, 6, 7, 8]) { const x = k * lane - 2; for (let y = 0; y < 256; y += 128) g.fillRect(x, y, 4, 64); }
-    g.fillStyle = '#f0c040'; g.fillRect(256 - 7, 0, 4, 256); g.fillRect(256 + 3, 0, 4, 256);
-    g.fillStyle = '#ddd4c2'; g.fillRect(0, 0, 6, 256); g.fillRect(506, 0, 6, 256);
+    for (const offset of LANE_BOUNDARIES) for (const side of [-1, 1]) {
+      const x = pixel(side * offset) - paintWidth / 2;
+      for (let y = 0; y < 256; y += 128) g.fillRect(x, y, paintWidth, 64);
+    }
+    g.fillStyle = '#f0c040';
+    for (const side of [-1, 1]) g.fillRect(pixel(side * .15) - paintWidth / 2, 0, paintWidth, 256);
+    g.fillStyle = '#ddd4c2';
+    for (const side of [-1, 1]) g.fillRect(pixel(side * LANE_WIDTH * LANE_COUNT) - paintWidth / 2, 0, paintWidth, 256);
   });
   t.wrapS = THREE.ClampToEdgeWrapping; t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t;
 }
@@ -44,7 +50,7 @@ function signTex(text: string, bg: string, fg: string, w = 512, h = 128) {
 function ribbon(scene: THREE.Scene, width: number, y: number, mat: THREE.Material, step = 10) {
   const pos: number[] = [], uv: number[] = [], idx: number[] = [];
   let n = 0;
-  for (let s = 0; s <= TOTAL; s += step) {
+  for (let s = -ROAD_EXTENSION; s <= TOTAL + ROAD_EXTENSION + step; s += step) {
     const p = at(s), rx = -p.dz, rz = p.dx;
     pos.push(p.x - rx * width / 2, y, p.z - rz * width / 2, p.x + rx * width / 2, y, p.z + rz * width / 2);
     uv.push(0, s / 60, 1, s / 60);
@@ -98,10 +104,17 @@ export function createWorld(): World {
   crowns.castShadow = true;
   const leaf = [0x5f7d3f, 0x6f8a45, 0x7d8b3c, 0x8e8a3a, 0xa0782f];                // 가을 느낌 섞기
   let nt = 0;
-  for (let s = 8; s < TOTAL && nt < NT; s += 17) for (const side of [-1, 1]) {
+  for (let s = 8; s < TOTAL && nt < NT - 120; s += Math.max(17, TOTAL * 2 / (NT - 120))) for (const side of [-1, 1]) {
     if (nt >= NT || rand() < 0.18 || nearCrossing(s)) continue;           // 사거리 · 횡단보도 자리는 비움
     const p = at(s), off = side * (ROAD_W / 2 + 3.6), x = p.x - p.dz * off, z = p.z + p.dx * off, k = 0.8 + rand() * 0.45;
     q.identity(); m4.compose(new THREE.Vector3(x, 0, z), q, new THREE.Vector3(k, k, k));
+    trunks.setMatrixAt(nt, m4); crowns.setMatrixAt(nt, m4); crowns.setColorAt(nt, col.setHex(leaf[(rand() * leaf.length) | 0])); nt++;
+  }
+  // 종점 뒤쪽은 낮은 가로수로 이어 주고 먼 곳은 안개에 자연스럽게 섞는다.
+  for (const end of [-1, 1]) for (let d = 40; d <= 1200 && nt < NT; d += 40) for (const side of [-1, 1]) {
+    if (nt >= NT) break;
+    const p = at(end < 0 ? -d : TOTAL + d), off = side * (ROAD_W / 2 + 4.5), k = .75 + rand() * .45;
+    q.identity(); m4.compose(new THREE.Vector3(p.x - p.dz * off, 0, p.z + p.dx * off), q, new THREE.Vector3(k, k, k));
     trunks.setMatrixAt(nt, m4); crowns.setMatrixAt(nt, m4); crowns.setColorAt(nt, col.setHex(leaf[(rand() * leaf.length) | 0])); nt++;
   }
   trunks.count = crowns.count = nt; scene.add(trunks, crowns);
@@ -152,7 +165,10 @@ export function createWorld(): World {
         const m = o as THREE.Mesh;
         if (m.geometry) m.geometry.dispose();
         const mats = Array.isArray(m.material) ? m.material : m.material ? [m.material] : [];
-        mats.forEach(mt => { const t = (mt as THREE.MeshBasicMaterial).map; if (t) t.dispose(); mt.dispose(); });
+        mats.forEach(mt => {
+          const surface = mt as THREE.MeshStandardMaterial;
+          surface.map?.dispose(); surface.bumpMap?.dispose(); mt.dispose();
+        });
       });
     },
   };
