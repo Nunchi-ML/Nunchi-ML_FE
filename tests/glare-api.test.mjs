@@ -6,9 +6,34 @@ import ts from 'typescript';
 // 브라우저 전용 모듈의 순수 계약/요청 로직을 추가 테스트 의존성 없이 실행한다.
 const source = await readFile(new URL('../src/phone/glareApi.ts', import.meta.url), 'utf8');
 const js = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText;
-const { frameSize, parseGlareReading, predictGlare, MAX_IMAGE_BYTES } = await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
+const { frameSize, parseGlareReading, predictGlare, warmUpBackend, MAX_IMAGE_BYTES } = await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
 const reading = { model_version: 'model2-pilot-v1', status: 'pilot', level: 2, label: '심한 눈부심',
   scores: { normal: .1, glare: .2, severe: .7 }, brightest: { x: 0, y: 1 } };
+
+test('서버 깨우기는 캐시를 우회하고 정상 health이면 한 번에 종료', async () => {
+  let calls = 0;
+  assert.equal(await warmUpBackend(async (url, options) => {
+    calls++;
+    assert.match(url, /^\/api\/health\?_warmup=\d+$/);
+    assert.equal(options.cache, 'no-store');
+    assert.ok(options.signal instanceof AbortSignal);
+    return new Response(JSON.stringify({ status: 'ok', model2: 'ready' }));
+  }), true);
+  assert.equal(calls, 1);
+});
+test('콜드 스타트의 HTML/프록시 오류 후 health 재시도', async () => {
+  let calls = 0; const waits = [];
+  const responses = [new Response('<html>Starting</html>'), new Response('', { status: 504 }),
+    new Response(JSON.stringify({ status: 'ok', model2: 'missing' }))];
+  assert.equal(await warmUpBackend(async () => responses[calls++], async ms => { waits.push(ms); }), true);
+  assert.equal(calls, 3);
+  assert.deepEqual(waits, [2000, 2000]);
+});
+test('연결 실패는 세 번에서 멈추고 화면 시작을 방해하는 오류를 던지지 않음', async () => {
+  let calls = 0;
+  assert.equal(await warmUpBackend(async () => { calls++; throw new TypeError('offline'); }, async () => {}), false);
+  assert.equal(calls, 3);
+});
 
 test('전체 프레임 비율, 최대 1280, 작은 원본 확대 금지', () => {
   assert.deepEqual(frameSize(1920, 1080), { width: 1280, height: 720 });

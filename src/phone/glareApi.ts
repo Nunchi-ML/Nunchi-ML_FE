@@ -5,6 +5,24 @@ export interface GlareReading {
 }
 export const MAX_IMAGE_BYTES = 1024 * 1024;
 const apiBase = (import.meta.env?.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
+/** 페이지 진입 시 무료 서버를 미리 깨운다. 실패해도 시뮬레이터 시작을 막지 않는다. */
+export async function warmUpBackend(fetcher = fetch, wait = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30_000);
+    try {
+      // 캐시된 health 응답 대신 실제 서버까지 요청이 도달해야 한다.
+      const response = await fetcher(`${apiBase}/health?_warmup=${Date.now()}`, { cache: 'no-store', signal: controller.signal });
+      if (response.ok && (await response.json()).status === 'ok') return true;
+    } catch {
+      // 콜드 스타트 중 프록시 시간 초과/HTML 응답은 다음 요청에서 재확인한다.
+    } finally {
+      clearTimeout(timeout);
+    }
+    if (attempt < 2) await wait(2_000);
+  }
+  return false;
+}
 export function frameSize(width: number, height: number) {
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null;
   const scale = Math.min(1, 1280 / Math.max(width, height));
