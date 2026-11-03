@@ -26,7 +26,20 @@ env:
   TARGET: ${{ github.event_name == 'pull_request' && 'preview' || 'production' }}
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
   deploy:
+    needs: check
     runs-on: ubuntu-latest
     steps:
       - name: 토큰 확인

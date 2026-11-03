@@ -86,6 +86,7 @@ export function Menu() {
   const diff = Math.abs(((sp.az - head + 540) % 360) - 180);
   const front = sp.alt > 0 && sp.alt < 25 && diff < 30 && st.weather !== 'over';
   const a = nearestStation(st.startKm).name, b = nearestStation(st.endKm).name;
+  const validCourse = picking === 0 && Math.abs(st.endKm - st.startKm) >= 0.1;
 
   const onMap = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!T.current) return; const r = e.currentTarget.getBoundingClientRect();
@@ -116,7 +117,7 @@ export function Menu() {
         <div className="missions">
           {MISSIONS.map((m, i) => (
             <button key={i} className={`mission${st.mission === i ? ' on' : ''}`}
-              onClick={() => set({ mission: i, startKm: m.a, endKm: m.b, minutes: m.m, date: missionDate(m) })}>
+              onClick={() => { setPicking(0); set({ mission: i, startKm: m.a, endKm: m.b, minutes: m.m, date: missionDate(m) }); }}>
               <div><div className="mt">{m.t}</div><div className="ms">{m.s}</div></div>
               {m.badge && <span className="badge">{m.badge}</span>}
             </button>
@@ -125,21 +126,21 @@ export function Menu() {
 
         <div className="sect">③ 언제 달릴까</div>
         <div className="row"><label>날짜</label>
-          <input type="date" value={st.date} onChange={e => e.target.value && set({ date: e.target.value })}
+          <input aria-label="출발 날짜" type="date" value={st.date} onChange={e => e.target.value && set({ date: e.target.value })}
             style={{ flex: 1, background: 'transparent', color: 'var(--cream)', border: '1px solid #fff4', borderRadius: 8, padding: '4px 8px', font: 'inherit' }} /></div>
         <div className="row"><label>시간</label>
-          <input type="range" min={300} max={1260} step={5} value={st.minutes} onChange={e => set({ minutes: +e.target.value })} />
+          <input aria-label="출발 시간" type="range" min={0} max={1439} step={1} value={st.minutes} onChange={e => set({ minutes: +e.target.value })} />
           <span className="val num">{hm(st.minutes)}</span></div>
         <div className="row"><label>날씨</label><div className="seg">
           {WXS.map(([w, t]) => <button key={w} className={st.weather === w ? 'on' : ''} onClick={() => set({ weather: w })}>{t}</button>)}
         </div></div>
         <div id="hint" style={{ background: front ? 'rgba(242,82,46,.25)' : 'rgba(59,165,92,.16)', borderColor: front ? 'rgba(242,82,46,.6)' : 'rgba(59,165,92,.5)' }}>
-          {sp.alt <= 0 ? '🌙 해가 진 시간이에요. 눈부심은 없어요.'
+          {sp.alt <= 0 ? '🌙 태양이 지평선 아래에 있어요. 태양 직광 눈부심 계산은 꺼져 있어요.'
             : front ? <>☀️ <b>이 시간엔 해가 정면</b>이에요 (높이 {sp.alt.toFixed(0)}°, 진행 방향과 {diff.toFixed(0)}° 차이). 눈부심 주의!</>
             : `해가 진행 방향과 ${diff.toFixed(0)}° 떨어져 있어요. ${sp.alt >= 25 ? '해가 높아서' : '정면이 아니라서'} 눈부심은 약해요.`}
         </div>
 
-        <button id="go" onClick={() => getEngine()?.startRun()}><span>출발하기 ▶</span></button>
+        <button id="go" disabled={!validCourse} onClick={() => validCourse && getEngine()?.startRun()}><span>{validCourse ? '출발하기 ▶' : '서로 다른 출발·도착역을 선택하세요'}</span></button>
         <div className="note">시뮬레이터 화면은 실제 장소를 본떠 단순화한 것입니다. 실제 운전 중에는 사용하지 마세요.</div>
       </div>
       <div className="right">

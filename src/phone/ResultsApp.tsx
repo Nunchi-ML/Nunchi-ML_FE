@@ -1,24 +1,18 @@
 import { Back } from './Phone';
 
-// 수치 출처: Nunchi-ML_AI notebooks/experiments/glare_pilot (영상 단위 5겹 교차검증, 시범 라벨 130장)
-const IMP: [string, number][] = [['밝은 빛 덩어리', 20], ['해의 좌우 위치', 18], ['도로 선명도', 12], ['희뿌연 정도', 10], ['전체 밝기', 8]];
-
 export function ResultsApp() {
   return (
     <div className="pv">
       <Back />
       <h3>분석 결과</h3>
-      <div className="small">모델 ② 눈부심 정도 · GLARE 130장 <b>시범</b> 검증 (영상 단위 5겹 교차검증)</div>
+      <div className="small">모델 ② · GLARE 초기 라벨 130장 <b>시범</b> 검증 (영상 단위 5겹 교차검증)</div>
       <div className="kv">
-        <div>밝기 규칙<b>0.33</b><span className="small">macro F1</span></div>
-        <div style={{ borderColor: 'var(--orange)' }}>우리 모델<b style={{ color: 'var(--red)' }}>0.57</b><span className="small">macro F1</span></div>
+        <div>초기 라벨 기준<b>0.57</b><span className="small">macro F1</span></div>
+        <div>많이 눈부심<b>52%</b><span className="small">재현율</span></div>
       </div>
-      <div className="widget">심한 눈부심을 잡아낸 비율 <b>52%</b> <span className="small">(밝기 규칙 7%)</span></div>
-      <div className="small" style={{ fontWeight: 700, color: 'var(--ink)' }}>무엇을 보고 판단했나</div>
-      <div className="imp">
-        {IMP.map(([k, v]) => <div key={k} className="r"><span>{k}</span><i style={{ width: `${v / 20 * 100}%` }} /><span>{v}%</span></div>)}
-      </div>
-      <div className="small">시범 라벨 1인 · 미국 영상 기준이라 팀 라벨로 다시 확인 예정. 모델 ① 결과는 준비 중이에요.</div>
+      <div className="small">초기 AI 보조 라벨로 재현한 점수이며 사람 합의 라벨의 최종 성능이 아니에요. 한국 도로·처음 보는 카메라·시뮬레이터에 같은 성능을 보장하지 않아요.</div>
+      <div className="widget"><b>모델 연결 상태</b><p>① 구간 위험: 체험용 예시. 고속도로 모델 결과는 아직 이 경로에 연결되지 않았어요.</p><p>② 눈부심: 카메라 앱에서 시범 API 분석. 운전 화면의 눈부심은 태양·가림 조건을 이용한 시뮬레이션 계산이에요.</p><p>③ 터널 순응: 화면 연동 준비 중이에요.</p></div>
+      <a href="https://nunchi-glare-api.onrender.com/docs" target="_blank" rel="noreferrer">시범 API 문서</a>
     </div>
   );
 }

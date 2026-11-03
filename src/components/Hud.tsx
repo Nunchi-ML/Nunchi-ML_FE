@@ -3,8 +3,9 @@ import { getEngine, type Els } from '../game/engine';
 import { riskLv } from '../game/road';
 import { hm } from '../game/sun';
 import { useGame } from '../store';
+import { useTouchControls } from './useTouchControls';
 
-const GLARE = ['정상', '눈부심', '심함'];
+const GLARE = ['정상', '눈부심', '많이 눈부심'];
 const WX = { clear: '맑음', cloud: '구름', over: '흐림' };
 
 function Stat({ id, ico, k, v, cls, tag, flash }: { id: string; ico: string; k: string; v: string; cls: string; tag: string; flash?: boolean }) {
@@ -30,6 +31,7 @@ function Banner() {
 
 export function Hud({ visible, bind }: { visible: boolean; bind: <K extends keyof Els>(k: K) => (n: Els[K] | null) => void }) {
   const h = useGame(s => s.hud);
+  const compact = useTouchControls();
   const { minutes, date, weather } = useGame(s => s.settings);
   const running = useGame(s => s.screen === 'driving');
   const sport = useGame(s => s.settings.mode === 'sport');
@@ -37,7 +39,7 @@ export function Hud({ visible, bind }: { visible: boolean; bind: <K extends keyo
 
   return (
     <>
-      <div id="hud" style={{ display: visible ? 'block' : 'none' }}>
+      <div id="hud" className={compact ? 'compact-controls' : ''} style={{ display: visible ? 'block' : 'none' }}>
         <div id="status" className="hud">
           <Stat id="sRisk" ico="🛣️" k="구간 위험" v={`${h.riskRatio.toFixed(1)}배`} cls={`lv${riskLv(h.riskRatio)}`} tag="체험용 예시" />
           <Stat id="sGlare" ico="🕶️" k="눈부심" v={GLARE[h.glareLv]} cls={`lv${h.glareLv}`} tag="시뮬레이션 계산" flash={h.glareLv === 2} />
@@ -66,9 +68,9 @@ export function Hud({ visible, bind }: { visible: boolean; bind: <K extends keyo
         <div id="glass" className="hud"><div className="slab"><div className="in">🕶️ 스마트 유리 <b>{h.glassText}</b> <span style={{ fontSize: 11, color: '#d9c7ad' }}>(G)</span></div></div></div>
         <div id="keys" className="hud"><kbd>W</kbd><kbd>↑</kbd> 가속 · <kbd>S</kbd><kbd>↓</kbd> 브레이크 · <kbd>A</kbd><kbd>D</kbd> 차선 · <kbd>C</kbd> 시점 · 화면 끌기 고개 돌리기 · <kbd>V</kbd> 정면 · <kbd>M</kbd> 스포츠 · <kbd>G</kbd> 스마트 유리 · <kbd>P</kbd> 휴대폰 · <kbd>Esc</kbd> 코스</div>
       </div>
-      <button id="sportBtn" className={sport ? 'on' : ''} aria-label="스포츠 모드" style={{ display: visible ? 'block' : 'none' }}
+      <button id="sportBtn" className={sport ? 'on' : ''} aria-label="스포츠 모드" style={{ display: visible && !compact ? 'block' : 'none' }}
         onClick={() => getEngine()?.toggleSport()}>🏎️<small>{sport ? '스포츠' : '일반'} · M</small></button>
-      <button id="phoneBtn" aria-label="휴대폰 열기" style={{ display: visible ? 'block' : 'none' }} onClick={togglePhone}>📱<small>P</small></button>
+      <button id="phoneBtn" aria-label="휴대폰 열기" style={{ display: visible && !compact ? 'block' : 'none' }} onClick={togglePhone}>📱<small>P</small></button>
     </>
   );
 }

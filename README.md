@@ -23,8 +23,8 @@ FE · PM
 | 하는 일 | 기술 |
 |---|---|
 | 화면 틀 | React · Vite · TypeScript |
-| 3D 운전석 | three.js · react-three-fiber · drei |
-| 눈부심 연출 | @react-three/postprocessing (빛 번짐 · 빛줄기 · 톤 매핑으로 눈 적응 표현) |
+| 3D 운전석 | three.js (직접 구성) |
+| 눈부심 연출 | three.js EffectComposer · UnrealBloomPass · 톤 매핑 |
 | 상태 (시간 · 위치 · 예측값) | zustand |
 | 도로 · 건물 | OpenStreetMap 데이터 (달구벌대로 · 신천대로) |
 | 배포 | Vercel — https://nunchi-drive.vercel.app (GitHub Actions 자동 배포) |
@@ -42,9 +42,14 @@ FE · PM
 
 ## 📌 원칙
 
-- 예측은 BE API(`/segments` · `/predict/risk` · `/predict/glare`)에서 받습니다
-- **API가 안 되면 미리 뽑아 둔 JSON으로 자동 전환**합니다 — 발표 캡처가 서버 상태에 걸리지 않게
-- 주고받는 형식은 노션 「웹사이트 명세」의 API 칸을 따릅니다
+- 카메라 앱의 모델②는 `/api/predict/glare` → Render `/predict/glare` 시범 API를 사용합니다. `vercel.json` 외부 rewrite로 운영·미리보기 모두 같은 origin에서 요청합니다. 로컬 Vite도 같은 프록시를 제공합니다.
+- 전체 프레임 비율 유지, 긴 변 최대1280(확대 없음), JPEG quality0.95, 파일1MiB 이하. 한 번에 요청 하나만 보내며 완료3초 뒤 다음 프레임을 요청합니다. 초과프레임은 건너뜁니다.
+- 첫 요청은 최대90초 대기, 실패 시 `판정 불가`와 재시도 버튼을 표시합니다. 오류를 정상으로 바꾸거나 임시 규칙으로 대체하지 않습니다. 탭/앱을 닫거나 소스를 바꾸면 진행 중 요청·카메라 스트림을 정리합니다.
+- 사용자가 분석 시작을 누르기 전에는 전송하지 않습니다. 실제 카메라는 별도로 선택해야 권한을 요청합니다. 미리보기 캔버스는 전송한 프레임과 같으며 좌표는 전체 프레임 기준입니다.
+- 모델① 구간 위험은 달구벌대로 체험용 예시, 운전 HUD 눈부심은 태양·가림 조건 시뮬레이션 계산입니다. 고속도로 CSV를 도심 예측으로 전용하지 않으며 모델③은 연동 준비 중입니다.
+- 필요한 경우 `VITE_API_BASE_URL`로 기본 `/api`를 덮어쓸 수 있습니다(직접 외부 API 지정 시 해당 origin의 CORS 허용 필요).
+- `npm test`로 모델 응답 검증·JPEG 용량·전체프레임 크기·multipart·서버오류/취소 처리를 검증합니다. CI는 이 검사와 타입/빌드를 통과해야 배포합니다.
+- 2.56MB 건물 JSON은 별도 해시 자산으로 내려받습니다. JS에서 분리했지만 총 다운로드에서 사라진 것은 아닙니다. 초기 로딩·실패 화면을 제공합니다.
 
 ## 🚀 자동 배포
 

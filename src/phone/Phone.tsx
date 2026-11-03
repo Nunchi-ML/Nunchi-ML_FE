@@ -14,7 +14,7 @@ const APPS: [AppId, string, string, string][] = [
   ['res', '🏆', '분석 결과', 'linear-gradient(145deg,#ffb199,#F2522E)'],
   ['set', '⚙️', '설정', 'linear-gradient(145deg,#d7d2cb,#8f877d)'],
 ];
-const GLARE = ['정상', '눈부심', '심함'];
+const GLARE = ['정상', '눈부심', '많이 눈부심'];
 const BASE_W = 390, BASE_H = 800;                       // 폰 기준 크기 (px) — 화면에 맞춰 통째로 확대
 
 export function Back() {
@@ -70,7 +70,7 @@ export function Phone() {
                   <div className="wrow">
                     <div><small>지금 구간</small><b style={{ color: riskColor(h.riskRatio) }}>{h.riskRatio.toFixed(1)}배</b><em>체험 예시</em></div>
                     <div><small>눈부심</small><b className={`lv${h.glareLv}`}>{GLARE[h.glareLv]}</b><em>시뮬레이션 계산</em></div>
-                    <div><small>안전 점수</small><b>{h.score}</b><em>게임 규칙</em></div>
+                    <div><small>안전 점수</small><b>{h.score}</b><em>시뮬레이터 규칙</em></div>
                   </div>
                 </div>
                 <div className="icons">
