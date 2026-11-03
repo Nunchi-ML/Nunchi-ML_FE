@@ -303,6 +303,10 @@ export function createEngine(canvas: HTMLCanvasElement) {
     camera.updateMatrixWorld(); rig.updateMatrixWorld();
     const braking = keys.KeyS || keys.ArrowDown || S.brake > 0;
     W.me.brakeMat.emissiveIntensity = braking ? 3 : 0.5;
+    if (running) {
+      W.me.wheels.forEach(w => { w.rotation.x = (w.rotation.x + S.v * dt / W.me.wheelRadius) % (Math.PI * 2); });
+      W.traffic.forEach(t => t.wheels.forEach(w => { w.rotation.x = (w.rotation.x + t.v * dt / t.wheelRadius) % (Math.PI * 2); }));
+    }
     W.traffic.forEach(t => {
       const q = at(t.s), qx = -q.dz * S.dir, qz = q.dx * S.dir;
       t.m.position.set(q.x + qx * t.x, 0, q.z + qz * t.x); t.m.rotation.y = Math.atan2(q.dx * S.dir, q.dz * S.dir);

@@ -45,8 +45,8 @@ const inBankPlaza = (x: number, z: number) => {
 
 // 종류별 벽 색 (0 기타 · 1 아파트 · 2 상가 · 3 사무실 · 4 학교)
 const PAL: number[][] = [
-  [0xe2d5c2, 0xd6c3a8, 0xcfc8bd, 0xbfb3a3, 0xe8e0d2, 0xc9bfb0],
-  [0xf1ece2, 0xe9e2d6, 0xf4efe6, 0xdcd6cc, 0xe6ddcf],
+  [0xe7e4df, 0xd8d5ce, 0xc9cdd0, 0xbfc3c2, 0xf1eee7, 0xc7b7a8],
+  [0xf1f0eb, 0xe7e8e6, 0xe4e7e9, 0xd4d5d3, 0xe6e2d9],
   [0xd9cbb8, 0xc9c2b8, 0xb9a891, 0xd1b897, 0xa9a39c, 0xc4b5a5, 0xb3a08c],
   [0x9fb0b8, 0xaab6bb, 0x8fa1aa, 0xb8c0c2, 0xc9cfd2],
   [0xc0785a, 0xb8735a, 0xcc8a6a],
@@ -145,7 +145,16 @@ function canvasTex(w: number, h: number, draw: (g: CanvasRenderingContext2D) => 
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 const glassGrad = (g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, top: string, bot: string) => {
-  const gr = g.createLinearGradient(0, y, 0, y + h); gr.addColorStop(0, top); gr.addColorStop(1, bot); g.fillStyle = gr; g.fillRect(x, y, w, h);
+  const gr = g.createLinearGradient(0, y, 0, y + h);
+  gr.addColorStop(0, top); gr.addColorStop(.43, top); gr.addColorStop(.48, bot); gr.addColorStop(1, bot);
+  g.fillStyle = gr; g.fillRect(x, y, w, h);
+  g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip();
+  const reflection = g.createLinearGradient(x, y, x + w, y + h);
+  reflection.addColorStop(0, 'rgba(255,255,255,.2)'); reflection.addColorStop(.42, 'rgba(225,240,255,.04)');
+  reflection.addColorStop(.45, 'rgba(255,255,255,.16)'); reflection.addColorStop(.62, 'rgba(255,255,255,0)');
+  g.fillStyle = reflection; g.fillRect(x, y, w, h); g.restore();
+  g.strokeStyle = 'rgba(12,24,32,.4)'; g.lineWidth = 1.5; g.strokeRect(x + .75, y + .75, w - 1.5, h - 1.5);
+  g.fillStyle = 'rgba(255,255,255,.25)'; g.fillRect(x, y + h - 1, w, 1);
 };
 const font = (g: CanvasRenderingContext2D, px: number, w = 900) => { g.font = `${w} ${px}px "Noto Sans KR", sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; };
 /** 글자 폭이 칸을 넘으면 줄여서 맞춤 */
@@ -155,7 +164,17 @@ const fitText = (g: CanvasRenderingContext2D, s: string, x: number, y: number, m
 
 /** 외벽 무늬: 용도 5 × 2가지 (한 장 = 창 한 칸 × 한 층, 흰 부분이 벽색으로 물듦) */
 function facadeTextures() {
-  const tex = (draw: (g: CanvasRenderingContext2D) => void) => { const t = canvasTex(128, 128, draw); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t; };
+  const tex = (draw: (g: CanvasRenderingContext2D) => void) => {
+    const t = canvasTex(256, 256, g => {
+      g.scale(2, 2); draw(g);
+      // 약한 표면 결. 같은 입력에서 항상 같은 외벽을 만든다.
+      for (let i = 0; i < 850; i++) {
+        g.fillStyle = i % 2 ? 'rgba(0,0,0,.025)' : 'rgba(255,255,255,.035)';
+        g.fillRect(hash(i * 7) * 128, hash(i * 13) * 128, .6, .6);
+      }
+    });
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t;
+  };
   const white = (g: CanvasRenderingContext2D) => { g.fillStyle = '#fff'; g.fillRect(0, 0, 128, 128); };
   return [
     tex(g => { white(g); g.fillStyle = '#d9d4cc'; g.fillRect(14, 22, 100, 70); glassGrad(g, 20, 28, 88, 58, '#8e9aa2', '#4f5b63'); g.fillStyle = '#d9d4cc'; g.fillRect(62, 28, 4, 58); g.fillStyle = '#c9c3b9'; g.fillRect(0, 118, 128, 10); }),
@@ -195,6 +214,24 @@ function facadeTextures() {
       white(g); g.fillStyle = '#f2efe9'; g.fillRect(0, 28, 128, 60); glassGrad(g, 4, 32, 120, 52, '#97a8b0', '#5d6c74'); g.fillStyle = '#f2efe9'; for (const x of [34, 64, 94]) g.fillRect(x, 32, 3, 52);
     }),
   ];
+}
+
+/** 창문을 벽보다 안쪽으로 보이게 하는 공유 높이 맵. 건물별 메시를 늘리지 않는다. */
+function facadeBump(texture: THREE.Texture) {
+  const source = texture.image as HTMLCanvasElement;
+  const c = document.createElement('canvas'); c.width = source.width; c.height = source.height;
+  const g = c.getContext('2d')!, original = source.getContext('2d')!.getImageData(0, 0, c.width, c.height);
+  const out = g.createImageData(c.width, c.height);
+  for (let i = 0; i < original.data.length; i += 4) {
+    const r = original.data[i], green = original.data[i + 1], b = original.data[i + 2];
+    const glazing = b > r * 1.02 && green > r * .98 && r < 220;
+    const height = glazing ? 65 : 165;
+    out.data[i] = out.data[i + 1] = out.data[i + 2] = height; out.data[i + 3] = 255;
+  }
+  g.putImageData(out, 0, 0);
+  const result = new THREE.CanvasTexture(c); result.wrapS = result.wrapT = THREE.RepeatWrapping;
+  result.colorSpace = THREE.NoColorSpace; result.anisotropy = 4;
+  return result;
 }
 
 /** 1층 가게 64칸 (16 × 4줄, 한 칸 = 폭 6 m): 간판 · 차양 · LED 글자 · 빈 가게(임대) 섞음 */
@@ -363,6 +400,17 @@ function buildChunk(items: Bldg[], nameCell: Map<string, number[]>) {
         roofBoxes.push(new THREE.Matrix4().compose(new THREE.Vector3(ox, h + sy / 2, oz), new THREE.Quaternion(), new THREE.Vector3(sx, sy, sz)));
       }
     }
+    // 가까운 건물만 코너 프레임·수평 처마를 추가한다. 공유 배치에 합쳐 draw call은 늘리지 않는다.
+    if ((b.d ?? 999) < 70 && h > 9 && area > 100 && R(61) < .55) {
+      const center = pts.reduce((v, p) => v.add(p), new THREE.Vector2()).multiplyScalar(1 / pts.length);
+      const cornice = pts.map(p => p.clone().addScaledVector(p.clone().sub(center).normalize(), .2));
+      wallBand(roofs, cornice, h - .12, h + .14, 1, 1, c.clone().multiplyScalar(.87));
+      if (shop) wallBand(roofs, cornice, SHOP_H - .14, SHOP_H + .1, 1, 1, c.clone().multiplyScalar(.8));
+      if (k !== 1) pts.slice(0, 6).forEach(p => {
+        const out = p.clone().addScaledVector(p.clone().sub(center).normalize(), .08);
+        roofBoxes.push(new THREE.Matrix4().compose(new THREE.Vector3(out.x, h / 2, out.y), new THREE.Quaternion(), new THREE.Vector3(.26, h, .26)));
+      });
+    }
     // 길가 쪽 꼭짓점 · 변 찾기 (세로 간판 · 이름 간판 자리)
     const ns = nameSignOf(b), nc = ns && nameCell.get(ns.kind + ns.name);
     if (!nc && (!shop || (b.d ?? 999) > 110)) return;
@@ -407,7 +455,12 @@ function insidePoly(x: number, z: number, pts: THREE.Vector2[]) {
 
 export function buildCity(scene: THREE.Scene) {
   // 용도별 외벽 재질 (사무실 유리는 반사 조금) · 1층 · 2층 상가와 간판 (저녁에 은은히 빛남) · 지붕
-  const wallMats = facadeTextures().map((t, i) => { const k = Math.floor(i / VARIANTS); return new THREE.MeshStandardMaterial({ map: t, vertexColors: true, roughness: k === 3 ? 0.35 : 0.85, metalness: k === 3 ? 0.35 : 0.05 }); });
+  const wallMats = facadeTextures().map((t, i) => {
+    const k = Math.floor(i / VARIANTS);
+    return new THREE.MeshStandardMaterial({ map: t, bumpMap: facadeBump(t), bumpScale: .075,
+      vertexColors: true, roughness: k === 3 ? .26 : .82, metalness: k === 3 ? .42 : .035,
+      envMapIntensity: k === 3 ? .7 : .25 });
+  });
   const lit = (t: THREE.Texture, glow: number) => new THREE.MeshStandardMaterial({ map: t, emissiveMap: t, emissive: 0xffffff, emissiveIntensity: glow, roughness: 0.6 });
   const shopMat = lit(shopAtlas(), 0.08), upperMat = lit(upperAtlas(), 0.1), signMat = lit(signAtlas(), 0.18);
   signMat.side = THREE.DoubleSide;
