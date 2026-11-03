@@ -86,7 +86,8 @@ export function Menu() {
   const diff = Math.abs(((sp.az - head + 540) % 360) - 180);
   const front = sp.alt > 0 && sp.alt < 25 && diff < 30 && st.weather !== 'over';
   const a = nearestStation(st.startKm).name, b = nearestStation(st.endKm).name;
-  const validCourse = picking === 0 && Math.abs(st.endKm - st.startKm) >= 0.1;
+  // picking은 다음 지도 클릭의 역할일 뿐, 화면에 표시된 코스의 유효성과 무관하다.
+  const validCourse = Math.abs(st.endKm - st.startKm) >= 0.1;
 
   const onMap = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!T.current) return; const r = e.currentTarget.getBoundingClientRect();
@@ -148,7 +149,9 @@ export function Menu() {
           <canvas id="mapcv" ref={cv} onClick={onMap} />
           <div id="maptip">{picking === 0
             ? <>지도에서 <b style={{ color: 'var(--green)' }}>출발</b> → <b style={{ color: 'var(--red)' }}>도착</b> 역을 차례로 누르세요</>
-            : <>출발 <b style={{ color: 'var(--green)' }}>{a}</b> · 이제 <b style={{ color: 'var(--red)' }}>도착</b> 역을 누르세요</>}</div>
+            : validCourse
+              ? <>출발 <b style={{ color: 'var(--green)' }}>{a}</b> · 도착 <b style={{ color: 'var(--red)' }}>{b}</b> · 바로 출발하거나 도착역을 바꿀 수 있어요</>
+              : <>출발 <b style={{ color: 'var(--green)' }}>{a}</b> · 이제 다른 <b style={{ color: 'var(--red)' }}>도착</b> 역을 누르세요</>}</div>
           <div id="legend"><span><i style={{ background: 'var(--green)' }} />낮음</span><span><i style={{ background: 'var(--orange)' }} />보통</span><span><i style={{ background: 'var(--red)' }} />높음</span><span>· 구간 위험 (체험용 예시)</span></div>
         </div>
         <div id="sumbar">
