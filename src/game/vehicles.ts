@@ -51,7 +51,7 @@ const SPECS: Record<Kind, Spec> = {
   },
 };
 
-interface Shared { body: THREE.BufferGeometry; glass: THREE.BufferGeometry; wheel: THREE.BufferGeometry; light: THREE.BufferGeometry; rim: THREE.BufferGeometry; win: THREE.BufferGeometry[]; arch: THREE.BufferGeometry }
+interface Shared { upper: THREE.BufferGeometry | null; body: THREE.BufferGeometry; glass: THREE.BufferGeometry; wheel: THREE.BufferGeometry; light: THREE.BufferGeometry; rim: THREE.BufferGeometry; win: THREE.BufferGeometry[]; arch: THREE.BufferGeometry }
 const glassMat = new THREE.MeshPhysicalMaterial({ color: 0x344b5b, roughness: 0.13, metalness: 0.42, clearcoat: 1, clearcoatRoughness: 0.09, envMapIntensity: 0.8 });
 const trimMat = new THREE.MeshStandardMaterial({ color: 0x141312, roughness: 0.6 });
 const chromeMat = new THREE.MeshStandardMaterial({ color: 0xd9dcdf, roughness: 0.2, metalness: 0.9 });
@@ -71,7 +71,8 @@ export function createVehicles(scene: THREE.Scene, rand: () => number) {
     const sp = SPECS[k];
     const wheel = new THREE.CylinderGeometry(sp.wheelR, sp.wheelR, 0.26, 24); wheel.rotateZ(Math.PI / 2);
     shared[k] = {
-      body: k === 'bus' ? profileGeo(sp.body, sp.w, 0.08, 1) : sculptedBody(sp.len, sp.w, k === 'suv' ? .34 : .28, k === 'suv' ? 1.08 : .9, sp.wheelZ, sp.wheelR),
+      upper: k === 'bus' ? profileGeo(sp.body.map(([z, y]) => [z, Math.max(1.08, y)] as [number, number]), sp.w, .08, 1) : null,
+      body: sculptedBody(sp.len, sp.w, k === 'bus' ? .35 : k === 'suv' ? .34 : .28, k === 'bus' ? 1.16 : k === 'suv' ? 1.08 : .9, sp.wheelZ, sp.wheelR),
       glass: k === 'bus' ? profileGeo(sp.glass, sp.w + 0.02, 0.01) : profileGeo(sp.glass, sp.w * 0.88, 0.05, 2),
       wheel, light: new THREE.BoxGeometry(0.42, 0.14, 0.06),
       rim: alloyWheel(sp.wheelR),
@@ -90,6 +91,7 @@ export function createVehicles(scene: THREE.Scene, rand: () => number) {
     const paint = new THREE.MeshPhysicalMaterial({ color, roughness: 0.25, metalness: 0.55, clearcoat: 0.85, clearcoatRoughness: 0.1, envMapIntensity: 0.9 });
     const body = new THREE.Mesh(sh.body, paint); body.castShadow = true; body.receiveShadow = true;
     const glass = new THREE.Group();                                             // 캐빈(지붕 · 기둥) + 창문 — 내 차는 통째로 숨김
+    if (sh.upper) { const upper = new THREE.Mesh(sh.upper, paint); upper.castShadow = true; glass.add(upper); }
     const cabin = new THREE.Mesh(sh.glass, kind === 'bus' ? glassMat : paint); cabin.castShadow = true; glass.add(cabin);
     for (const w of sh.win) glass.add(new THREE.Mesh(w, glassMat));
     if (kind !== 'bus') {                                                          // B필러 (검은색)
@@ -142,7 +144,7 @@ export function createVehicles(scene: THREE.Scene, rand: () => number) {
   return {
     me, softTop, traffic,
     dispose: () => {
-      (Object.values(shared)).forEach(s => { s.body.dispose(); s.glass.dispose(); s.wheel.dispose(); s.light.dispose(); s.rim.dispose(); s.arch.dispose(); s.win.forEach(w => w.dispose()); });
+      (Object.values(shared)).forEach(s => { s.body.dispose(); s.upper?.dispose(); s.glass.dispose(); s.wheel.dispose(); s.light.dispose(); s.rim.dispose(); s.arch.dispose(); s.win.forEach(w => w.dispose()); });
     },
   };
 }
