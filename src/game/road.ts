@@ -82,7 +82,7 @@ export const nearestStation = (km: number) =>
 export const BANK_KM = (D.stations.find(s => s.name === '대구은행') ?? { km: 22.45 }).km;
 export const stationLabel = (name: string) => name === '대구은행' ? '대구은행역' : name;
 
-/* ---------- 구간 위험 (체험용 예시값 · 모델 ① 결과 아님) ---------- */
+/* ---------- 구간 잠재 노출 (Layer 1 천문 기하 실측값 · 사고 위험도 아님) ---------- */
 const meanPred = { E: 0, W: 0 };
 D.segments.forEach(g => { meanPred.E += g.E.pred; meanPred.W += g.W.pred; });
 meanPred.E /= D.segments.length; meanPred.W /= D.segments.length;

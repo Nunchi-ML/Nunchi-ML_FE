@@ -13,8 +13,8 @@ export function MapApp() {
   return (
     <div className="pv">
       <Back />
-      <h3>위험 지도</h3>
-      <div className="small">이번 코스 구간별 위험 (평균 구간 대비) · <b>체험용 예시값</b>이에요. 모델 ① 고속도로 결과는 준비 중</div>
+      <h3>태양 노출 지도</h3>
+      <div className="small">구간별 저각도 태양 잠재 노출 (평균 대비 상대 배율) · <b>Layer 1 천문 기하 실측값</b> (사고 위험도 아님)</div>
       <div className="seglist">
         {rows.map(r => (
           <div key={r.km} className={`r${Math.abs(r.km - now) < 0.2 ? ' me' : ''}`}>
