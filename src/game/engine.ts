@@ -4,13 +4,14 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
-import { BANK_KM, D, TOTAL, at, kmToS, laneOffset, nearestStation, riskAt, sToKm, stationLabel, type Dir } from './road';
+import { BANK_KM, D, TOTAL, LANE_WIDTH, at, kmToS, laneOffset, nearestStation, riskAt, sToKm, stationLabel, type Dir } from './road';
 import { compass, hm, simDate, sunDir, sunPos } from './sun';
 import { createWorld, makeRand } from './world';
 import type { Vehicle } from './vehicles';
 import { createCockpit } from './cockpit';
 import { drawMinimap, drawSpeedo } from './gauges';
 import { isTouch, useGame } from '../store';
+import { separateTraffic } from './trafficSpacing';
 
 /** 매 프레임 직접 고치는 화면 요소 (React 재렌더 없이) */
 export interface Els { wash?: HTMLElement; glare?: HTMLElement; shade?: HTMLElement; cockpit?: HTMLElement; speedo?: HTMLCanvasElement; minimap?: HTMLCanvasElement; phone?: HTMLElement; phoneDim?: HTMLElement }
@@ -116,7 +117,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
       sec: (performance.now() - S.t0) / 1000, glareSec: S.glareTime, glareMax: S.glareMax } });
   }
   function toMenu() { S.running = false; G.setState({ screen: 'menu', phoneOpen: false }); }
-  const changeLane = (d: number) => { S.targetX = laneOffset(Math.max(0, Math.min(3, Math.round((S.targetX - 1.75) / 3.3) + d))); };
+  const changeLane = (d: number) => { S.targetX = laneOffset(Math.max(0, Math.min(3, Math.round((S.targetX - laneOffset(0)) / LANE_WIDTH) + d))); };
   // 스마트 유리는 기본 꺼짐: 먼저 눈부심을 그대로 겪고, G로 켜서 비교
   const toggleGlass = () => {
     const on = !G.getState().settings.glass; G.getState().set({ glass: on });
@@ -206,7 +207,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
       // 핸들: A/D(←/→)를 누르는 동안 옆으로 계속 움직임 → 차선 안 어디든 맞출 수 있음
       const steerIn = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + S.steerTouch;
       if (steerIn && S.v > 0.5) S.targetX = Math.max(laneOffset(0) - 1.3, Math.min(laneOffset(3) + 1.3, S.targetX + steerIn * (2.6 + Math.min(4.6, S.v * 0.28)) * dt));
-      S.lane = Math.max(0, Math.min(3, Math.round((S.laneX - 1.75) / 3.3)));
+      S.lane = Math.max(0, Math.min(3, Math.round((S.laneX - laneOffset(0)) / LANE_WIDTH)));
       S.laneV += (k * (S.targetX - S.laneX) - c * S.laneV) * dt;
       S.laneX += S.laneV * dt;
       // 충돌: 다른 차와 겹치면 밀려나고 속도가 줄며 안전 점수 감점
@@ -243,7 +244,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
         W.traffic.forEach(o => { if (o !== t && Math.abs(o.x - t.x) < 2.6) follow(o.s, o.v, o.len); });
         if (Math.abs(S.laneX - t.x) < 2.6) follow(S.s, S.v, 4.6);
         t.v += Math.max(-8 * dt, Math.min(2 * dt, cap - t.v)); t.v = Math.max(0, t.v);
-        t.s += S.dir * t.v * dt; t.x += (laneOffset(t.lane) - t.x) * Math.min(1, dt * 1.5);
+        t.s += S.dir * t.v * dt; t.x = laneOffset(t.lane);
         if ((t.s - S.s) * S.dir < -60) {                                   // 뒤로 멀어진 차는 앞쪽 빈자리로
           for (let k = 0; k < 8; k++) {
             const lane = (rand() * 4) | 0, s = S.s + S.dir * (450 + rand() * 600);
@@ -252,6 +253,8 @@ export function createEngine(canvas: HTMLCanvasElement) {
         }
       });
     }
+
+    if (running) separateTraffic(W.traffic, S.dir);
 
     // 위치 · 시점
     const p = at(S.s), hx = p.dx * S.dir, hz = p.dz * S.dir, rx = -hz, rz = hx;
@@ -311,6 +314,9 @@ export function createEngine(canvas: HTMLCanvasElement) {
       const q = at(t.s), qx = -q.dz * S.dir, qz = q.dx * S.dir;
       t.m.position.set(q.x + qx * t.x, 0, q.z + qz * t.x); t.m.rotation.y = Math.atan2(q.dx * S.dir, q.dz * S.dir);
     });
+
+    // 하늘 상자는 항상 카메라를 둘러싸야 종점에서도 검은 바깥 면이 보이지 않는다.
+    W.sky.position.copy(camera.position);
 
     // 해 · 날씨
     const sp = sunPos(simDate(st.date, S.minutes)); sv.set(...sunDir(sp.alt, sp.az));

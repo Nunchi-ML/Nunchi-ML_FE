@@ -25,7 +25,9 @@ test('차체가 세단/SUV/로드스터 규격과 지면 위 경계를 유지', 
     // 별도 끝면 정점의 법선은 앞/뒤를 향해야 한다.
     const normals = geometry.getAttribute('normal');
     assert.ok(normals.getZ(normals.count - 1) > .99);
-    assert.ok(normals.getZ(normals.count - 12) < -.99);
+    const rearCap = Array.from({ length: normals.count }, (_, i) => i).some(i =>
+      Math.abs(geometry.getAttribute('position').getZ(i) + length / 2) < 1e-5 && normals.getZ(i) < -.99);
+    assert.ok(rearCap);
     geometry.dispose();
   }
 });
@@ -38,4 +40,29 @@ test('휠은 공유 가능한 하나의 유효한 메시이며 타이어 반경 
     assert.ok(b.max.x - b.min.x < .1);
     geometry.dispose();
   }
+});
+
+test('타이어 위 측면 차체가 휠하우스 여유 공간을 남김', () => {
+  const radius = .33, width = 1.82, wheelZ = [1.38, -1.4];
+  const g = sculptedBody(4.6, width, .28, .9, wheelZ, radius), p = g.getAttribute('position');
+  for (const z of wheelZ) {
+    const side = Array.from({ length: p.count }, (_, i) => i).filter(i => Math.abs(p.getZ(i) - z) < 1e-5 && Math.abs(p.getX(i)) > width * .44);
+    assert.ok(side.length > 0);
+    assert.ok(Math.min(...side.map(i => p.getY(i))) > radius * 2 + .035);
+  }
+  g.dispose();
+});
+test('로드스터 객실 중앙을 차체 상판이 막지 않음', () => {
+  const g = sculptedBody(4.6, 1.84, .3, .86, [1.38, -1.4], .33, { start: -1.25, end: .75, floor: .48 });
+  validMesh(g); const p = g.getAttribute('position'), ids = g.index.array;
+  let floorFound = false;
+  for (let i = 0; i < ids.length; i += 3) {
+    const tri = [ids[i], ids[i + 1], ids[i + 2]];
+    if (!tri.every(v => p.getZ(v) > -.9 && p.getZ(v) < .4)) continue;
+    if (Math.min(...tri.map(v => p.getX(v))) < -.2 && Math.max(...tri.map(v => p.getX(v))) > .2) {
+      assert.ok(Math.max(...tri.map(v => p.getY(v))) < .55);
+      if (tri.every(v => Math.abs(p.getY(v) - .48) < 1e-5)) floorFound = true;
+    }
+  }
+  assert.ok(floorFound); g.dispose();
 });
