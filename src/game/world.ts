@@ -152,7 +152,10 @@ export function createWorld(): World {
         const m = o as THREE.Mesh;
         if (m.geometry) m.geometry.dispose();
         const mats = Array.isArray(m.material) ? m.material : m.material ? [m.material] : [];
-        mats.forEach(mt => { const t = (mt as THREE.MeshBasicMaterial).map; if (t) t.dispose(); mt.dispose(); });
+        mats.forEach(mt => {
+          const surface = mt as THREE.MeshStandardMaterial;
+          surface.map?.dispose(); surface.bumpMap?.dispose(); mt.dispose();
+        });
       });
     },
   };
