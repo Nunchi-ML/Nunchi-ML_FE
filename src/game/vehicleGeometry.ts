@@ -4,8 +4,8 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 /** 앞뒤 오버행·어깨선·보닛을 따로 잡은 차체. 모든 차량이 차종별 지오메트리를 공유한다. */
 export function sculptedBody(length: number, width: number, base: number, shoulder: number) {
   const sections = [
-    [-.5, .79, -.16], [-.47, .93, -.04], [-.34, 1, .01], [-.13, 1, .015],
-    [.17, 1, 0], [.34, .98, -.015], [.45, .93, -.07], [.49, .84, -.16], [.5, .74, -.21],
+    [-.5, .9, -.05], [-.47, .97, -.01], [-.34, 1, .01], [-.13, 1, .015],
+    [.17, 1, 0], [.34, .98, -.015], [.45, .96, -.05], [.49, .94, -.08], [.5, .9, -.1],
   ];
   const positions: number[] = [], indices: number[] = [];
   for (const [z, taper, rise] of sections) {
