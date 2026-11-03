@@ -299,3 +299,25 @@ button:focus-visible,select:focus-visible{outline:3px solid var(--sun);outline-o
 
 .startup{position:fixed;inset:0;display:flex;flex-direction:column;gap:16px;align-items:center;justify-content:center;text-align:center;padding:24px}
 .startup button{padding:12px 20px;border:0;border-radius:10px;background:var(--sun);font:inherit;cursor:pointer}
+
+/* 가로 휴대폰에서는 800px 높이의 폰 전체를 축소하지 않고 읽을 수 있는 패널로 연다. */
+@media (orientation:landscape) and (max-height:500px){
+  #phone{width:min(600px,86vw)!important;height:calc(100dvh - 24px)!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%)!important}
+  #phone .frame{border-radius:22px;padding:6px}
+  #phone .scr{border-radius:17px}
+  #phone .island,#phone .btn{display:none}
+  #phone .status{padding:8px 16px 4px;font-size:12px}
+  #phone .homebar{width:70px;height:3px;bottom:5px}
+  #phone .homeview{padding:34px 18px 14px;overflow-y:auto}
+  #phone .bigclock{font-size:30px;margin:0}
+  #phone .bigdate{font-size:12px;margin-top:2px}
+  #phone .glasswidget{margin-top:6px;padding:6px 12px}
+  #phone .glasswidget .wl{margin-bottom:3px}
+  #phone .glasswidget b{font-size:20px}
+  #phone .icons{margin:8px 0;gap:8px}
+  #phone .icon{gap:3px}
+  #phone .icon span{width:36px;height:36px;font-size:22px;border-radius:10px}
+  #phone .dock{padding:4px}
+  #phone .dock button{padding:6px}
+  #phone .cam{max-width:380px;width:100%;align-self:center}
+}

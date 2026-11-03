@@ -225,7 +225,9 @@ export function createEngine(canvas: HTMLCanvasElement) {
         }
         if (crashT <= 0) {
           crashT = 2; shake = 0.45; S.score = Math.max(0, S.score - 10);
-          banner('💥 충돌', '다른 차와 부딪혔어요', '안전 점수 −10 · 해를 정면으로 받으면 앞차가 잘 안 보여요');
+          banner('💥 충돌', '다른 차와 부딪혔어요', S.glareLv >= 1
+            ? '안전 점수 −10 · 눈부심이 있으면 앞차와 거리를 더 두세요'
+            : '안전 점수 −10 · 속도를 줄이고 앞차와 거리를 두세요');
         }
       }
       S.minutes += dt * st.flow / 60;
