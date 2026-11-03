@@ -5,5 +5,6 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   base: './',
   plugins: [react()],
-  server: { host: '127.0.0.1' },
+  server: { host: '127.0.0.1', proxy: { '/api': { target: 'https://nunchi-glare-api.onrender.com', changeOrigin: true, rewrite: path => path.replace(/^\/api/, '') } } },
+  build: { rollupOptions: { output: { manualChunks: { three: ['three'], react: ['react', 'react-dom', 'zustand'] } } } },
 });

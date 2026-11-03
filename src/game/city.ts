@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import data from '../data/dalgu_buildings.json';
+import cityDataUrl from '../data/dalgu_buildings.json?url';
 import { P as ROAD_PTS, ROAD_W } from './road';
 import { OSM } from './osm';
 
@@ -7,13 +7,24 @@ import { OSM } from './osm';
  *  p: 윤곽 [x, z, …] · h: 높이(m) · k: 용도 · f: 지상 층수 · d: 도로 중심선까지 거리(m) */
 interface Bldg { p: number[]; h: number; k: number; f?: number; d?: number; n?: string }   // n: 실제 건물 이름 (브이월드)
 interface CityData { b: Bldg[]; bank: { pts: number[][]; levels: number } | null }
-const C = data as unknown as CityData;
-
-/** iM뱅크 본점 실제 위치 (OSM 윤곽 중심, 로컬 m) */
-export const BANK_POS = C.bank ? {
-  x: C.bank.pts.reduce((s, p) => s + p[0], 0) / C.bank.pts.length,
-  z: C.bank.pts.reduce((s, p) => s + p[1], 0) / C.bank.pts.length,
-} : null;
+let C: CityData;
+export let BANK_POS: { x: number; z: number } | null = null;
+let cityLoad: Promise<void> | null = null;
+/** 건물 좌표는 JS 번들에 넣지 않고 별도 JSON으로 읽고 캐시한다. */
+export function loadCityData(): Promise<void> {
+  if (!cityLoad) cityLoad = fetch(cityDataUrl).then(async response => {
+    if (!response.ok) throw new Error('건물 데이터를 불러오지 못했어요.');
+    const data = await response.json() as CityData;
+    if (!Array.isArray(data.b)) throw new Error('건물 데이터 형식이 올바르지 않아요.');
+    C = data;
+    BANK_POS = C.bank ? {
+      x: C.bank.pts.reduce((sum, p) => sum + p[0], 0) / C.bank.pts.length,
+      z: C.bank.pts.reduce((sum, p) => sum + p[1], 0) / C.bank.pts.length,
+    } : null;
+    BF = C.bank ? bankFrame() : null;
+  });
+  return cityLoad;
+}
 
 /** 본점 자리 · 방향 · 크기 (본점 그리기와 주변 건물 비우기에 같이 씀) */
 function bankFrame() {
@@ -24,7 +35,7 @@ function bankFrame() {
   const W = Math.max(34, Math.max(e0.length(), e1.length()) * 0.9), Dp = Math.max(24, Math.min(e0.length(), e1.length()) * 0.9);
   return { cx, cz, angle, W, Dp, H: Math.max(76, C.bank!.levels * 4.2) };
 }
-const BF = C.bank ? bankFrame() : null;
+let BF: ReturnType<typeof bankFrame> | null = null;
 /** 본점 광장(기단 · 깃대 포함) 안이면 true — 다른 건물과 겹치지 않게 비움 */
 const inBankPlaza = (x: number, z: number) => {
   if (!BF) return false;

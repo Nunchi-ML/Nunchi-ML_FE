@@ -4,7 +4,7 @@ import { riskLv } from '../game/road';
 import { hm } from '../game/sun';
 import { useGame } from '../store';
 
-const GLARE = ['정상', '눈부심', '심함'];
+const GLARE = ['정상', '눈부심', '많이 눈부심'];
 const WX = { clear: '맑음', cloud: '구름', over: '흐림' };
 
 function Stat({ id, ico, k, v, cls, tag, flash }: { id: string; ico: string; k: string; v: string; cls: string; tag: string; flash?: boolean }) {

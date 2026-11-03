@@ -16,7 +16,7 @@ export function SettingsApp() {
       <h3>설정</h3>
       <div className="set">
         <div className="row"><label>시간</label>
-          <input type="range" min={300} max={1260} step={5} value={Math.round(st.minutes)} onChange={e => setMinutes(+e.target.value)} />
+          <input aria-label="시뮬레이션 시간" type="range" min={0} max={1439} step={1} value={Math.round(st.minutes)} onChange={e => setMinutes(+e.target.value)} />
           <span className="num" style={{ minWidth: 44 }}>{hm(st.minutes)}</span></div>
         <div className="row"><label>시간 흐름</label><Seg items={[[1, '1배'], [10, '10배'], [60, '60배']]} value={st.flow} on={v => set({ flow: v })} /></div>
         <div className="row"><label>날씨</label><Seg<Weather> items={[['clear', '맑음'], ['cloud', '구름'], ['over', '흐림']]} value={st.weather} on={v => set({ weather: v })} /></div>

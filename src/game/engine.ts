@@ -96,6 +96,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
 
   function startRun() {
     const st = G.getState().settings;
+    if (!Number.isFinite(st.startKm) || !Number.isFinite(st.endKm) || Math.abs(st.endKm - st.startKm) < 0.1) return;
     S.dir = st.endKm >= st.startKm ? 1 : -1;
     S.s = kmToS(st.startKm); S.v = 0; S.lane = 1; S.laneX = S.targetX = laneOffset(1); S.laneV = 0; S.steerTouch = 0;
     S.score = 100; S.glareTime = 0; S.glareMax = 0; S.t0 = performance.now(); S.lastStation = ''; S.minutes = st.minutes;
@@ -361,7 +362,8 @@ export function createEngine(canvas: HTMLCanvasElement) {
     if (S.running) {
       const kmNow = sToKm(S.s), dirK: Dir = S.dir > 0 ? 'E' : 'W';
       if (running && S.glareLv >= 1) S.segGlare += dt;
-      if (running && S.glareLv === 2) { S.glareTime += dt; S.glareMax = Math.max(S.glareMax, kmh); if (kmh > 60) S.score = Math.max(0, S.score - dt * 4); }
+      if (running && S.glareLv >= 1) { S.glareTime += dt; S.glareMax = Math.max(S.glareMax, kmh); }
+      if (running && S.glareLv === 2 && kmh > 60) S.score = Math.max(0, S.score - dt * 4);
       const near = nearestStation(kmNow);
       if (Math.abs(near.km - kmNow) < 0.15 && S.lastStation !== near.name) {
         S.lastStation = near.name; const r2 = riskAt(near.km, dirK);
