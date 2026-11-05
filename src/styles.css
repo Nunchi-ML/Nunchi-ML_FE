@@ -15,6 +15,17 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
 /* ---------- 눈부심 연출 ---------- */
 #glare{position:fixed;inset:0;pointer-events:none;mix-blend-mode:screen}
 #wash{position:fixed;inset:0;pointer-events:none;background:#fff6dc;opacity:0}
+#adaptationVeil{position:fixed;inset:0;pointer-events:none;opacity:0}
+#roadAssistant{position:fixed;left:50%;top:112px;transform:translateX(-50%);padding:10px 18px;max-width:60vw;border:1px solid #ffd45e66;background:#181b20e8;border-radius:10px;text-align:center;font-size:13px;color:#fff8e7}
+#roadAssistant small{display:block;margin-top:4px;font-size:10px;color:#c9bdab}
+#navigationControls{position:fixed;left:22px;bottom:90px;display:flex;flex-direction:column;gap:6px;z-index:6;pointer-events:auto}
+#navigationControls button{padding:7px 12px;background:#142331e8;color:#e7f7ff;border:1px solid #70c1e466;border-radius:8px;font:inherit;font-size:12px;cursor:pointer}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+#adaptationHud{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:12px 18px;border:1px solid #79cbd988;border-radius:14px;background:#101b24e8;color:#fff8e7;font-size:14px;max-width:88vw}
+#adaptationHud small{color:#b9d2d7;font-size:11px;line-height:1.6}
+.eye-diagram{width:48px;height:48px;flex:0 0 48px;border-radius:50%;background:#a5c5c8;border:6px solid #f0eee3;display:grid;place-items:center;overflow:hidden}
+.eye-diagram i{display:block;width:44px;height:44px;border-radius:50%;background:#10131b}
+@media(max-height:500px){#adaptationHud{bottom:48px;padding:6px 12px;font-size:12px}.eye-diagram{width:36px;height:36px;flex-basis:36px}}
 #shade{position:fixed;pointer-events:none;border-radius:50%;width:22vh;height:22vh;margin:-11vh 0 0 -11vh;
   background:radial-gradient(circle,rgba(60,32,14,.78) 0 48%,rgba(60,32,14,.5) 66%,rgba(60,32,14,0) 100%);
   box-shadow:inset 0 0 0 2px rgba(255,170,60,.35);opacity:0;transition:opacity .4s,left .15s,top .15s}
@@ -27,6 +38,9 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
 .hud{position:fixed;pointer-events:none;z-index:5}
 .slab{background:var(--panel);border:1px solid var(--panel-line);transform:skewX(var(--skew));border-radius:6px;backdrop-filter:blur(6px)}
 .slab>.in{transform:skewX(calc(var(--skew) * -1))}
+.hud .slab{transform:none;border-radius:13px;background:rgba(12,25,36,.85);border-color:#97bed32e;box-shadow:0 8px 24px #06111b20}
+.hud .slab>.in{transform:none}
+.hud .stat .v{font-family:"Noto Sans KR",sans-serif;font-size:21px;font-weight:800;line-height:1.25}
 
 /* 왼쪽 위: 상태 */
 #status{top:18px;left:22px;display:flex;flex-direction:column;gap:8px}
@@ -138,6 +152,11 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
 .road{flex:1;padding:10px 12px;border-radius:10px;border:2px solid rgba(255,248,231,.25);background:rgba(255,248,231,.06);cursor:pointer;text-align:left;color:var(--cream);font:inherit}
 .road b{display:block;font-family:"Black Han Sans";font-weight:400;font-size:18px}
 .road small{color:#d9c7ad}
+.road-purpose{display:block;color:#ffd45e;font-size:11px;font-weight:700;line-height:1.5;margin-bottom:5px}
+.road-experience{display:block;color:#eee0cb;font-size:12px;line-height:1.65;margin:7px 0 9px;word-break:keep-all}
+.road-guide{padding:11px 14px;border-left:3px solid var(--orange);border-radius:0 9px 9px 0;background:#ffffff07;color:#f4e5cd;font-size:12px;line-height:1.6}
+.road-guide b{font-size:13px;color:#fff8e7}
+.road-guide p{margin:4px 0 0;color:#ccbda6;word-break:keep-all}
 .road.on{border-color:var(--orange);background:rgba(255,138,31,.18)}
 .road:disabled{opacity:.45;cursor:not-allowed}
 .missions{display:flex;flex-direction:column;gap:8px}

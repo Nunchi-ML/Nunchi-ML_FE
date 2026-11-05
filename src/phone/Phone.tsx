@@ -1,3 +1,4 @@
+import { ROAD_NAME } from '../game/roadSelection';
 import { useEffect, useRef } from 'react';
 import { getEngine } from '../game/engine';
 import { useGame, type AppId } from '../store';
@@ -66,7 +67,7 @@ export function Phone() {
                 <div className="bigclock num">{hm(st.minutes % 1440)}</div>
                 <div className="bigdate">{mo}월 {d}일 · {sp.alt < 0 ? '해 진 뒤' : `해 ${compass(sp.az)}쪽 ${sp.alt.toFixed(0)}°`}</div>
                 <div className="glasswidget">
-                  <div className="wl">📍 달구벌대로 · {stationLabel(h.station)} 부근</div>
+                  <div className="wl">📍 {ROAD_NAME} · {stationLabel(h.station)} 부근</div>
                   <div className="wrow">
                     <div><small>지금 구간</small><b style={{ color: riskColor(h.riskRatio) }}>{h.riskRatio.toFixed(1)}배</b><em>체험 예시</em></div>
                     <div><small>눈부심</small><b className={`lv${h.glareLv}`}>{GLARE[h.glareLv]}</b><em>시뮬레이션 계산</em></div>

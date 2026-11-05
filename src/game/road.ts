@@ -1,11 +1,14 @@
 import raw from '../data/dalgu.json';
+import sincheon from '../data/sincheon.json';
+import { IS_SINCHEON } from './roadSelection';
 
 export interface Station { name: string; km: number }
 interface DirVal { b: number; h: number; base: number; pred: number }
 export interface Segment { km0: number; km1: number; lat: number; lon: number; name: string; E: DirVal; W: DirVal }
-interface RoadData { total_km: number; poly: [number, number][]; stations: Station[]; segments: Segment[] }
+export interface Underpass { s0: number; s1: number; name: string; depth: number; clearance: number; ramp: number; osmWayIds: number[] }
+interface RoadData { total_km: number; poly: [number, number][]; stations: Station[]; segments: Segment[]; underpasses?: Underpass[]; rivers?: { name: string; poly: [number, number][]; width: number }[] }
 
-export const D = raw as unknown as RoadData;
+export const D = (IS_SINCHEON ? sincheon : raw) as unknown as RoadData;
 
 const LAT0 = 35.866, LON0 = 128.59;
 const KLAT = 110940, KLON = 111320 * Math.cos(LAT0 * Math.PI / 180);
@@ -53,27 +56,38 @@ export const rawToS = (s: number) => s / rawLen * TOTAL;
 export const kmToS =(km: number) => km / D.total_km * TOTAL;   // 역 km → 도로 길이(m)
 export const sToKm = (s: number) => s / TOTAL * D.total_km;
 
-export interface RoadPoint { x: number; z: number; dx: number; dz: number }
+export const UNDERPASSES = (D.underpasses ?? []).map(u => ({ ...u, s0: rawToS(u.s0), s1: rawToS(u.s1) }));
+const ease = (t: number) => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
+/** Vertical dimensions are visualization assumptions; OSM supplies portal positions. */
+export function roadHeight(s: number) {
+  let y = 0;
+  for (const u of UNDERPASSES) {
+    const enter = ease((s - u.s0 + u.ramp) / u.ramp), exit = ease((u.s1 + u.ramp - s) / u.ramp);
+    y = Math.min(y, -u.depth * Math.min(enter, exit));
+  }
+  return y;
+}
+export interface RoadPoint { x: number; y: number; z: number; dx: number; dz: number }
 /** 도로 위 s(m) 지점의 위치와 진행 방향(이정 증가 쪽) */
 export function at(s: number): RoadPoint {
   // 도로 밖 시야·교통 차량은 끝점 접선을 따라 이어진다. 끝점 한 점에 쌓지 않는다.
   if (s < 0 || s >= TOTAL) {
     const i = s < 0 ? 0 : P.length - 1, extra = s < 0 ? s : s - TOTAL;
-    return { x: P[i].x + TAN[i].x * extra, z: P[i].z + TAN[i].z * extra, dx: TAN[i].x, dz: TAN[i].z };
+    return { x: P[i].x + TAN[i].x * extra, y: 0, z: P[i].z + TAN[i].z * extra, dx: TAN[i].x, dz: TAN[i].z };
   }
   let lo = 0, hi = CUM.length - 1;
   while (hi - lo > 1) { const m = (lo + hi) >> 1; if (CUM[m] <= s) lo = m; else hi = m; }
   const t = (s - CUM[lo]) / (CUM[hi] - CUM[lo]);
   const x = P[lo].x + (P[hi].x - P[lo].x) * t, z = P[lo].z + (P[hi].z - P[lo].z) * t;
   const dx = TAN[lo].x + (TAN[hi].x - TAN[lo].x) * t, dz = TAN[lo].z + (TAN[hi].z - TAN[lo].z) * t, len = Math.hypot(dx, dz) || 1;
-  return { x, z, dx: dx / len, dz: dz / len };
+  return { x, y: roadHeight(s), z, dx: dx / len, dz: dz / len };
 }
 
-export const ROAD_W = 30;
-export const LANE_COUNT = 4;
+export const ROAD_W = IS_SINCHEON ? 16 : 30;
+export const LANE_COUNT = IS_SINCHEON ? 2 : 4;
 export const LANE_WIDTH = 3.5;
 export const ROAD_EXTENSION = 6000;
-export const LANE_BOUNDARIES = [LANE_WIDTH, LANE_WIDTH * 2, LANE_WIDTH * 3];
+export const LANE_BOUNDARIES = Array.from({ length: LANE_COUNT - 1 }, (_, i) => LANE_WIDTH * (i + 1));
 /** 진행 방향 오른쪽 차로 중심 (중앙선 기준, m) */
 export const laneOffset = (lane: number) => (lane + .5) * LANE_WIDTH;
 
@@ -81,6 +95,14 @@ export const nearestStation = (km: number) =>
   D.stations.reduce((a, b) => Math.abs(b.km - km) < Math.abs(a.km - km) ? b : a);
 export const BANK_KM = (D.stations.find(s => s.name === '대구은행') ?? { km: 22.45 }).km;
 export const stationLabel = (name: string) => name === '대구은행' ? '대구은행역' : name;
+/** Short underpass demo routes may start and finish near the same landmark. */
+export function locationLabel(km: number) {
+  const st = nearestStation(km);
+  if (!IS_SINCHEON || Math.abs(st.km - km) < .07) return stationLabel(st.name);
+  const a = at(kmToS(st.km)), b = at(kmToS(km)), dx = b.x - a.x, dz = b.z - a.z;
+  const side = Math.abs(dx) > Math.abs(dz) ? (dx > 0 ? '동측' : '서측') : dz < 0 ? '북측' : '남측';
+  return `${st.name} ${side}`;
+}
 
 /* ---------- 구간 위험 (체험용 예시값 · 모델 ① 결과 아님) ---------- */
 const meanPred = { E: 0, W: 0 };

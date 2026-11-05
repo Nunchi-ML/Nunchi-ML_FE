@@ -15,10 +15,12 @@ export function SettingsApp() {
       <Back />
       <h3>설정</h3>
       <div className="set">
+        <div className="row"><label>음성 안내</label><Seg items={[[true, '켜기'], [false, '끄기']]} value={st.voice} on={v => set({ voice: v })} /></div>
+        <div className="row"><label>시야 안내</label><Seg items={[[true, '켜기'], [false, '끄기']]} value={st.guidance} on={v => set({ guidance: v })} /></div>
         <div className="row"><label>시간</label>
           <input aria-label="시뮬레이션 시간" type="range" min={0} max={1439} step={1} value={Math.round(st.minutes)} onChange={e => setMinutes(+e.target.value)} />
           <span className="num" style={{ minWidth: 44 }}>{hm(st.minutes)}</span></div>
-        <div className="row"><label>시간 흐름</label><Seg items={[[1, '1배'], [10, '10배'], [60, '60배']]} value={st.flow} on={v => set({ flow: v })} /></div>
+        <div className="row"><label>시간 흐름</label><Seg items={[[0, '고정'], [1, '1배'], [10, '10배'], [60, '60배']]} value={st.flow} on={v => set({ flow: v })} /></div>
         <div className="row"><label>날씨</label><Seg<Weather> items={[['clear', '맑음'], ['cloud', '구름'], ['over', '흐림']]} value={st.weather} on={v => set({ weather: v })} /></div>
         <div className="row"><label>스마트 유리</label><Seg items={[[true, '켜기'], [false, '끄기']]} value={st.glass} on={v => set({ glass: v })} /></div>
         <div className="row"><label>주행 모드</label><Seg<DriveMode> items={[['normal', '일반'], ['sport', '스포츠']]} value={st.mode} on={v => set({ mode: v })} /></div>

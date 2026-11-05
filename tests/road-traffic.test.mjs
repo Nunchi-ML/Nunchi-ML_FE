@@ -2,12 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
+import { loadRoad } from './helpers/road.mjs';
 const load = source => import(`data:text/javascript;base64,${Buffer.from(ts.transpileModule(source, {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 },
 }).outputText).toString('base64')}`);
-const raw = await readFile(new URL('../src/data/dalgu.json', import.meta.url), 'utf8');
-const roadSource = (await readFile(new URL('../src/game/road.ts', import.meta.url), 'utf8')).replace("import raw from '../data/dalgu.json';", `const raw = ${raw};`);
-const road = await load(roadSource);
+const { road } = await loadRoad();
 const { separateTraffic } = await load(await readFile(new URL('../src/game/trafficSpacing.ts', import.meta.url), 'utf8'));
 
 test('모든 차로 중심과 버스 폭이 차선 경계 안에 있음', () => {

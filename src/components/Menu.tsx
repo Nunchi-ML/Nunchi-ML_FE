@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { BANK_KM, D, P, TOTAL, at, kmToS, nearestStation, riskAt, riskColor, sToKm, type Dir } from '../game/road';
+import { BANK_KM, D, P, TOTAL, at, kmToS, locationLabel, riskAt, riskColor, sToKm, type Dir } from '../game/road';
 import { compass, hm, simDate, sunPos } from '../game/sun';
 import { getEngine } from '../game/engine';
 import { BANK_POS } from '../game/city';
 import { MISSIONS, missionDate, useGame, type Weather } from '../store';
+
+import { IS_SINCHEON, ROAD_ID, chooseRoad } from '../game/roadSelection';
 
 type Tf = (x: number, z: number) => [number, number];
 
@@ -21,7 +23,7 @@ function drawRouteMap(c: HTMLCanvasElement, startKm: number, endKm: number, dir:
   for (let y = 0; y < c.height; y += 40 * pr) { g.beginPath(); g.moveTo(0, y); g.lineTo(c.width, y); g.stroke(); }
   for (let s = 0; s < TOTAL; s += 200) {                          // 구간 위험 색 (체험용 예시)
     const p1 = at(s), p2 = at(s + 200), [x1, y1] = T(p1.x, p1.z), [x2, y2] = T(p2.x, p2.z);
-    g.strokeStyle = riskColor(riskAt(sToKm(s), dir).ratio); g.lineWidth = 7 * pr; g.lineCap = 'round';
+    g.strokeStyle = IS_SINCHEON ? '#8da0a9' : riskColor(riskAt(sToKm(s), dir).ratio); g.lineWidth = 7 * pr; g.lineCap = 'round';
     g.globalAlpha = .55; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); g.globalAlpha = 1;
   }
   const s0 = kmToS(Math.min(startKm, endKm)), s1 = kmToS(Math.max(startKm, endKm));
@@ -36,7 +38,7 @@ function drawRouteMap(c: HTMLCanvasElement, startKm: number, endKm: number, dir:
   const bLabel = '🏦 iM뱅크 본점';
   g.font = `700 ${12 * pr}px "Noto Sans KR"`;
   const bw = g.measureText(bLabel).width + 18 * pr, bh = 22 * pr, bly = by + (below ? 50 : -50) * pr;
-  placed.push([bx - bw / 2, bly - bh / 2, bw, bh]);
+  if (!IS_SINCHEON) placed.push([bx - bw / 2, bly - bh / 2, bw, bh]);
   g.font = `${12 * pr}px "Noto Sans KR"`;
   const key = (st: { km: number; name: string }) => st.km === startKm || st.km === endKm || st.name === '대구은행';
   [...D.stations].sort((a, b) => +key(b) - +key(a)).forEach(st => {
@@ -55,11 +57,19 @@ function drawRouteMap(c: HTMLCanvasElement, startKm: number, endKm: number, dir:
     g.beginPath(); g.moveTo(x - r * .6, y - r); g.lineTo(x + r * .6, y - r); g.lineTo(x, y); g.fill();
     g.fillStyle = '#fff'; g.font = `700 ${11 * pr}px "Noto Sans KR"`; g.fillText(label, x, y - r * 1.35);
   };
+  if (!IS_SINCHEON) {
   g.strokeStyle = '#2fd3a2'; g.lineWidth = 1.5 * pr; g.beginPath(); g.moveTo(bx, by); g.lineTo(bx, bly + (below ? -bh / 2 : bh / 2)); g.stroke();
   g.fillStyle = '#00a07a'; g.strokeStyle = '#fff'; g.lineWidth = 1.5 * pr;
   g.fillRect(bx - 4 * pr, by - 4 * pr, 8 * pr, 8 * pr); g.strokeRect(bx - 4 * pr, by - 4 * pr, 8 * pr, 8 * pr);   // 건물 자리
   g.beginPath(); g.roundRect(bx - bw / 2, bly - bh / 2, bw, bh, 11 * pr); g.fill(); g.stroke();
   g.fillStyle = '#fff'; g.font = `700 ${12 * pr}px "Noto Sans KR"`; g.textBaseline = 'middle'; g.fillText(bLabel, bx, bly + 1 * pr); g.textBaseline = 'alphabetic';
+  }
+  if (IS_SINCHEON) {
+    for (const u of D.underpasses ?? []) {
+      const p = at(kmToS((u.s0 + u.s1) / 2000)), [x, y] = T(p.x, p.z);
+      g.fillStyle = '#79cbd9'; g.fillRect(x - 4 * pr, y - 4 * pr, 8 * pr, 8 * pr);
+    }
+  }
   pin(startKm, '#3BA55C', '출발'); pin(endKm, '#F2522E', '도착');
   return T;
 }
@@ -85,7 +95,7 @@ export function Menu() {
   const head = getEngine()?.routeHead() ?? 0;
   const diff = Math.abs(((sp.az - head + 540) % 360) - 180);
   const front = sp.alt > 0 && sp.alt < 25 && diff < 30 && st.weather !== 'over';
-  const a = nearestStation(st.startKm).name, b = nearestStation(st.endKm).name;
+  const a = locationLabel(st.startKm), b = locationLabel(st.endKm);
   // picking은 다음 지도 클릭의 역할일 뿐, 화면에 표시된 코스의 유효성과 무관하다.
   const validCourse = Math.abs(st.endKm - st.startKm) >= 0.1;
 
@@ -108,23 +118,41 @@ export function Menu() {
           <div><h1>눈치 <em>드라이브</em></h1><div className="sub">해가 눈을 가리기 전에, 먼저 알아챈다</div></div>
         </div>
 
-        <div className="sect">① 도로</div>
-        <div className="roads">
-          <button className="road on"><b>달구벌대로</b><small>동서 · 32.8 km</small></button>
-          <button className="road" disabled title="도로 데이터 준비 중"><b>신천대로</b><small>남북 · 준비 중</small></button>
+        <div className="sect">① 어떤 시야 변화를 체험할까요?</div>
+        <div className="roads" role="group" aria-label="도로와 체험 선택">
+          <button className={`road${ROAD_ID === 'dalgu' ? ' on' : ''}`} aria-pressed={ROAD_ID === 'dalgu'} onClick={() => chooseRoad('dalgu')}>
+            <span className="road-purpose">햇빛과 전방 시야</span>
+            <b>달구벌대로</b>
+            <span className="road-experience">눈앞으로 들어오는 햇빛,<br />앞이 얼마나 잘 보일까요?</span>
+            <small>동서 · 32.8 km</small>
+          </button>
+          <button className={`road${IS_SINCHEON ? ' on' : ''}`} aria-pressed={IS_SINCHEON} onClick={() => chooseRoad('sincheon')}>
+            <span className="road-purpose">밝기 변화와 눈의 적응</span>
+            <b>신천대로</b>
+            <span className="road-experience">어두운 지하차도에서 밝은 밖으로,<br />눈은 어떻게 적응할까요?</span>
+            <small>남북·서측 · {IS_SINCHEON ? D.total_km.toFixed(1) : '14.3'} km</small>
+          </button>
+        </div>
+        <div className="road-guide" aria-live="polite">
+          <b>{IS_SINCHEON ? '밝은 출구에서 달라지는 시야를 느껴보세요' : '햇빛 아래에서 앞이 잘 보이는지 확인해보세요'}</b>
+          <p>{IS_SINCHEON
+            ? '지하차도에 들어갈 때 어두워지는 시야와, 밝은 밖으로 나와 서서히 적응하는 과정을 체험해요.'
+            : '정면 햇빛 때문에 전방을 알아보기 어려워지는 순간을 체험하고, 운전 중 어떤 안내가 필요한지 살펴봐요.'}</p>
         </div>
 
+        {IS_SINCHEON && <div className="note">실제 도로·건물 데이터 · 지하차도 {D.underpasses?.length}곳<br />입·출구는 OSM 좌표, 깊이·높이와 눈의 회복 연출은 시뮬레이션 가정입니다.</div>}
         <div className="sect">② 추천 코스</div>
         <div className="missions">
           {MISSIONS.map((m, i) => (
             <button key={i} className={`mission${st.mission === i ? ' on' : ''}`}
-              onClick={() => { setPicking(0); set({ mission: i, startKm: m.a, endKm: m.b, minutes: m.m, date: missionDate(m) }); }}>
+              onClick={() => { setPicking(0); set({ mission: i, startKm: m.a, endKm: m.b, minutes: m.m, date: missionDate(m), weather: 'clear', flow: 0 }); }}>
               <div><div className="mt">{m.t}</div><div className="ms">{m.s}</div></div>
               {m.badge && <span className="badge">{m.badge}</span>}
             </button>
           ))}
         </div>
 
+        <div className="note">추천 코스는 출발 때의 햇빛과 날씨를 유지해 같은 조건으로 체험해요.</div>
         <div className="sect">③ 언제 달릴까</div>
         <div className="row"><label>날짜</label>
           <input aria-label="출발 날짜" type="date" value={st.date} onChange={e => e.target.value && set({ date: e.target.value })}
@@ -141,18 +169,19 @@ export function Menu() {
             : `해가 진행 방향과 ${diff.toFixed(0)}° 떨어져 있어요. ${sp.alt >= 25 ? '해가 높아서' : '정면이 아니라서'} 눈부심은 약해요.`}
         </div>
 
-        <button id="go" disabled={!validCourse} onClick={() => validCourse && getEngine()?.startRun()}><span>{validCourse ? '출발하기 ▶' : '서로 다른 출발·도착역을 선택하세요'}</span></button>
+        <div className="row"><label>음성 안내</label><div className="seg"><button className={st.voice ? 'on' : ''} onClick={() => set({ voice: true })}>켜기</button><button className={!st.voice ? 'on' : ''} onClick={() => set({ voice: false })}>끄기</button></div></div>
+        <button id="go" disabled={!validCourse} onClick={() => validCourse && getEngine()?.startRun()}><span>{validCourse ? '출발하기 ▶' : '서로 다른 출발·도착 지점을 선택하세요'}</span></button>
         <div className="note">시뮬레이터 화면은 실제 장소를 본떠 단순화한 것입니다. 실제 운전 중에는 사용하지 마세요.</div>
       </div>
       <div className="right">
         <div id="mapwrap">
           <canvas id="mapcv" ref={cv} onClick={onMap} />
           <div id="maptip">{picking === 0
-            ? <>지도에서 <b style={{ color: 'var(--green)' }}>출발</b> → <b style={{ color: 'var(--red)' }}>도착</b> 역을 차례로 누르세요</>
+            ? <>지도에서 <b style={{ color: 'var(--green)' }}>출발</b> → <b style={{ color: 'var(--red)' }}>도착</b> 지점을 차례로 누르세요</>
             : validCourse
-              ? <>출발 <b style={{ color: 'var(--green)' }}>{a}</b> · 도착 <b style={{ color: 'var(--red)' }}>{b}</b> · 바로 출발하거나 도착역을 바꿀 수 있어요</>
-              : <>출발 <b style={{ color: 'var(--green)' }}>{a}</b> · 이제 다른 <b style={{ color: 'var(--red)' }}>도착</b> 역을 누르세요</>}</div>
-          <div id="legend"><span><i style={{ background: 'var(--green)' }} />낮음</span><span><i style={{ background: 'var(--orange)' }} />보통</span><span><i style={{ background: 'var(--red)' }} />높음</span><span>· 구간 위험 (체험용 예시)</span></div>
+              ? <>출발 <b style={{ color: 'var(--green)' }}>{a}</b> · 도착 <b style={{ color: 'var(--red)' }}>{b}</b> · 바로 출발하거나 도착 지점을 바꿀 수 있어요</>
+              : <>출발 <b style={{ color: 'var(--green)' }}>{a}</b> · 이제 다른 <b style={{ color: 'var(--red)' }}>도착</b> 지점을 누르세요</>}</div>
+          <div id="legend">{!IS_SINCHEON && <><span><i style={{ background: 'var(--green)' }} />낮음</span><span><i style={{ background: 'var(--orange)' }} />보통</span><span><i style={{ background: 'var(--red)' }} />높음</span></>}<span>· {IS_SINCHEON ? '파란 표시: 밝기가 달라지는 지하차도' : '구간 위험 (체험용 예시)'}</span></div>
         </div>
         <div id="sumbar">
           <div className="slab"><div className="in"><div className="k">코스</div><div className="v">{a} → {b}</div></div></div>

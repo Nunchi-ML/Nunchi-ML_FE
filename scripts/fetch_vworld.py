@@ -7,15 +7,18 @@
 - 용도(아파트 · 상가 · 사무실 · 학교): 기존 OSM 건물과 겹치면 그 값, 아니면 건물 이름으로 추정
 - iM뱅크 본점은 따로 그리므로 겹치는 건물은 뺌
 """
-import json, math, re, time, urllib.parse, urllib.request
+import argparse, json, math, re, time, urllib.parse, urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 KEY = next(l.split('=', 1)[1].strip() for l in (ROOT / '.env.local').read_text(encoding='utf-8').splitlines() if l.startswith('VWORLD_KEY='))
-ROAD = json.loads((ROOT / 'src/data/dalgu.json').read_text(encoding='utf-8'))
-OLD = json.loads((ROOT / 'src/data/dalgu_buildings.json').read_text(encoding='utf-8'))
-OUT = ROOT / 'src/data/dalgu_buildings.json'
-CACHE = Path(__file__).resolve().parent / '.vworld_cache.json'
+parser = argparse.ArgumentParser(description='Fetch actual building footprints and above-ground floors')
+parser.add_argument('--road', choices=('dalgu', 'sincheon'), default='dalgu')
+args = parser.parse_args()
+ROAD = json.loads((ROOT / f'src/data/{args.road}.json').read_text(encoding='utf-8'))
+OUT = ROOT / f'src/data/{args.road}_buildings.json'
+OLD = json.loads(OUT.read_text(encoding='utf-8')) if OUT.exists() else {'b': [], 'bank': None}
+CACHE = Path(__file__).resolve().parent / ('.vworld_cache.json' if args.road == 'dalgu' else '.vworld_cache_sincheon.json')
 
 LAT0, LON0 = 35.866, 128.59
 KLAT, KLON = 110940, 111320 * math.cos(math.radians(LAT0))
@@ -37,7 +40,12 @@ def boxes():
     for (ax, az), (bx, bz) in zip(PXZ, PXZ[1:]): cum.append(cum[-1] + math.hypot(bx - ax, bz - az))
     s = 0.0
     while s < cum[-1]:
-        pts = [p for p, c in zip(PXZ, cum) if s - 50 <= c <= s + step + 50] or [PXZ[min(range(len(cum)), key=lambda i: abs(cum[i] - s))]]
+        def point_at(target):
+            target = min(cum[-1], max(0, target))
+            i = next((i for i in range(len(cum) - 1) if cum[i + 1] >= target), len(cum) - 2)
+            t = (target - cum[i]) / max(1e-9, cum[i + 1] - cum[i])
+            return tuple(PXZ[i][k] + (PXZ[i + 1][k] - PXZ[i][k]) * t for k in (0, 1))
+        pts = [point_at(s), point_at(s + step)] + [p for p, c in zip(PXZ, cum) if s <= c <= s + step]
         xs = [p[0] for p in pts]; zs = [p[1] for p in pts]
         x0, x1, z0, z1 = min(xs) - BUF, max(xs) + BUF, min(zs) - BUF, max(zs) + BUF
         out.append((LON0 + x0 / KLON, LAT0 - z1 / KLAT, LON0 + x1 / KLON, LAT0 - z0 / KLAT)); s += step
@@ -54,7 +62,8 @@ def get(box, page):
             if res['status'] != 'OK': raise RuntimeError(res.get('error', {}).get('text', res['status']))
             return res['result']['featureCollection']['features'], int(res['page']['total'])
         except Exception as e:
-            print('  재시도:', e, flush=True); time.sleep(3 + attempt * 5)
+            # HTTP exception URLs contain the API key. Never print them.
+            print('  재시도:', type(e).__name__, flush=True); time.sleep(3 + attempt * 5)
     raise SystemExit('브이월드 응답 없음 — 다시 실행하면 받은 칸부터 이어서 함')
 
 def fetch():
@@ -121,7 +130,7 @@ def main():
             item['n'] = name
         out.append(item)
     note = '건물: 브이월드 공간정보 오픈플랫폼 도로명주소건물(윤곽 · 지상 층수), 용도는 OpenStreetMap(© OpenStreetMap contributors, ODbL) 참고'
-    OUT.write_text(json.dumps({'_note': note, 'b': out, 'bank': bank}, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
+    OUT.write_text(json.dumps({'_note': note, 'road': args.road, 'heightNote': '높이는 실제 지상 층수 × 용도별 가정 층고로 추정', 'b': out, 'bank': bank}, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
     hs = sorted(b['f'] for b in out)
     print(f'{len(out)}동 저장 · 층수 중간 {hs[len(hs) // 2]} · 최고 {hs[-1]}층 · {OUT.stat().st_size // 1024} KB')
 

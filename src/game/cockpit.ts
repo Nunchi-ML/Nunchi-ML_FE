@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createNavigator } from './navigator';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 /**
@@ -152,7 +153,7 @@ export function createCockpit(paint = 0xb2331f) {
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
   })();
   const clusterMat = new THREE.MeshBasicMaterial({ map: clusterTex, toneMapped: false });
-  const screenMat = new THREE.MeshStandardMaterial({ color: 0x0b1620, emissive: 0x1d4f6e, emissiveIntensity: 0.6, roughness: 0.2 });
+  const navigation = createNavigator(); g.add(navigation.group);
 
   const box = (w: number, h: number, d: number, m: THREE.Material, x: number, y: number, z: number, rx = 0, ry = 0, rz = 0, parent: THREE.Object3D = g) => {
     const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); b.rotation.set(rx, ry, rz); parent.add(b); return b;
@@ -217,7 +218,7 @@ export function createCockpit(paint = 0xb2331f) {
   box(0.46, 0.09, 0.22, trim, 0.0, -0.33, -0.74, 0.1);                         // 계기판 덮개
   const cluster = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.13), clusterMat);   // 계기판 (빛나는 바늘판)
   cluster.position.set(0, -0.385, -0.69); cluster.rotation.x = -0.25; g.add(cluster);
-  box(0.3, 0.16, 0.04, screenMat, 0.5, -0.4, -0.64, -0.3);                     // 가운데 화면
+  // Center console navigation is a live 3D screen, mounted above the dashboard.                     // 가운데 화면
   for (const x of [-0.45, 0.33, 0.67, 1.2]) box(0.14, 0.05, 0.03, vent, x, -0.47, -0.585, -0.25);   // 송풍구
   box(2.3, 0.012, 0.012, chrome, CAR_X, -0.405, -0.6, 0.1);                    // 대시보드 장식 띠
   // 백미러 · 사이드미러
@@ -251,7 +252,7 @@ export function createCockpit(paint = 0xb2331f) {
   for (const [x, r] of [[0.05, 0.16], [0.62, 0.12]] as const) box(0.62, 0.012, 0.018, trim, x, -0.505, -1.13, 0, r, 0);
 
   // 운전대 + 손 (손은 운전대와 같이 돌아감)
-  const wheel = new THREE.Group(); wheel.position.set(0, -0.265, -0.54); wheel.rotation.x = 0.45;
+  const wheel = new THREE.Group(); wheel.position.set(0, -0.285, -0.62); wheel.rotation.x = 0.45;
   wheel.add(new THREE.Mesh(new THREE.TorusGeometry(0.185, 0.022, 10, 40), trim));
   const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.05, 16), dash); hub.rotation.x = Math.PI / 2; wheel.add(hub);
   for (const a of [Math.PI, 0, -Math.PI / 2]) {                                // 살 3개 (좌 · 우 · 아래)
@@ -410,7 +411,7 @@ export function createCockpit(paint = 0xb2331f) {
   apply();
 
   return {
-    group: g, mirrorFaces, mirrorFaceMat, sideMirrorMats,
+    group: g, navigation, mirrorFaces, mirrorFaceMat, sideMirrorMats,
     /** 오픈카로 바꾸기 (instant면 애니메이션 없이) */
     setOpen: (v: boolean, instant = false) => { target = v ? 1 : 0; if (instant) { k = target; apply(); } },
     /** 지붕 접힘 애니메이션 (약 1.6초) */
