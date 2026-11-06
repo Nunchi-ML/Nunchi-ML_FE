@@ -10,9 +10,9 @@ import { ResultsApp } from './ResultsApp';
 import { SettingsApp } from './SettingsApp';
 
 const APPS: [AppId, string, string, string][] = [
-  ['cam', '📷', '현재 전방 사진','linear-gradient(145deg,#FFD45E,#FF8A1F)'],
-  ['map', '🗺️', '경로 사전 안내', 'linear-gradient(145deg,#7fd6a6,#2f9d6a)'],
-  ['res', 'ℹ️', '기능 연결 상태', 'linear-gradient(145deg,#ffb199,#F2522E)'],
+  ['cam', '📷', '전방 사진','linear-gradient(145deg,#FFD45E,#FF8A1F)'],
+  ['map', '🗺️', '경로 안내', 'linear-gradient(145deg,#7fd6a6,#2f9d6a)'],
+  ['res', 'ℹ️', '연결 상태', 'linear-gradient(145deg,#ffb199,#F2522E)'],
   ['set', '⚙️', '설정', 'linear-gradient(145deg,#d7d2cb,#8f877d)'],
 ];
 const GLARE = ['정상', '눈부심', '많이 눈부심'];
@@ -77,7 +77,7 @@ export function Phone() {
                 <div className="icons">
                   {APPS.map(([id, ico, name, bg]) => (
                     <button key={id} className="icon" onClick={() => openApp(id)}>
-                      <span style={{ background: bg }}>{ico}</span>{name}
+                      <span style={{ background: bg }} aria-hidden="true">{ico}</span><small className="app-name">{name}</small>
                     </button>
                   ))}
                 </div>

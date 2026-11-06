@@ -16,7 +16,7 @@ export function drawNavigationDisplay(canvas: HTMLCanvasElement, s: number, dir:
   const g = canvas.getContext('2d')!, W = canvas.width / 2, H = canvas.height / 2, split = 0, header = compact ? 122 : 86;
   g.setTransform(2, 0, 0, 2, 0, 0);
   const p = at(s), f = { x: p.dx * dir, z: p.dz * dir }, scale = .95;
-  const T = (x: number, z: number) => ({ x: W * (compact ? .53 : .64) + ((x - p.x) * -f.z + (z - p.z) * f.x) * scale,
+  const T = (x: number, z: number) => ({ x: W / 2 + ((x - p.x) * -f.z + (z - p.z) * f.x) * scale,
     y: 290 - ((x - p.x) * f.x + (z - p.z) * f.z) * scale });
   const colors = night ? { land: '#26221c', building: '#39342c', edge: '#4e463b', road: '#655d50', roadEdge: '#322c24', park: '#233e35', water: '#274e61', text: '#d0c5b4' }
     : { land: '#eff0e8', building: '#d9ddd5', edge: '#c4cbc1', road: '#ffffff', roadEdge: '#d1d8cf', park: '#d6e4c9', water: '#b5d9e9', text: '#697b81' };
@@ -83,17 +83,16 @@ export function drawNavigationDisplay(canvas: HTMLCanvasElement, s: number, dir:
   const car = T(p.x, p.z); g.shadowColor = '#a54f1355'; g.shadowBlur = 12;
   g.fillStyle = '#ee7a1a'; g.strokeStyle = '#fff'; g.lineWidth = 4; g.beginPath(); g.moveTo(car.x, car.y - 27); g.lineTo(car.x - 22, car.y + 23); g.lineTo(car.x, car.y + 13); g.lineTo(car.x + 22, car.y + 23); g.closePath(); g.fill(); g.stroke(); g.shadowBlur = 0;
   g.textAlign = 'right'; g.font = `13px ${FONT}`; g.fillStyle = colors.text; g.fillText('© OpenStreetMap · 브이월드', W - 14, H - 84); g.restore();
-  if (!compact && brandLogo.complete && brandLogo.naturalWidth) {
-    g.drawImage(brandLogo, 22, 20, 42, 42);
-    g.fillStyle = '#f2dcc0'; g.font = `600 20px ${FONT}`; g.textAlign = 'left'; g.fillText('NUNCHI', 77, 47);
-    g.font = `16px ${FONT}`; g.fillText(hm(minutes), 77, 70);
-  }
   const cue = guidance ? navigationCue(s, dir, kmToS(endKm), zones, leadMeters) : null;
   const unverified = cue?.kind === 'unverified';
   const urgent = !!cue && !unverified && (cue.active || cue.meters <= 100), attention = !!cue && !unverified && (cue.active || cue.meters <= leadMeters);
   const accent = urgent ? '#ff7778' : attention ? '#ffd38a' : '#ffd45e';
   g.fillStyle = urgent ? '#3a2029' : attention ? '#393126' : '#261e17'; g.fillRect(split, 0, W - split, header);
-  const navCenter = W * (compact ? .5 : .61);
+  const navCenter = W / 2;
+  if (!compact && brandLogo.complete && brandLogo.naturalWidth) {
+    g.drawImage(brandLogo, 22, 20, 42, 42);
+    g.font = `16px ${FONT}`; g.fillStyle = '#e1cdb3'; g.textAlign = 'left'; g.fillText(hm(minutes), 76, 47);
+  }
   g.textAlign = 'center'; g.font = `bold ${compact ? 70 : 38}px ${FONT}`; g.fillStyle = '#fff8e7';
   const heading = cue ? unverified ? cue.text : compact ? `${cue.active ? '지금' : `${cue.meters} m 앞`} · ${cue.kind === 'exit' ? '밝기 변화' : '전방 시야 주의'}` : `${cue.active ? '지금' : `${cue.meters} m 앞`}  ${cue.text}` : running ? '경로를 따라 주행하세요' : '경로 안내 준비';
   g.fillText(heading, navCenter, compact ? 61 : 41, W - (compact ? 100 : 200));
@@ -102,7 +101,7 @@ export function drawNavigationDisplay(canvas: HTMLCanvasElement, s: number, dir:
   g.textAlign = 'right'; g.font = `16px ${FONT}`; g.fillStyle = '#d7c2a6'; g.fillText(voiceAvailable ? voice ? '음성 ON' : '음성 OFF' : '음성 미지원', W - 22, 22);
   if (attention) {
     // The central map area stays visible beside the steering wheel.
-    const width = Math.min(compact ? 1600 : 900, (W - navCenter - 24) * 2, W - 80), left = navCenter - width / 2;
+    const width = W - 80, left = (W - width) / 2;
     g.fillStyle = urgent ? '#5a1825f5' : '#46331bf5'; g.beginPath(); g.roundRect(left, compact ? 138 : 108, width, compact ? 112 : 80, 16); g.fill();
     g.strokeStyle = urgent ? '#ff9399' : '#f3c67c'; g.lineWidth = 2; g.stroke();
     g.fillStyle = accent; g.textAlign = 'center'; g.font = `bold ${compact ? 64 : 36}px ${FONT}`;

@@ -64,5 +64,6 @@ export function PreTripPanel({ inPhone = false }: { inPhone?: boolean }) {
       <p className="pretrip-qualification">체감 민감도는 안내 시점에만 반영하며 사진의 예측 등급을 올리지 않아요. 질환·수술명은 수집하지 않습니다.</p>
     </details>
     <p className="pretrip-qualification">예상 노출·이동 조건을 비교하는 안내입니다. 노출 감소·사고 예방 효과는 아직 검증하지 않았습니다.</p>
+    <p className="pretrip-qualification">도로 전광판도 같은 관측 상태를 안내해요. 3D 전광판은 가상 배치한 연동 체험이며 실제 설치·운영 정보가 아닙니다.</p>
   </section>;
 }

@@ -177,6 +177,7 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
 #phone .btn{position:absolute;width:4px;border-radius:2px;background:linear-gradient(90deg,#2a2420,#5a5047)}
 #phone .b1{left:-3px;top:150px;height:34px}#phone .b2{left:-3px;top:205px;height:62px}#phone .b3{left:-3px;top:280px;height:62px}#phone .b4{right:-3px;top:230px;height:96px}
 #phone .scr{position:relative;height:100%;border-radius:48px;overflow:hidden;background:var(--cream);color:var(--ink);display:flex;flex-direction:column}
+#phone .scr{word-break:keep-all;overflow-wrap:break-word}
 #phone .island{position:absolute;left:50%;top:11px;transform:translateX(-50%);width:118px;height:34px;border-radius:20px;background:#050404;z-index:5}
 #phone .status{position:relative;z-index:4;display:flex;justify-content:space-between;align-items:center;padding:17px 30px 8px 36px;font-size:15px;font-weight:700}
 #phone .scr.home .status{color:#fff}
@@ -202,6 +203,8 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
 .icon{border:0;background:none;color:#fff;font:inherit;font-size:11.5px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer;text-shadow:0 1px 4px rgba(0,0,0,.5)}
 .icon span{width:64px;height:64px;border-radius:17px;display:flex;align-items:center;justify-content:center;font-size:32px;box-shadow:0 6px 16px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.4);transition:transform .15s}
 .icon:active span{transform:scale(.92)}
+.icon{min-width:0;padding:0}
+.icon .app-name{font:inherit;white-space:nowrap;line-height:1.5}
 .dock{width:100%;border-radius:30px;padding:10px;background:rgba(255,255,255,.18);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.22)}
 .dock button{width:100%;border:0;border-radius:22px;padding:13px;background:rgba(18,13,10,.55);color:#fff;font:inherit;font-weight:700;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
 .dock span{font-size:20px}
