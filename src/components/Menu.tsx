@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { openGlareCamera } from '../phone/CameraApp';
 import { BANK_KM, D, P, TOTAL, at, kmToS, locationLabel } from '../game/road';
 import { compass, hm, simDate, sunPos } from '../game/sun';
 import { getEngine } from '../game/engine';
@@ -272,6 +273,7 @@ export function Menu() {
         <div className="menu-start">
           <div className="menu-start-status"><span>{st.observationSpeed ? `관찰 상한 ${st.observationSpeed} km/h` : '자유 주행'}</span>{st.observationSpeed ? <button onClick={() => set({ observationSpeed: 0 })}>상한 해제</button> : <small>가속·제동은 직접 조작해요</small>}</div>
         <button id="go" disabled={!validCourse} onClick={() => validCourse && getEngine()?.startRun()}><span>{validCourse ? '출발하기 ▶' : '서로 다른 출발·도착 지점을 선택하세요'}</span></button>
+        <button className="menu-camera" onClick={openGlareCamera}><b>📷 눈부심 카메라 바로 써 보기</b><small>휴대폰 카메라로 낮에 해 쪽을 비춰 보세요 · 선정 모델이 판정해요</small></button>
         </div>
       </div>
       <div className="right">
