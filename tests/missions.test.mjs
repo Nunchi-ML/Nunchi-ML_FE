@@ -23,6 +23,7 @@ test('Offline inputs cover weather scenarios without fake final model results',a
 test('The longest real underpass is offered with a reproducible observation speed and an honest roof time',()=>{
   const long=audit.courses.find(c=>c.id==='chimsan-observation'),short=audit.courses.find(c=>c.id==='jungdong-exit');
   assert.ok(long&&short);assert.equal(long.observationKmh,40);assert.equal(short.observationKmh,40);
+  assert.equal(long.defaultObservationKmh,0);assert.equal(short.defaultObservationKmh,0);
   assert.equal(long.tunnelObservations.length,1);const a=long.tunnelObservations[0],b=short.tunnelObservations[0];
   assert.ok(a.roofM>190&&a.roofM<193);assert.ok(a.roofM>b.roofM*2);
   assert.ok(a.secondsAt40>=17&&a.secondsAt40<18);assert.ok(b.secondsAt40>8&&b.secondsAt40<9);

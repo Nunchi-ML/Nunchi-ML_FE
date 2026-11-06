@@ -47,13 +47,13 @@ for (const road of ['dalgu', 'sincheon']) {
     if (!passed || (m.id === 'im-bank-sunset' && !bankIncluded)) throw new Error(`Course audit failed: ${m.id}`);
     courses.push({ id: m.id, title: m.t, road, date, minutes: m.m, distanceKm: Number((hi - lo).toFixed(3)),
       estimatedSecondsAt40Kmh: Math.round((hi - lo) / 40 * 3600), sunAltitude: sun.alt, sunAzimuth: sun.az,
-      frontFraction, underpasses: passages.length, tunnelObservations, observationKmh: m.observeKmh ?? 0, bankIncluded, passed });
+      frontFraction, underpasses: passages.length, tunnelObservations, observationKmh: m.observeKmh ?? 0, defaultObservationKmh: 0, bankIncluded, passed });
     for (const weather of ['clear', 'cloud', 'over']) cases.push({ id: `${m.id}-${weather}`, missionId: m.id, road, date, minutes: m.m,
       weather, direction, source: 'selected-simulation-conditions', cloudOktasAssumed: { clear: 0, cloud: 5, over: 10 }[weather],
       sunAltitude: sun.alt, sunAzimuth: sun.az, referenceView: { camera: 'cockpit', lane: 1, flow: 0, observationSpeed: m.observeKmh ?? 0 }, tunnelObservations, segments });
   }
 }
 await writeFile(new URL('src/data/route_inputs.json', root), JSON.stringify({ format: 'nunchi-route-input-v1', year, missionSha256,
-  predictionsReady: false, note: 'Prepared inputs only. Final-model inference is deferred. Weather is assumed, not observed.', cases }));
+  predictionsReady: false, note: 'Prepared inputs only. Final-model inference is deferred. Weather is assumed, not observed. Reference observation speed is optional comparison metadata; gameplay defaults to free driving.', cases }));
 await writeFile(new URL('src/data/course_audit.json', root), JSON.stringify({ year, missionSha256, courses }, null, 2));
 console.log(JSON.stringify({ preparedCases: cases.length, finalPredictions: 0, courses }, null, 2));

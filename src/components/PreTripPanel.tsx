@@ -28,7 +28,7 @@ export function PreTripPanel({ inPhone = false }: { inPhone?: boolean }) {
       <div className="pretrip-input-toggle" role="group" aria-label="예시 관측 조건">
         {([['attention', '주의 관측'], ['stale', '오래된 사진'], ['direction', '반대 방향'], ['missing', '카메라 없음']] as const).map(([v, text]) => <button key={v} aria-pressed={settings.exampleCondition === v} onClick={() => set({ exampleCondition: v })}>{text}</button>)}
       </div>
-      {!p.observedM && <button className="pretrip-example-reset" onClick={() => { const i = Math.max(0, MISSIONS.findIndex(m => m.photoExample)), m = MISSIONS[i]; set({ startKm: m.a, endKm: m.b, date: missionDate(m, 2026), minutes: m.m, weather: 'clear', flow: 0, mission: i, observationSpeed: m.observeKmh ?? 0, exampleCondition: 'attention' }); }}>사진 예시가 있는 추천 코스로 보기</button>}
+      {!p.observedM && <button className="pretrip-example-reset" onClick={() => { const i = Math.max(0, MISSIONS.findIndex(m => m.photoExample)), m = MISSIONS[i]; set({ startKm: m.a, endKm: m.b, date: missionDate(m, 2026), minutes: m.m, weather: 'clear', flow: 0, mission: i, observationSpeed: 0, exampleCondition: 'attention' }); }}>사진 예시가 있는 추천 코스로 보기</button>}
     </div>}
     <details className="pretrip-details"><summary>시간·거리·소통 상태 비교</summary>
       <div className="pretrip-candidates">{preview.candidates.map(c => <div key={c.route.id}>

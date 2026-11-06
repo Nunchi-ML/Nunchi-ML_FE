@@ -376,3 +376,57 @@ button:focus-visible,select:focus-visible{outline:3px solid var(--sun);outline-o
 }
 
 .pretrip-candidates{display:grid;gap:8px;margin-top:10px}.pretrip-candidates>div{display:flex;flex-direction:column;gap:3px;border:1px solid #bda38244;border-radius:9px;padding:9px 10px}.pretrip-candidates span{font-size:10px;color:#d3bfa2}
+
+/* Start screen: one clear course choice, optional detail, persistent departure. */
+#menu{background:linear-gradient(90deg,#181511 0%,#181511f5 36%,#15191ce6 100%)}
+#menu .left{padding:0;gap:0;overflow:hidden;height:100%;background:#181511f5;border-right:1px solid #e5c48e21}
+.menu-scroll{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:27px 25px 20px 31px;scrollbar-width:thin;scrollbar-color:#ad8c5b77 transparent;overscroll-behavior:contain}
+.menu-scroll>*{flex-shrink:0}
+#menu .logo{gap:11px;margin-bottom:5px}#menu .logo img{width:48px;height:48px}#menu h1{font-size:32px}
+#menu .sub{font-size:12px;line-height:1.55;color:#c9c2b8;word-break:keep-all}
+#menu .sect{font:700 13px/1.5 "Noto Sans KR",sans-serif;letter-spacing:0;color:#d8c9af;margin-top:3px}
+#menu .road{border-width:1px;padding:12px;border-color:#e7d6ba30;background:#ffffff04;border-radius:12px}
+#menu .road b{font:700 18px/1.5 "Noto Sans KR",sans-serif;color:#fff5e6}
+#menu .road-purpose{font-size:12px;color:#d7c8b2;margin:3px 0 6px;font-weight:500;word-break:keep-all}
+#menu .road small{display:block;font-size:11px;line-height:1.6;color:#aca69c;word-break:keep-all}
+#menu .road.on{border-color:#ffc559;background:#ffbc4710;box-shadow:inset 0 0 0 1px #ffbc4726}
+#menu .road.on .road-purpose{color:#ffda89}
+.selected-course{border:1px solid #edc88450;border-left:3px solid #ffbd51;border-radius:12px;padding:14px 16px;background:linear-gradient(120deg,#ffbe4911,#ffffff03);word-break:keep-all}
+.selected-course>span{font-size:10px;color:#ffda91;font-weight:600;letter-spacing:.3px}
+.selected-course h2{font:700 18px/1.5 "Noto Sans KR",sans-serif;margin:5px 0 7px;color:#fff7e8}
+.selected-course p{display:flex;align-items:center;gap:9px;margin:0;font-size:12px;color:#cfc7ba}.selected-course i{width:3px;height:3px;border-radius:50%;background:#867c6e}
+.menu-map-shortcut{display:none}
+.menu-fold{border:1px solid #e5d6bd24;border-radius:11px;background:#ffffff03;overflow:hidden}
+.menu-fold>summary{display:flex;align-items:center;gap:9px;list-style:none;cursor:pointer;padding:12px 14px;font:600 13px/1.5 "Noto Sans KR",sans-serif;color:#eee8dd}
+.menu-fold>summary::-webkit-details-marker{display:none}.menu-fold>summary>span{min-width:0;flex:1}.menu-fold>summary small{display:block;font-weight:400;font-size:11px;line-height:1.7;color:#aaa69f;margin-top:2px}
+.menu-fold>summary em{font-style:normal;font-size:10px;color:#b6a68d;flex-shrink:0}.menu-fold>summary::after{content:'⌄';font-size:15px;color:#d8bd8d;transition:transform .15s}.menu-fold[open]>summary::after{transform:rotate(180deg)}
+.menu-fold[open]>summary{background:#ffdc8506;border-bottom:1px solid #e5d6bd24}.menu-fold-body{display:flex;flex-direction:column;gap:13px;padding:16px;font-size:13px;line-height:1.75;word-break:keep-all}.menu-fold-body p{margin:0}
+#menu .menu-fold .note{font-size:11px;line-height:1.75;color:#aaa69f}
+#menu .missions{padding:9px;gap:6px}#menu .mission,#menu .mission>*{transform:none}
+#menu .mission{border-color:transparent;background:#ffffff03;border-radius:8px;padding:11px;gap:8px;min-width:0}
+#menu .mission>div{min-width:0}#menu .mission.on{border-color:#e9bd645e;background:#ffbc4710}
+#menu .mission .mt{font:600 13px/1.65 "Noto Sans KR",sans-serif;word-break:keep-all}
+#menu .mission .ms{font-size:11px;line-height:1.8;color:#aaa69f}
+#menu .mission .badge{font-size:9px;white-space:nowrap;padding:2px 6px;border:1px solid #eec26340;background:#edc8740c;color:#dfbf85}
+#menu .menu-fold>.course-observation,#menu .menu-fold>.pretrip{border:0;border-radius:0;background:transparent;padding:15px;margin:0}
+#menu .course-passages span{font-size:11px;line-height:1.7}#menu .course-observation p{line-height:1.75}
+.menu-start{flex-shrink:0;padding:13px 25px 20px 31px;background:#1c1813;border-top:1px solid #e5d6bd24;box-shadow:0 -8px 20px #0a08072e;z-index:2}
+.menu-start-status{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;font-size:12px;color:#e4d4b9;line-height:1.6}.menu-start-status small{font-size:10px;color:#a9a39a}.menu-start-status button{font:inherit;font-size:11px;color:#ffda8e;border:1px solid #c7a25d66;border-radius:6px;padding:2px 8px;background:transparent;cursor:pointer}
+#menu #go{display:block;width:100%;transform:none;margin:0;padding:13px;font:700 17px/1.5 "Noto Sans KR",sans-serif;border-radius:10px;box-shadow:0 3px 14px #ffab1917;background:linear-gradient(110deg,#ffce66,#ffad43)}#menu #go span{transform:none}
+#menu .right{padding:24px 24px 20px 20px}#menu #mapwrap{background:#171c20ee;backdrop-filter:none;border-color:#d6c5a32b}
+#menu #sumbar .slab{transform:none;background:#211e19;border:1px solid #d6c5a329;border-radius:10px;padding:10px 12px}#menu #sumbar .in{transform:none}
+#menu #sumbar .v{font:600 14px/1.65 "Noto Sans KR",sans-serif;word-break:keep-all}#menu #sumbar .k{font-size:10px;color:#a9a39a;margin-bottom:2px}
+@media(max-height:520px) and (orientation:landscape){
+ .menu-scroll{padding:13px 16px 14px 22px;gap:8px}#menu .logo{margin:0;gap:8px}#menu .logo img{width:30px;height:30px}#menu h1{font-size:24px}#menu .sub{display:none}
+ #menu .sect{font-size:11px;margin:2px 0}#menu .road{padding:8px 9px}#menu .road b{font-size:15px}#menu .road-purpose{font-size:10px;margin:2px 0 0}#menu .road small{display:none}
+ .selected-course{padding:9px 11px}.selected-course h2{font-size:14px;margin:3px 0 5px}.selected-course>span{font-size:9px}.selected-course p{font-size:10px}
+ .menu-fold>summary{padding:9px 11px;font-size:12px}.menu-fold>summary small{font-size:10px}.menu-fold-body{padding:12px;gap:10px}#menu .mission .badge{display:none}
+ .menu-start{padding:9px 16px 11px 22px}.menu-start-status{margin-bottom:6px;font-size:11px}.menu-start-status small{font-size:9px}#menu #go{padding:9px;font-size:15px}
+ #menu .right{padding:12px 12px 12px 0}#menu #sumbar .slab{padding:6px 8px}#menu #sumbar .v{font-size:11px}#menu #maptip{font-size:10px;padding:5px 8px}
+}
+@media(max-width:900px) and (orientation:portrait){
+ #menu{display:block;padding-bottom:100px;overflow-y:auto}#menu .left{display:block;height:auto;overflow:visible;border:0}.menu-scroll{flex:none;overflow:visible;padding:22px 20px}
+ .menu-start{position:fixed;left:0;right:0;bottom:0;padding:12px 20px;z-index:23}#menu .right{padding:0 20px 20px;min-height:350px}
+ .menu-map-shortcut{display:block;width:100%;margin-top:11px;padding:8px;border:1px solid #ddbd7b44;border-radius:7px;background:#ffcb5508;color:#e6cca0;font:600 12px "Noto Sans KR",sans-serif}
+ #menu ~ #rotate{display:none}
+}
