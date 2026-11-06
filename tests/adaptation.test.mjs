@@ -45,3 +45,19 @@ test('Weather and night change scene brightness without false daylight at night'
   assert.equal(sceneLuminance(-10, 'clear'), .15);
   assert.equal(adaptationScores(sceneLuminance(-10, 'clear')).exit, 0);
 });
+
+test('Daylight exit accent requires a sustained dark approach and recovers without persistent haze', () => {
+  const s=newAdaptation(); stepAdaptation(s,4000,0,true,{covered:false,outsideLuminance:4000});
+  for(let i=0;i<100;i++)stepAdaptation(s,9,.05,true,{covered:true,outsideLuminance:4000});
+  const exit=stepAdaptation(s,4000,.05,true,{covered:false,outsideLuminance:4000});
+  assert.ok(exit.exitPulse>.4);
+  const paused=s.exitAge;stepAdaptation(s,4000,0,true,{covered:false,outsideLuminance:4000});assert.equal(s.exitAge,paused);
+  let last;for(let i=0;i<100;i++)last=stepAdaptation(s,4000,.05,true,{covered:false,outsideLuminance:4000});
+  assert.ok(last.exitPulse<.002);assert.ok(last.white<.03);
+  resetAdaptation(s);assert.equal(stepAdaptation(s,4000,.05,true,{covered:false,outsideLuminance:4000}).exitPulse,0);
+  for(let i=0;i<10;i++)stepAdaptation(s,9,.05,true,{covered:true,outsideLuminance:4000});
+  assert.equal(stepAdaptation(s,4000,.05,true,{covered:false,outsideLuminance:4000}).exitPulse,0);
+  resetAdaptation(s);stepAdaptation(s,.15,0,true,{covered:false,outsideLuminance:.15});
+  for(let i=0;i<100;i++)stepAdaptation(s,9,.05,true,{covered:true,outsideLuminance:.15});
+  assert.equal(stepAdaptation(s,.15,.05,true,{covered:false,outsideLuminance:.15}).exitPulse,0);
+});

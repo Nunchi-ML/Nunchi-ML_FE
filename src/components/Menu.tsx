@@ -1,17 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
-import { BANK_KM, D, P, TOTAL, at, kmToS, locationLabel, riskAt, riskColor, sToKm, type Dir } from '../game/road';
+import { BANK_KM, D, P, TOTAL, at, kmToS, locationLabel } from '../game/road';
 import { compass, hm, simDate, sunPos } from '../game/sun';
 import { getEngine } from '../game/engine';
 import { BANK_POS } from '../game/city';
 import { MISSIONS, missionDate, useGame, type Weather } from '../store';
 
+import { PreTripPanel } from './PreTripPanel';
+import { getRoutePreview } from '../game/routePreview';
+import type { SegmentAssessment } from '../game/preTrip';
 import { useTouchControls } from './useTouchControls';
 
 import { IS_SINCHEON, ROAD_ID, chooseRoad } from '../game/roadSelection';
 
 type Tf = (x: number, z: number) => [number, number];
 
-function drawRouteMap(c: HTMLCanvasElement, startKm: number, endKm: number, dir: Dir, view: { focus: boolean; zoom: number; pan: { x: number; y: number }; compact: boolean }): Tf | null {
+function drawRouteMap(c: HTMLCanvasElement, startKm: number, endKm: number, view: { focus: boolean; zoom: number; pan: { x: number; y: number }; compact: boolean }, assessments: SegmentAssessment[]): Tf | null {
   const g = c.getContext('2d')!; if (!c.width) return null;
   const pr = devicePixelRatio;
   const begin = kmToS(Math.min(startKm, endKm)), finish = kmToS(Math.max(startKm, endKm));
@@ -28,13 +31,21 @@ function drawRouteMap(c: HTMLCanvasElement, startKm: number, endKm: number, dir:
   for (let y = 0; y < c.height; y += 40 * pr) { g.beginPath(); g.moveTo(0, y); g.lineTo(c.width, y); g.stroke(); }
   for (let s = 0; s < TOTAL; s += 200) {                          // 구간 위험 색 (체험용 예시)
     const p1 = at(s), p2 = at(s + 200), [x1, y1] = T(p1.x, p1.z), [x2, y2] = T(p2.x, p2.z);
-    g.strokeStyle = IS_SINCHEON ? '#8da0a9' : riskColor(riskAt(sToKm(s), dir).ratio); g.lineWidth = 7 * pr; g.lineCap = 'round';
+    g.strokeStyle = '#8b8680'; g.lineWidth = 7 * pr; g.lineCap = 'round';
     g.globalAlpha = .55; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); g.globalAlpha = 1;
   }
   const s0 = kmToS(Math.min(startKm, endKm)), s1 = kmToS(Math.max(startKm, endKm));
   g.strokeStyle = '#FFD45E'; g.lineWidth = 13 * pr; g.beginPath();
   for (let s = s0; s <= s1; s += 50) { const p = at(s), [x, y] = T(p.x, p.z); if (s === s0) g.moveTo(x, y); else g.lineTo(x, y); }
   g.stroke();
+  for (const a of assessments) {
+    const first = at(kmToS(a.segment.km0)), last = at(kmToS(a.segment.km1));
+    const [x0,y0] = T(first.x,first.z), [x1,y1] = T(last.x,last.z);
+    g.strokeStyle = a.state === 'unknown' ? '#98938a' : a.level === 2 ? '#F2522E' : a.level === 1 ? '#FF8A1F' : '#3BA55C';
+    g.lineWidth = 6 * pr; g.setLineDash(a.state === 'unknown' ? [5 * pr,4 * pr] : []);
+    g.beginPath();g.moveTo(x0,y0);g.lineTo(x1,y1);g.stroke();
+  }
+  g.setLineDash([]);
   g.font = `${12 * pr}px "Noto Sans KR"`; g.textAlign = 'center';
   const placed: number[][] = [];
   // iM뱅크 본점: 실제 건물 자리에 점, 선으로 이은 초록 이름표 (역 이름보다 먼저 자리 잡아 겹치지 않게)
@@ -83,6 +94,7 @@ const WXS: [Weather, string][] = [['clear', '맑음'], ['cloud', '구름'], ['ov
 
 export function Menu() {
   const st = useGame(s => s.settings), set = useGame(s => s.set);
+  const preview = getRoutePreview(st);
   const cv = useRef<HTMLCanvasElement>(null), T = useRef<Tf | null>(null);
   const [picking, setPicking] = useState<0 | 1>(0);
   const [size, setSize] = useState(0);
@@ -102,15 +114,14 @@ export function Menu() {
     const escape = (e: KeyboardEvent) => { if (e.key === 'Escape') setMapExpanded(false); };
     addEventListener('keydown', escape); return () => removeEventListener('keydown', escape);
   }, [mapExpanded]);
-  const dir: Dir = st.endKm >= st.startKm ? 'E' : 'W';
 
   useEffect(() => {
     const on = () => setSize(n => n + 1); addEventListener('resize', on); return () => removeEventListener('resize', on);
   }, []);
   useEffect(() => {
     const c = cv.current!; c.width = c.clientWidth * devicePixelRatio; c.height = c.clientHeight * devicePixelRatio;
-    T.current = drawRouteMap(c, st.startKm, st.endKm, dir, { focus: mapFocus, zoom: mapZoom, pan: mapPan, compact });
-  }, [st.startKm, st.endKm, dir, size, mapFocus, mapZoom, mapPan, compact]);
+    T.current = drawRouteMap(c, st.startKm, st.endKm, { focus: mapFocus, zoom: mapZoom, pan: mapPan, compact }, preview.primary.segments);
+  }, [st.startKm, st.endKm, size, mapFocus, mapZoom, mapPan, compact, st.date, st.minutes, st.weather, st.observationMode, st.exampleCondition]);
 
   const sp = sunPos(simDate(st.date, st.minutes));
   const head = getEngine()?.routeHead() ?? 0;
@@ -150,7 +161,7 @@ export function Menu() {
       <div className="left">
         <div className="logo">
           <img src="./logo.png" alt="" onError={e => { e.currentTarget.style.display = 'none'; }} />
-          <div><h1>눈치 <em>드라이브</em></h1><div className="sub">해가 눈을 가리기 전에, 먼저 알아챈다</div></div>
+          <div><h1>눈치 <em>드라이브</em></h1><div className="sub">눈부심 노출을 비교하고, 앞 구간을 미리 알아채요</div></div>
         </div>
 
         <div className="sect">① 어떤 시야 변화를 체험할까요?</div>
@@ -188,6 +199,7 @@ export function Menu() {
         </div>
 
         <div className="note">추천 코스는 출발 때의 햇빛과 날씨를 유지해 같은 조건으로 체험해요.</div>
+        <PreTripPanel />
         <div className="sect">③ 언제 달릴까</div>
         <div className="row"><label>날짜</label>
           <input aria-label="출발 날짜" type="date" value={st.date} onChange={e => e.target.value && set({ date: e.target.value })}
@@ -224,7 +236,7 @@ export function Menu() {
             : validCourse
               ? <>출발 <b style={{ color: 'var(--green)' }}>{a}</b> · 도착 <b style={{ color: 'var(--red)' }}>{b}</b> · 바로 출발하거나 도착 지점을 바꿀 수 있어요</>
               : <>출발 <b style={{ color: 'var(--green)' }}>{a}</b> · 이제 다른 <b style={{ color: 'var(--red)' }}>도착</b> 지점을 누르세요</>}</div>
-          <div id="legend">{!IS_SINCHEON && <><span><i style={{ background: 'var(--green)' }} />낮음</span><span><i style={{ background: 'var(--orange)' }} />보통</span><span><i style={{ background: 'var(--red)' }} />높음</span></>}<span>· {IS_SINCHEON ? '파란 표시: 밝기가 달라지는 지하차도' : '구간 위험 (체험용 예시)'}</span></div>
+          <div id="legend"><span><i style={{ background: 'var(--orange)' }} />주의 관측</span><span><i style={{ background: '#98938a' }} />미확인</span>{IS_SINCHEON && <span>· 파란 표시는 지하차도</span>}</div>
         </div>
         <div id="sumbar">
           <div className="slab"><div className="in"><div className="k">코스</div><div className="v">{a} → {b}</div></div></div>

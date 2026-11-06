@@ -24,7 +24,7 @@ export function Hud({ visible, bind }: { visible: boolean; bind: <K extends keyo
   const h = useGame(s => s.hud), st = useGame(s => s.settings), phoneOpen = useGame(s => s.phoneOpen), set = useGame(s => s.set);
   const compact = useTouchControls(), inCab = h.navigation?.inCab ?? true;
   const sport = st.mode === 'sport', progress = Math.max(0, Math.min(1, h.prog));
-  const openSettings = () => useGame.setState({ phoneOpen: true, app: 'set' });
+  const openPhone = () => useGame.setState({ phoneOpen: true, app: 'home' });
   const adaptation = st.guidance && h.adaptation && (h.adaptation.distance < 150 || h.adaptation.burden > .1) ? h.adaptation : null;
   const entering = adaptation?.phase.includes('진입 전');
   const inTunnel = adaptation?.phase.includes('어두워진') || adaptation?.phase.includes('내부');
@@ -58,7 +58,7 @@ export function Hud({ visible, bind }: { visible: boolean; bind: <K extends keyo
         <DriveButton icon="guide" label="내비게이션 시야 안내" hint="안내" active={st.guidance} pressed={st.guidance} onClick={() => set({ guidance: !st.guidance })} />
         <span className="drive-tool-separator" />
         <DriveButton icon="mode" label="스포츠 모드" hint={sport ? '스포츠' : '일반'} active={sport} pressed={sport} onClick={() => getEngine()?.toggleSport()} />
-        <DriveButton icon="settings" label="주행 설정" hint="설정" onClick={openSettings} />
+        <DriveButton icon="apps" label="휴대폰 열기" hint="휴대폰" onClick={openPhone} />
         <DriveButton icon="menu" label="코스 메뉴" hint="코스" onClick={() => getEngine()?.toMenu()} />
       </nav>
     </>}

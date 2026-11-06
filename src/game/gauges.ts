@@ -1,4 +1,5 @@
-import { BANK_KM, D, TOTAL, at, kmToS, riskAt, riskColor, sToKm, type Dir } from './road';
+import { BANK_KM, D, TOTAL, at, kmToS } from './road';
+import type { NavigationZone } from './navigationGuidance';
 import { BANK_POS } from './city';
 
 export function drawSpeedo(c: HTMLCanvasElement, kmh: number, danger: boolean, max = 140) {
@@ -19,15 +20,21 @@ export function drawSpeedo(c: HTMLCanvasElement, kmh: number, danger: boolean, m
 }
 
 /** 진행 방향이 위로 오게 돌아가는 미니맵 (반경 약 550 m) */
-export function drawMinimap(c: HTMLCanvasElement, p: { x: number; z: number }, head: number, s0: number, dir: number, startKm: number, endKm: number) {
+export function drawMinimap(c: HTMLCanvasElement, p: { x: number; z: number }, head: number, s0: number, dir: number, startKm: number, endKm: number, zones: NavigationZone[] = []) {
   const g = c.getContext('2d')!, W = c.width, sc = W / 1100;
   g.clearRect(0, 0, W, W); g.save(); g.translate(W / 2, W / 2 + 40); g.rotate(-head);
-  const dirK: Dir = dir > 0 ? 'E' : 'W';
+  void dir;
   for (let s = Math.max(0, s0 - 900); s < Math.min(TOTAL, s0 + 900); s += 50) {
     const a = at(s), b = at(s + 50);
-    g.strokeStyle = riskColor(riskAt(sToKm(s), dirK).ratio); g.lineWidth = 16; g.lineCap = 'round';
+    g.strokeStyle = '#8d8980'; g.lineWidth = 16; g.lineCap = 'round';
     g.beginPath(); g.moveTo((a.x - p.x) * sc, (a.z - p.z) * sc); g.lineTo((b.x - p.x) * sc, (b.z - p.z) * sc); g.stroke();
   }
+  for (const zone of zones) {
+    const lo=Math.max(Math.min(zone.start,zone.end),s0-900), hi=Math.min(Math.max(zone.start,zone.end),s0+900);
+    g.strokeStyle=zone.kind==='unverified'?'#aaa498':'#ed8d39';g.lineWidth=10;g.setLineDash(zone.kind==='unverified'?[8,6]:[]);g.beginPath();
+    for(let s=lo;s<=hi;s+=10){const a=at(s);if(s===lo)g.moveTo((a.x-p.x)*sc,(a.z-p.z)*sc);else g.lineTo((a.x-p.x)*sc,(a.z-p.z)*sc);}g.stroke();
+  }
+  g.setLineDash([]);
   const r0 = kmToS(Math.min(startKm, endKm)), r1 = kmToS(Math.max(startKm, endKm));
   g.strokeStyle = '#FFD45E'; g.lineWidth = 5; g.setLineDash([10, 8]); g.beginPath();
   for (let s = Math.max(r0, s0 - 900); s <= Math.min(r1, s0 + 900); s += 30) { const a = at(s); g.lineTo((a.x - p.x) * sc, (a.z - p.z) * sc); }
