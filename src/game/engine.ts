@@ -11,6 +11,7 @@ import type { Vehicle } from './vehicles';
 import { createCockpit } from './cockpit';
 import { newDrivingFeel, updateDrivingFeel, stepDriveSpeed } from './drivingFeel';
 import { createKoreanVoiceGuide } from './voice';
+import { createCarAudio } from './carAudio';
 import { getRoutePreview } from './routePreview';
 import { warningLeadMeters, type SegmentAssessment } from './preTrip';
 import { routeZones } from './navigator';
@@ -103,7 +104,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
   let currentPassage: PassageRecord | null = null;
   let observerReference: { s: number; direction: number } | null = null;
   let drivingFeel = newDrivingFeel(), visualSteer = 0;
-  const voice = createKoreanVoiceGuide();
+  const voice = createKoreanVoiceGuide(), carAudio = createCarAudio();
   let navigationZones: NavigationZone[] = [], navigationKey = '', navT = 0;
   let roadsideObservations: SegmentAssessment[] = [];
   let navCue: ReturnType<typeof CP.navigation.draw> = null;
@@ -114,10 +115,18 @@ export function createEngine(canvas: HTMLCanvasElement) {
     const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); composer.setSize(w, h);
     camera.aspect = w / h; baseFov = w / h < 1.2 ? 74 : 60; camera.fov = baseFov; camera.updateProjectionMatrix();
   }
+  let autoScale = 1, slowSec = 0;
   function applyGfx() {
     const hi = G.getState().settings.gfx === 'high';
     renderer.shadowMap.enabled = hi; W.buildings.forEach(b => b.castShadow = hi);
-    renderer.setPixelRatio(Math.min(devicePixelRatio, hi ? 2 : 1.5)); resize();
+    // 후처리(눈부심 번짐) 화면도 같은 해상도로 그린다. 예전엔 처음 값(1배)에 머물러 휴대폰에서 흐릿했다.
+    const pr = Math.min(devicePixelRatio, hi ? 2 : 1.75) * autoScale;
+    renderer.setPixelRatio(pr); composer.setPixelRatio(pr); resize();
+  }
+  // 느린 기기: 주행 중 초당 프레임이 계속 낮으면 해상도를 한 단계씩 낮춘다(최소 70%).
+  function adaptResolution(fps: number) {
+    slowSec = fps < 28 ? slowSec + 1 : 0;
+    if (slowSec >= 3 && autoScale > .7) { autoScale = Math.max(.7, autoScale - .15); slowSec = 0; applyGfx(); }
   }
 
   const routeDir = (): Dir => G.getState().settings.endKm >= G.getState().settings.startKm ? 'E' : 'W';
@@ -136,7 +145,8 @@ export function createEngine(canvas: HTMLCanvasElement) {
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     resize();
     voice.reset(); voice.setEnabled(st.voice && st.guidance);
-    voice.announce('navigation-start', '경로 안내를 시작합니다.', performance.now(), true);
+    voice.announce('navigation-start', '안내를 시작할게요.', performance.now(), true);
+    carAudio.start();
     navigationKey = ''; navT = 0; drivingFeel = newDrivingFeel(); visualSteer = 0;
     S.referenceFrame = false; observerReference = null;
     resetAdaptation(adaptation);
@@ -154,7 +164,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
     banner('출발', `${a} → ${b}`, `${hm(S.minutes)} · ${compass(routeHead())}쪽으로`);
   }
   function endRun() {
-    voice.announce('navigation-arrival', '목적지에 도착했습니다. 경로 안내를 마칩니다.', performance.now(), true);
+    voice.announce('navigation-arrival', '목적지에 도착했어요. 안내를 마칠게요.', performance.now(), true);
     S.running = false;
     const end = nearestStation(G.getState().settings.endKm).name;
     G.setState({ screen: 'result', phoneOpen: false, result: {
@@ -227,7 +237,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
   function loop(now: number) {
     raf = requestAnimationFrame(loop);
     const dt = Math.min(0.1, (now - last) / 1000);
-    fpsN++; fpsT += (now - last) / 1000; if (fpsT >= 1) { fpsV = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; }
+    fpsN++; fpsT += (now - last) / 1000; if (fpsT >= 1) { fpsV = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; if (S.running && !G.getState().phoneOpen) adaptResolution(fpsV); }
     last = now;
     const gs = G.getState(), st = gs.settings;
     const running = S.running && !gs.phoneOpen && !S.referenceFrame;
@@ -484,6 +494,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
 
     // The dashboard unit follows the same route and position as the vehicle.
     const kmh = S.v * 3.6;
+    carAudio.update(running && st.carSound, kmh, rawThrottle);
     navT -= dt;
     if (navT <= 0) {
       navT = .1;
@@ -586,7 +597,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
     toggleCam: () => { S.cam = S.cam === 'cockpit' ? 'chase' : 'cockpit'; },
     bankKm: BANK_KM, store: G, cockpit: CP, rig, world: W, renderer,
     dispose: () => {
-      voice.stop(); cancelAnimationFrame(raf); unsubGfx();
+      voice.stop(); carAudio.stop(); cancelAnimationFrame(raf); unsubGfx();
       removeEventListener('keydown', onKeyDown); removeEventListener('keyup', onKeyUp);
       removeEventListener('blur', releaseAll); document.removeEventListener('visibilitychange', onVis);
       removeEventListener('resize', resize);

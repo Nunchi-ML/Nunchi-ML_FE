@@ -14,7 +14,7 @@ export type AppId = 'home' | 'cam' | 'map' | 'res' | 'set';
 export const isTouch = typeof matchMedia !== 'undefined' && matchMedia('(pointer:coarse)').matches;
 
 export interface Settings {
-  voice: boolean; guidance: boolean;
+  voice: boolean; guidance: boolean; carSound: boolean;
   preference: 'arrival' | 'exposure'; extraMinutes: number; extraKm: number; sensitivity: 'standard' | 'sensitive';
   observationMode: 'connected' | 'example'; exampleCondition: 'attention' | 'stale' | 'direction' | 'missing';
   date: string; minutes: number; weather: Weather; flow: number; glass: boolean; gfx: Gfx; mode: DriveMode;
@@ -52,7 +52,7 @@ export const useGame = create<State>(set => ({
   screen: 'menu', phoneOpen: false, app: 'home', camOnly: false,
   settings: {
     preference: 'arrival', extraMinutes: 5, extraKm: 2, sensitivity: 'standard', observationMode: 'connected', exampleCondition: 'attention',
-    voice: true, guidance: true, date: missionDate(INITIAL), minutes: INITIAL.m, weather: 'clear', flow: 0, glass: false, gfx: isTouch ? 'low' : 'high',
+    voice: true, guidance: true, carSound: true, date: missionDate(INITIAL), minutes: INITIAL.m, weather: 'clear', flow: 0, glass: false, gfx: isTouch ? 'low' : 'high',
     startKm: INITIAL.a, endKm: INITIAL.b,
     mission: 0, mode: 'normal', observationSpeed: 0,
   },

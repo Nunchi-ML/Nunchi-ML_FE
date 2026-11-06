@@ -41,7 +41,7 @@ test('Severe current glare is visible over unknown observations and future warni
    {id:'current',start:1000-dir*2,end:1000+dir*30,kind:'glare',source:'simulation',level:2},
   ];
   const cue=navigationCue(1000,dir,1000+dir*400,zones);
-  assert.equal(cue.id,'current');assert.equal(cue.level,2);assert.equal(cue.active,true);assert.match(cue.text,/눈부심 강함/);assert.match(cue.spoken,/속도를 줄이고/);
+  assert.equal(cue.id,'current');assert.equal(cue.level,2);assert.equal(cue.active,true);assert.match(cue.text,/눈부심 강함/);assert.match(cue.spoken,/속도를 조금 줄이고/);
   const ahead=navigationCue(1000,dir,1000+dir*400,zones.slice(0,2));
   assert.equal(ahead.source,'model');assert.equal(ahead.meters,100);assert.equal(ahead.level,1);
   assert.equal(navigationCue(1000,dir,1000+dir*400,zones.slice(0,1)).kind,'unverified');
