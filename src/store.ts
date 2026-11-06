@@ -38,6 +38,8 @@ export interface RunResult { title: string; score: number; sec: number; glareSec
 interface State {
   currentFrame: { state: 'unavailable' | 'analyzing' | 'ready'; level?: 0 | 1 | 2; at?: string; source?: 'camera' | 'game' };
   screen: Screen; phoneOpen: boolean; app: AppId;
+  /** 메인 화면 '눈부심 카메라'로 연 경우: 카메라 앱만 쓰고 다른 앱·홈으로는 못 간다. 휴대폰을 닫으면 풀린다. */
+  camOnly: boolean;
   settings: Settings; hud: Hud; banner: Banner | null; result: RunResult | null;
   set: (p: Partial<Settings>) => void;
   openApp: (a: AppId) => void;
@@ -47,7 +49,7 @@ interface State {
 
 export const useGame = create<State>(set => ({
   currentFrame: { state: 'unavailable' },
-  screen: 'menu', phoneOpen: false, app: 'home',
+  screen: 'menu', phoneOpen: false, app: 'home', camOnly: false,
   settings: {
     preference: 'arrival', extraMinutes: 5, extraKm: 2, sensitivity: 'standard', observationMode: 'connected', exampleCondition: 'attention',
     voice: true, guidance: true, date: missionDate(INITIAL), minutes: INITIAL.m, weather: 'clear', flow: 0, glass: false, gfx: isTouch ? 'low' : 'high',
