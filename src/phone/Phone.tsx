@@ -3,16 +3,16 @@ import { useEffect, useRef } from 'react';
 import { getEngine } from '../game/engine';
 import { useGame, type AppId } from '../store';
 import { compass, hm, simDate, sunPos } from '../game/sun';
-import { riskColor, stationLabel } from '../game/road';
+import { stationLabel } from '../game/road';
 import { CameraApp } from './CameraApp';
 import { MapApp } from './MapApp';
 import { ResultsApp } from './ResultsApp';
 import { SettingsApp } from './SettingsApp';
 
 const APPS: [AppId, string, string, string][] = [
-  ['cam', '📷', '카메라','linear-gradient(145deg,#FFD45E,#FF8A1F)'],
-  ['map', '🗺️', '위험 지도', 'linear-gradient(145deg,#7fd6a6,#2f9d6a)'],
-  ['res', '🏆', '분석 결과', 'linear-gradient(145deg,#ffb199,#F2522E)'],
+  ['cam', '📷', '현재 전방 사진','linear-gradient(145deg,#FFD45E,#FF8A1F)'],
+  ['map', '🗺️', '경로 사전 안내', 'linear-gradient(145deg,#7fd6a6,#2f9d6a)'],
+  ['res', 'ℹ️', '기능 연결 상태', 'linear-gradient(145deg,#ffb199,#F2522E)'],
   ['set', '⚙️', '설정', 'linear-gradient(145deg,#d7d2cb,#8f877d)'],
 ];
 const GLARE = ['정상', '눈부심', '많이 눈부심'];
@@ -38,7 +38,7 @@ function StatusIcons({ dark }: { dark: boolean }) {
 
 export function Phone() {
   const open = useGame(s => s.phoneOpen), app = useGame(s => s.app), openApp = useGame(s => s.openApp);
-  const st = useGame(s => s.settings), h = useGame(s => s.hud);
+  const st = useGame(s => s.settings), h = useGame(s => s.hud), current = useGame(s => s.currentFrame);
   // 위치 · 크기 · 투명도는 엔진이 매 프레임 정함 (1인칭: 손에 든 3D 폰 자리에 겹침, 3인칭: 화면 가운데에 크게)
   const phoneEl = useRef<HTMLDivElement>(null), dimEl = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -69,9 +69,9 @@ export function Phone() {
                 <div className="glasswidget">
                   <div className="wl">📍 {ROAD_NAME} · {stationLabel(h.station)} 부근</div>
                   <div className="wrow">
-                    <div><small>지금 구간</small><b style={{ color: riskColor(h.riskRatio) }}>{h.riskRatio.toFixed(1)}배</b><em>체험 예시</em></div>
-                    <div><small>눈부심</small><b className={`lv${h.glareLv}`}>{GLARE[h.glareLv]}</b><em>시뮬레이션 계산</em></div>
-                    <div><small>안전 점수</small><b>{h.score}</b><em>시뮬레이터 규칙</em></div>
+                    <div><small>앞 구간 관측</small><b>{h.navigation?.source === 'example' ? '예시' : h.navigation?.source === 'roadside' ? '관측 있음' : '미확인'}</b><em>도로변 사진 기준</em></div>
+                    <div><small>현재 사진</small><b>{current.state === 'ready' && current.level != null ? GLARE[current.level] : '미분석'}</b><em>사진 1장 시범 분석</em></div>
+                    <div><small>밝기 변화</small><b>{h.adaptation ? '체험 중' : '구간 대기'}</b><em>순응 연출</em></div>
                   </div>
                 </div>
                 <div className="icons">

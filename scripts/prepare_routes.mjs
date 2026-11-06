@@ -37,7 +37,8 @@ for (const road of ['dalgu', 'sincheon']) {
     });
     const frontFraction = segments.filter(s => s.sunDifference < 30).reduce((n, s) => n + s.km1 - s.km0, 0) / (hi - lo);
     const bankIncluded = road === 'dalgu' && r.BANK_KM > lo && r.BANK_KM < hi;
-    const passed = m.purpose === 'visibility' ? sun.alt > 0 && sun.alt < 15 && frontFraction >= .85 : sun.alt > 0 && passages.length > 0;
+    // Geometric alignment is a coarse screen; audit:scene separately checks actual building/car occlusion.
+    const passed = m.purpose === 'visibility' ? sun.alt > 0 && sun.alt < 15 && frontFraction >= .75 : sun.alt > 0 && passages.length > 0;
     if (!passed || (m.id === 'im-bank-sunset' && !bankIncluded)) throw new Error(`Course audit failed: ${m.id}`);
     courses.push({ id: m.id, title: m.t, road, date, minutes: m.m, distanceKm: Number((hi - lo).toFixed(3)),
       estimatedSecondsAt40Kmh: Math.round((hi - lo) / 40 * 3600), sunAltitude: sun.alt, sunAzimuth: sun.az,

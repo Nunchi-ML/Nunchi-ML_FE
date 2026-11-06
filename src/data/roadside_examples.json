@@ -1,0 +1,72 @@
+{
+  "format": "nunchi-roadside-examples-v1",
+  "note": "Authored workflow examples only. Rendered virtual cameras; no trained-model inference, real roadside observations, or human ground-truth labels. Ten-minute validity is an authored demo assumption.",
+  "observations": [
+    {
+      "id": "dalgu-workflow-example",
+      "road": "dalgu",
+      "km0": 22.68,
+      "km1": 22.8,
+      "camera": {
+        "id": "dalgu-virtual-camera",
+        "latitude": 35.8597623056745,
+        "longitude": 128.61793414745472,
+        "headingDeg": 261.16500239977574,
+        "horizontalFovDeg": 76.7244737832658,
+        "directionValidated": false
+      },
+      "photo": {
+        "url": "./examples/dalgu-roadside.jpg",
+        "sha256": "61db856f441a37605002b38eb46786ea4b4d5855cdd88792afa64b8b23da940b",
+        "capturedAt": "2026-04-05T08:59:00.000Z",
+        "validUntil": "2026-04-05T09:09:00.000Z",
+        "source": "simulator-example"
+      },
+      "context": {
+        "at": "2026-04-05T08:59:00.000Z",
+        "sunAltitude": 9.5258686476632,
+        "sunAzimuth": 270.7133212585289,
+        "weather": "clear"
+      },
+      "prediction": {
+        "method": "photo+G",
+        "status": "authored-example",
+        "level": 2,
+        "modelVersion": "authored-workflow-example-v1"
+      }
+    },
+    {
+      "id": "sincheon-workflow-example",
+      "road": "sincheon",
+      "km0": 0.78,
+      "km1": 0.845,
+      "camera": {
+        "id": "sincheon-virtual-camera",
+        "latitude": 35.84237552145156,
+        "longitude": 128.6063611362781,
+        "headingDeg": 178.7823648015418,
+        "horizontalFovDeg": 76.7244737832658,
+        "directionValidated": false
+      },
+      "photo": {
+        "url": "./examples/sincheon-roadside.jpg",
+        "sha256": "7f4181ac449310206ee2684c4a48110a2701d0582d1d6438556506d65de53cc3",
+        "capturedAt": "2026-10-30T03:29:00.000Z",
+        "validUntil": "2026-10-30T03:39:00.000Z",
+        "source": "simulator-example"
+      },
+      "context": {
+        "at": "2026-10-30T03:29:00.000Z",
+        "sunAltitude": 40.15506063798046,
+        "sunAzimuth": 186.27363067640687,
+        "weather": "clear"
+      },
+      "prediction": {
+        "method": "photo+G",
+        "status": "authored-example",
+        "level": 1,
+        "modelVersion": "authored-workflow-example-v1"
+      }
+    }
+  ]
+}

@@ -139,20 +139,6 @@ export function createCockpit(paint = 0xb2331f) {
   const frame = new THREE.MeshStandardMaterial({ color: 0x151312, roughness: 0.45, metalness: 0.2 });
   const floorMat = new THREE.MeshStandardMaterial({ color: 0x1a1715, roughness: 1 });
   const rearGlassMat = new THREE.MeshPhysicalMaterial({ color: 0x9fb4bd, roughness: 0.05, transparent: true, opacity: 0.18, depthWrite: false, side: THREE.DoubleSide });
-  const clusterTex = (() => {                                                   // 계기판 그림 (속도 · 회전수 바늘판)
-    const c = document.createElement('canvas'); c.width = 512; c.height = 160; const x = c.getContext('2d')!;
-    x.fillStyle = '#07090b'; x.fillRect(0, 0, 512, 160);
-    for (const [cx, col] of [[110, '#ffb347'], [402, '#7fd6ff']] as const) {
-      x.strokeStyle = '#2a2f36'; x.lineWidth = 10; x.beginPath(); x.arc(cx, 92, 60, Math.PI * 0.8, Math.PI * 2.2); x.stroke();
-      x.strokeStyle = col; x.lineWidth = 4;
-      for (let i = 0; i <= 10; i++) { const a = Math.PI * 0.8 + Math.PI * 1.4 * i / 10; x.beginPath(); x.moveTo(cx + Math.cos(a) * 50, 92 + Math.sin(a) * 50); x.lineTo(cx + Math.cos(a) * 60, 92 + Math.sin(a) * 60); x.stroke(); }
-      x.strokeStyle = '#ff5a3c'; x.lineWidth = 5; x.beginPath(); x.moveTo(cx, 92); x.lineTo(cx + Math.cos(Math.PI * 1.25) * 48, 92 + Math.sin(Math.PI * 1.25) * 48); x.stroke();
-    }
-    x.fillStyle = '#9fd8ff'; x.font = 'bold 26px sans-serif'; x.textAlign = 'center'; x.fillText('D', 256, 70);
-    x.fillStyle = '#5c6670'; x.font = '18px sans-serif'; x.fillText('눈치', 256, 120);
-    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
-  })();
-  const clusterMat = new THREE.MeshBasicMaterial({ map: clusterTex, toneMapped: false });
   const navigation = createNavigator(); g.add(navigation.group);
 
   const box = (w: number, h: number, d: number, m: THREE.Material, x: number, y: number, z: number, rx = 0, ry = 0, rz = 0, parent: THREE.Object3D = g) => {
@@ -215,9 +201,6 @@ export function createCockpit(paint = 0xb2331f) {
   // 대시보드
   blockers.push(box(2.4, 0.06, 0.5, dash, CAR_X, -0.42, -0.86, 0.1));
   box(2.4, 0.4, 0.1, dash, CAR_X, -0.64, -0.6, -0.25);
-  box(0.46, 0.09, 0.22, trim, 0.0, -0.33, -0.74, 0.1);                         // 계기판 덮개
-  const cluster = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.13), clusterMat);   // 계기판 (빛나는 바늘판)
-  cluster.position.set(0, -0.385, -0.69); cluster.rotation.x = -0.25; g.add(cluster);
   // Center console navigation is a live 3D screen, mounted above the dashboard.                     // 가운데 화면
   for (const x of [-0.45, 0.33, 0.67, 1.2]) box(0.14, 0.05, 0.03, vent, x, -0.47, -0.585, -0.25);   // 송풍구
   box(2.3, 0.012, 0.012, chrome, CAR_X, -0.405, -0.6, 0.1);                    // 대시보드 장식 띠

@@ -10,9 +10,9 @@ export function adaptationScores(outsideLuminance: number) {
   return { entry: score(L / (280 * dimming)), exit: score(L / 45) };
 }
 
-export interface AdaptationState { logL: number; initialized: boolean }
-export const newAdaptation = (): AdaptationState => ({ logL: 0, initialized: false });
-export function resetAdaptation(state: AdaptationState) { state.initialized = false; }
+export interface AdaptationState { logL: number; initialized: boolean; coveredSeconds: number; wasCovered: boolean; darkestLogL: number; exitAge: number; exitStrength: number }
+export const newAdaptation = (): AdaptationState => ({ logL: 0, initialized: false, coveredSeconds: 0, wasCovered: false, darkestLogL: 10, exitAge: 10, exitStrength: 0 });
+export function resetAdaptation(state: AdaptationState) { Object.assign(state, newAdaptation()); }
 
 /** Assumed scene illumination from sun altitude/weather, not measured ASOS data. */
 export function sceneLuminance(altitude: number, weather: 'clear' | 'cloud' | 'over') {
@@ -20,16 +20,33 @@ export function sceneLuminance(altitude: number, weather: 'clear' | 'cloud' | 'o
   return .15 + 6000 * daylight * ({ clear: 1, cloud: .5, over: .22 }[weather]);
 }
 
-export function stepAdaptation(state: AdaptationState, targetLuminance: number, dt: number, active = true) {
+export function stepAdaptation(state: AdaptationState, targetLuminance: number, dt: number, active = true, scene?: { covered: boolean; outsideLuminance: number }) {
+  const elapsed = clamp(dt, 0, .1);
   const target = Math.log10(Math.max(.05, targetLuminance));
-  if (!state.initialized || !active) { state.logL = target; state.initialized = true; }
+  if (!state.initialized || !active) {
+    Object.assign(state, newAdaptation(), { logL: target, initialized: true });
+  }
+  if (active && scene) {
+    if (scene.covered) {
+      if (!state.wasCovered) { state.coveredSeconds = 0; state.darkestLogL = state.logL; }
+      state.coveredSeconds += elapsed; state.darkestLogL = Math.min(state.darkestLogL, state.logL);
+    } else if (state.wasCovered) {
+      const ratio = scene.outsideLuminance / Math.max(.05, 10 ** state.darkestLogL);
+      state.exitStrength = state.coveredSeconds >= 1.5 && scene.outsideLuminance >= 150 && ratio >= 6 ? clamp(Math.log10(ratio) / 2.2, .25, .9) : 0;
+      state.exitAge = 0; state.coveredSeconds = 0;
+    }
+    state.wasCovered = scene.covered;
+  }
+  // An authored, short exit accent makes the transition perceptible without hazing normal driving.
+  const exitPulse = active && !scene?.covered ? state.exitStrength * Math.exp(-Math.max(0, state.exitAge - .16) / .65) : 0;
+  state.exitAge += active ? elapsed : 0;
   const mismatch = target - state.logL;
   // Visual timing is authored for the simulator. No physiological time claim.
   const tau = mismatch > 0 ? 1.35 : 3.8;
   const white = clamp(mismatch / 2.5), dark = clamp(-mismatch / 2.5);
   state.logL += mismatch * (1 - Math.exp(-clamp(dt, 0, .1) / tau));
   return {
-    white, dark, burden: Math.max(white, dark),
+    white, dark, exitPulse, burden: Math.max(white, dark, exitPulse),
     pupil: clamp(1 - (state.logL + 1) / 5.5, .12, .95),
     exposure: clamp(10 ** ((target - state.logL) * .14), .65, 1.65),
   };

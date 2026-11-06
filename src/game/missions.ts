@@ -7,12 +7,12 @@ export interface Mission {
 }
 export const ROAD_MISSIONS: Record<RoadId, Mission[]> = {
   dalgu: [
-    { id: 'im-bank-sunset', purpose: 'visibility', t: '🏦 iM뱅크 본점 앞 · 퇴근길 햇빛',
-      s: '본점 500 m 앞에서 출발 · 본점 앞 통과 · 1.2 km', a: 22.95, b: 21.8, m: 1070, date: '-09-20', badge: '대표 체험' },
+    { id: 'im-bank-sunset', purpose: 'visibility', t: '🏦 iM뱅크 본점 앞 · 봄 퇴근길 햇빛',
+      s: '본점 350 m 앞에서 출발 · 본점 앞 통과 · 1.0 km', a: 22.8, b: 21.8, m: 1080, date: '-04-05', badge: '대표 체험' },
     { id: 'winter-morning', purpose: 'visibility', t: '겨울 아침 · 정면으로 들어오는 해',
-      s: '강창교 부근 → 강창역 부근 · 동쪽 · 1.5 km', a: 8.3, b: 9.8, m: 478, date: '-12-20' },
-    { id: 'winter-evening', purpose: 'visibility', t: '겨울 퇴근길 · 낮은 햇빛',
-      s: '청라언덕 부근 → 반고개 부근 · 서쪽 · 1.5 km', a: 20, b: 18.5, m: 1000, date: '-12-20' },
+      s: '강창교 부근 → 강창역 부근 · 동쪽 · 1.5 km', a: 8.3, b: 9.8, m: 505, date: '-12-20' },
+    { id: 'winter-evening', purpose: 'visibility', t: '늦겨울 퇴근길 · 낮은 햇빛',
+      s: '청라언덕 부근 → 반고개 부근 · 서쪽 · 1.5 km', a: 20, b: 18.5, m: 1030, date: '-02-20' },
   ],
   sincheon: [
     { id: 'jungdong-exit', purpose: 'adaptation', t: '지하차도 출구 · 밝아지는 시야',

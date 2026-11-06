@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useGame } from '../store';
 import { getEngine } from '../game/engine';
 import { Back } from './Phone';
 import { frameSize, MAX_IMAGE_BYTES, predictGlare, type GlareReading } from './glareApi';
@@ -17,6 +18,7 @@ export function CameraApp() {
     let alive = true, stream: MediaStream | null = null, timer = 0;
     let controller: AbortController | null = null;
     setReading(null); setHistory([]); setError(''); setState('waiting');
+    useGame.setState({ currentFrame: { state: 'unavailable' } });
     if (!ack) return;
     const analyze = async () => {
       if (!alive) return;
@@ -28,7 +30,7 @@ export function CameraApp() {
       const size = frameSize(width, height);
       if (!size) { timer = window.setTimeout(analyze, 500); return; }
       c.width = size.width; c.height = size.height; setAspect(width / height);
-      setReading(null); setState('loading');
+      setReading(null); setState('loading'); useGame.setState({ currentFrame: { state: 'analyzing' } });
       let timeout = 0;
       try {
         // 전체 프레임, 비율 유지, 확대 없음, JPEG95. 요청을 겹치지 않는다.
@@ -44,11 +46,12 @@ export function CameraApp() {
         const result = await predictGlare(blob, src === 'real' ? 'camera' : 'game', controller.signal);
         if (!alive) return;
         setReading(result); setState('ready'); setError('');
+        useGame.setState({ currentFrame: { state: 'ready', level: result.level, at: new Date().toISOString(), source: src === 'real' ? 'camera' : 'game' } });
         setHistory(h => [...h.slice(-29), result.level]);
         timer = window.setTimeout(analyze, 3000);
       } catch (e) {
         if (!alive) return;
-        setReading(null); setState('error');
+        setReading(null); setState('error'); useGame.setState({ currentFrame: { state: 'unavailable' } });
         setError(e instanceof DOMException && e.name === 'AbortError' ? '서버 응답 시간이 길어졌어요. 잠시 후 다시 시도해 주세요.'
           : e instanceof Error ? e.message : '분석에 실패했어요. 다시 시도해 주세요.');
       } finally { clearTimeout(timeout); }
@@ -63,13 +66,14 @@ export function CameraApp() {
         if (alive) void analyze();
       } catch { if (alive) { setState('error'); setError('카메라를 열 수 없어요. 권한을 확인하거나 시뮬레이터 화면을 선택해 주세요.'); } }
     })();
-    return () => { alive = false; clearTimeout(timer); controller?.abort(); stream?.getTracks().forEach(t => t.stop()); };
+    return () => { useGame.setState({ currentFrame: { state: 'unavailable' } }); alive = false; clearTimeout(timer); controller?.abort(); stream?.getTracks().forEach(t => t.stop()); };
   }, [src, ack, retry]);
   const scores = reading ? [reading.scores.normal, reading.scores.glare, reading.scores.severe] : null;
   return (
     <div className="pv">
-      <Back /><h3>눈부심 카메라 <small className="small">모델 ② · 시범</small></h3>
-      {!ack && <div className="safety">실제 운전 중에는 <b>동승자만</b> 사용하세요. 분석을 시작하면 화면을 분석 서버로 전송해요. 서버는 사진을 저장하지 않아요.
+      <Back /><h3>현재 전방 사진 <small className="small">사진 1장 시범</small></h3>
+      <div className="small">지금 사진의 태양광 눈부심 등급을 확인합니다. 도로변 사진 기반의 앞 구간 안내와 구분하며, 현재 사진이 정상이어도 이후 경로 안내는 유지해요.</div>
+      {!ack && <div className="safety">시뮬레이터 실험용 기능입니다. 시작하면 현재 사진을 기존 시범 분석 서버로 전송합니다. 사진+태양·날씨를 결합한 현재 장면 모델은 별도 검증 대상입니다.
         <button className="pbtn" onClick={() => { acknowledged = true; setAck(true); }}>확인하고 분석 시작</button></div>}
       <div className="srcs">
         <button className={src === 'real' ? 'on' : ''} disabled={!ack} onClick={() => setSrc('real')}>실제 카메라</button>

@@ -6,6 +6,7 @@ import { buildCity } from './city';
 import { buildIntersections, nearCrossing } from './intersections';
 import { buildOsmMarkers } from './osm';
 import { buildUnderpasses, groundGeometry, underpassAt } from './underpasses';
+import { createWeatherLayer } from './weather';
 import { createTreeAssets } from './trees';
 
 /** 결정적 난수 (매번 같은 도시) */
@@ -14,6 +15,7 @@ export function makeRand(seed = 7) { let r = seed; return () => (r = (r * 16807)
 export interface World {
   scene: THREE.Scene; sky: Sky; sun: THREE.DirectionalLight; hemi: THREE.HemisphereLight; sunDisc: THREE.Mesh;
   occluders: THREE.Object3D[]; buildings: THREE.Mesh[]; bankGlow: THREE.MeshStandardMaterial | null; me: Vehicle; softTop: { set: (k: number) => void }; traffic: Vehicle[];
+  weather: ReturnType<typeof createWeatherLayer>;
   lampHeads: THREE.MeshStandardMaterial; dispose: () => void;
 }
 
@@ -71,6 +73,7 @@ export function createWorld(): World {
   const rand = makeRand(7);
 
   const sky = new Sky(); sky.scale.setScalar(20000); scene.add(sky);
+  const weather = createWeatherLayer(scene);
   const u = sky.material.uniforms;
   u.turbidity.value = 6; u.rayleigh.value = 1.6; u.mieCoefficient.value = 0.0016; u.mieDirectionalG.value = 0.985;
 
@@ -174,9 +177,9 @@ export function createWorld(): World {
   const { me, softTop, traffic, dispose: disposeCars } = createVehicles(scene, rand);
 
   return {
-    scene, sky, sun, hemi, sunDisc, occluders: [...city.meshes, ...tunnelOccluders, ...(city.bank ? [city.bank.group] : [])], buildings: [...city.meshes, ...tunnelOccluders], bankGlow: city.bank?.glow ?? null, me, softTop, traffic, lampHeads,
+    scene, sky, sun, hemi, sunDisc, weather, occluders: [...city.meshes, ...tunnelOccluders, ...(city.bank ? [city.bank.group] : [])], buildings: [...city.meshes, ...tunnelOccluders], bankGlow: city.bank?.glow ?? null, me, softTop, traffic, lampHeads,
     dispose: () => {
-      disposeCars();
+      disposeCars(); weather.dispose();
       scene.traverse(o => {
         const m = o as THREE.Mesh;
         if (m.geometry) m.geometry.dispose();

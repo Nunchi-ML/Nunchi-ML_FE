@@ -17,6 +17,11 @@ export function SettingsApp() {
       <div className="set">
         <div className="row"><label>음성 안내</label><Seg items={[[true, '켜기'], [false, '끄기']]} value={st.voice} on={v => set({ voice: v })} /></div>
         <div className="row"><label>시야 안내</label><Seg items={[[true, '켜기'], [false, '끄기']]} value={st.guidance} on={v => set({ guidance: v })} /></div>
+        <div className="row"><label>체감 민감도</label><Seg items={[['standard', '보통'], ['sensitive', '민감 · 일찍 안내']]} value={st.sensitivity} on={v => set({ sensitivity: v as typeof st.sensitivity })} /></div>
+        <div className="row"><label>경로 선호</label><Seg items={[['arrival', '빠른 도착'], ['exposure', '노출 회피']]} value={st.preference} on={v => set({ preference: v as typeof st.preference })} /></div>
+        <div className="row"><label>추가시간 허용</label><Seg items={[[0, '0분'], [3, '3분'], [5, '5분'], [10, '10분']]} value={st.extraMinutes} on={v => set({ extraMinutes: v })} /></div>
+        <div className="row"><label>추가거리 허용</label><Seg items={[[0, '0 km'], [1, '1 km'], [2, '2 km'], [5, '5 km']]} value={st.extraKm} on={v => set({ extraKm: v })} /></div>
+        <div className="small">민감도는 안내 시점에만 반영해요. 예측 등급을 임의로 올리거나 질환·수술명을 수집하지 않습니다.</div>
         <div className="row"><label>시간</label>
           <input aria-label="시뮬레이션 시간" type="range" min={0} max={1439} step={1} value={Math.round(st.minutes)} onChange={e => setMinutes(+e.target.value)} />
           <span className="num" style={{ minWidth: 44 }}>{hm(st.minutes)}</span></div>

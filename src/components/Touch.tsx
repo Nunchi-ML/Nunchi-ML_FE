@@ -64,7 +64,7 @@ export function Touch() {
     <div className="touch-speed" aria-label={`현재 속도 ${Math.round(speed)}킬로미터 매시`}><b>{Math.round(speed)}</b><span>km/h</span></div>
     <div className="drive-tools" role="group" aria-label="주행 도구">
       <button aria-label="내비게이션 음성 안내" aria-pressed={voice} className={voice ? 'active' : ''} onClick={() => set({ voice: !voice })}><DriveIcon name={voice ? 'voice' : 'muted'} /><small>음성</small></button>
-      <button aria-label="주행 설정" onClick={() => useGame.setState({ phoneOpen: true, app: 'set' })}><DriveIcon name="settings" /><small>설정</small></button>
+      <button aria-label="휴대폰 열기" onClick={() => useGame.setState({ phoneOpen: true, app: 'home' })}><DriveIcon name="apps" /><small>휴대폰</small></button>
       <button aria-label="스마트 유리" aria-pressed={glass} className={glass ? 'active' : ''} onClick={() => getEngine()?.toggleGlass()}><DriveIcon name="glass" /><small>차광</small></button>
       <button aria-label="시점 전환" onClick={() => getEngine()?.toggleCam()}><DriveIcon name="view" /><small>시점</small></button>
       <button aria-label="스포츠 모드" aria-pressed={sport} className={sport ? 'active' : ''} onClick={() => getEngine()?.toggleSport()}><DriveIcon name="mode" /><small>스포츠</small></button>

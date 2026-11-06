@@ -1,0 +1,364 @@
+{
+  "format": "nunchi-scene-course-audit-v1",
+  "missionSha256": "d1a2eb670e856e2eced64566f60675fb7fffa2174a7bdb88bbfef286016889d8",
+  "note": "12 authored cockpit scene probes per course, clear weather, normal mode, glass off. Includes actual scene buildings and car blocking. Not a learned-model, physiological or real-driver performance result.",
+  "courses": [
+    {
+      "id": "im-bank-sunset",
+      "a": 22.8,
+      "b": 21.8,
+      "m": 1080,
+      "date": "2026-04-05",
+      "samples": [
+        {
+          "km": 22.758333333333333,
+          "intensity": 0.6273149190533858,
+          "angle": 9.920176118702102,
+          "sunAltitude": 9.323413047546858,
+          "blockedByCar": false,
+          "blockedByWorld": false,
+          "onScreen": true
+        },
+        {
+          "km": 22.675,
+          "intensity": 0.6267676072513678,
+          "angle": 9.944674848992163,
+          "sunAltitude": 9.323413047546858,
+          "blockedByCar": false,
+          "blockedByWorld": false,
+          "onScreen": true
+        },
+        {
+          "km": 22.59166666666667,
+          "intensity": 0.6213823610637529,
+          "angle": 10.185728839440602,
+          "sunAltitude": 9.323413047546858,
+          "blockedByCar": false,
+          "blockedByWorld": false,
+          "onScreen": true
+        },
+        {
+          "km": 22.508333333333333,
+          "intensity": 0.5961769239768003,
+          "angle": 11.31397274494308,
+          "sunAltitude": 9.323413047546858,
+          "blockedByCar": false,
+          "blockedByWorld": false,
+          "onScreen": true
+        },
+        {
+          "km": 22.425,
+          "intensity": 0.5438745146855923,
+          "angle": 13.655129310581355,
+          "sunAltitude": 9.323413047546858,
+          "blockedByCar": false,
+          "blockedByWorld": false,
+          "onScreen": true
+        },
+        {
+          "km": 22.34166666666667,
+          "intensity": 0.46217502058783105,
+          "angle": 17.312156006069593,
+          "sunAltitude": 9.323413047546858,
+          "blockedByCar": false,
+          "blockedByWorld": false,
+          "onScreen": true
+        },
+        {
+          "km": 22.258333333333333,
+          "intensity": 0.33718731699861654,
+          "angle": 22.906846324305643,
+          "sunAltitude": 9.323413047546858,
+          "blockedByCar": false,
+          "blockedByWorld": false,
+          "onScreen": true
+        },
+        {
+          "km": 22.175,
+          "intensity": 0.03285215566077085,
+          "angle": 25.74561870684969,
+          "sunAltitude": 9.323413047546858,
+          "blockedByCar": false,
+          "blockedByWorld": true,
+          "onScreen": true
+        },
+        {
+          "km": 22.09166666666667,
+          "intensity": 0.23872131622852266,
+          "angle": 27.314374147957928,
+          "sunAltitude": 9.323413047546858,
+          "blockedByCar": false,
+          "blockedByWorld": false,
+          "onScreen": true
+        },
+        {
+          "km": 22.008333333333333,
+          "intensity": 0.21953358820574542,
+          "angle": 28.173253806638545,
+          "sunAltitude": 9.323413047546858,
+          "blockedByCar": false,
+          "blockedByWorld": false,
+          "onScreen": true
+        },
+        {
+          "km": 21.925,
+          "intensity": 0.22316608186459547,
+          "angle": 28.010656394888226,
+          "sunAltitude": 9.323413047546858,
+          "blockedByCar": false,
+          "blockedByWorld": false,
+          "onScreen": true
+        },
+        {
+          "km": 21.84166666666667,
+          "intensity": 0.030103346352725453,
+          "angle": 26.770968693340002,
+          "sunAltitude": 9.323413047546858,
+          "blockedByCar": false,
+          "blockedByWorld": true,
+          "onScreen": true
+        }
+      ],
+      "noticeableFraction": 0.75,
+      "severeFraction": 0.4166666666666667
+    },
+    {
+      "id": "winter-morning",
+      "a": 8.3,
+      "b": 9.8,
+      "m": 505,
+      "date": "2026-12-20",
+      "samples": [
+        {
+          "km": 8.3625,
+          "intensity": 0.5773345816186195,
+          "angle": 13.471136872838816,
+          "sunAltitude": 8.323111277883962,
+          "blockedByCar": false,
+          "blockedByWorld": false,
+          "onScreen": true
+        },
+        {
+          "km": 8.4875,
+          "intensity": 0.6123325016394744,
+          "angle": 11.984201537144735,
+          "sunAltitude": 8.323111277883962,
+          "blockedByCar": false,
+          "blockedByWorld": false,
+          "onScreen": true
+        },
+        {
+          "km": 8.6125,
+          "intensity": 0.6625117467820839,
+          "angle": 9.852266477102871,
+          "sunAltitude": 8.323111277883962,
+          "blockedByCar": false,
+          "blockedByWorld": false,
+          "onScreen": true
+        },
+        {
+          "km": 8.7375,
+          "intensity": 0.6899829855246477,
+          "angle": 8.685112669754734,
+          "sunAltitude": 8.323111277883962,
+          "blockedByCar": false,
+          "blockedByWorld": false,
+          "onScreen": true
+        },
+        {
+          "km": 8.8625,
+          "intensity": 0.6400322155662111,
+          "angle": 10.80734064364766,
+          "sunAltitude": 8.323111277883962,
+          "blockedByCar": false,
+          "blockedByWorld": false,
+          "onScreen": true
+        },
+        {
+          "km": 8.9875,
+          "intensity": 0.52744022331307,
+          "angle": 15.590968119155574,
+          "sunAltitude": 8.323111277883962,
+          "blockedByCar": false,
+          "blockedByWorld": false,
+          "onScreen": true
+        },
+        {
+          "km": 9.1125,
+          "intensity": 0.051513105715243195,
+          "angle": 19.761616810918888,
+          "sunAltitude": 8.323111277883962,
+          "blockedByCar": false,
+          "blockedByWorld": true,
+          "onScreen": true
+        },
+        {
+          "km": 9.2375,
+          "intensity": 0.03491194899942087,
+          "angle": 25.639310523250426,
+          "sunAltitude": 8.323111277883962,
+          "blockedByCar": false,
+          "blockedByWorld": true,
+          "onScreen": true
+        },
+        {
+          "km": 9.3625,
+          "intensity": 0.22193201526703688,
+          "angle": 28.570909487600613,
+          "sunAltitude": 8.323111277883962,
+          "blockedByCar": false,
+          "blockedByWorld": false,
+          "onScreen": true
+        },
+        {
+          "km": 9.4875,
+          "intensity": 0.02034488077313455,
+          "angle": 30.796828567709568,
+          "sunAltitude": 8.323111277883962,
+          "blockedByCar": false,
+          "blockedByWorld": true,
+          "onScreen": true
+        },
+        {
+          "km": 9.6125,
+          "intensity": 0.12044686257979333,
+          "angle": 32.882647427713934,
+          "sunAltitude": 8.323111277883962,
+          "blockedByCar": false,
+          "blockedByWorld": false,
+          "onScreen": true
+        },
+        {
+          "km": 9.7375,
+          "intensity": 0.01671049458768413,
+          "angle": 32.08359485731678,
+          "sunAltitude": 8.323111277883962,
+          "blockedByCar": false,
+          "blockedByWorld": true,
+          "onScreen": true
+        }
+      ],
+      "noticeableFraction": 0.5833333333333334,
+      "severeFraction": 0.5
+    },
+    {
+      "id": "winter-evening",
+      "a": 20,
+      "b": 18.5,
+      "m": 1030,
+      "date": "2026-02-20",
+      "samples": [
+        {
+          "km": 19.9375,
+          "intensity": 0.043928215878957316,
+          "angle": 19.93452936895698,
+          "sunAltitude": 11.059769460741679,
+          "blockedByCar": false,
+          "blockedByWorld": true,
+          "onScreen": true
+        },
+        {
+          "km": 19.8125,
+          "intensity": 0.483369419488335,
+          "angle": 14.14572990870641,
+          "sunAltitude": 11.059769460741679,
+          "blockedByCar": false,
+          "blockedByWorld": false,
+          "onScreen": true
+        },
+        {
+          "km": 19.6875,
+          "intensity": 0.5284726182588707,
+          "angle": 11.91988805343856,
+          "sunAltitude": 11.059769460741679,
+          "blockedByCar": false,
+          "blockedByWorld": false,
+          "onScreen": true
+        },
+        {
+          "km": 19.5625,
+          "intensity": 0.5343364228303613,
+          "angle": 11.630509428371711,
+          "sunAltitude": 11.059769460741679,
+          "blockedByCar": false,
+          "blockedByWorld": false,
+          "onScreen": true
+        },
+        {
+          "km": 19.4375,
+          "intensity": 0.5265789055066559,
+          "angle": 12.01334273560376,
+          "sunAltitude": 11.059769460741679,
+          "blockedByCar": false,
+          "blockedByWorld": false,
+          "onScreen": true
+        },
+        {
+          "km": 19.3125,
+          "intensity": 0.5295976970265749,
+          "angle": 11.864365441298137,
+          "sunAltitude": 11.059769460741679,
+          "blockedByCar": false,
+          "blockedByWorld": false,
+          "onScreen": true
+        },
+        {
+          "km": 19.1875,
+          "intensity": 0.5309914422800653,
+          "angle": 11.795584144065035,
+          "sunAltitude": 11.059769460741679,
+          "blockedByCar": false,
+          "blockedByWorld": false,
+          "onScreen": true
+        },
+        {
+          "km": 19.0625,
+          "intensity": 0.5289180773458524,
+          "angle": 11.897904657412539,
+          "sunAltitude": 11.059769460741679,
+          "blockedByCar": false,
+          "blockedByWorld": false,
+          "onScreen": true
+        },
+        {
+          "km": 18.9375,
+          "intensity": 0.5164564490326904,
+          "angle": 12.512885737254413,
+          "sunAltitude": 11.059769460741679,
+          "blockedByCar": false,
+          "blockedByWorld": false,
+          "onScreen": true
+        },
+        {
+          "km": 18.8125,
+          "intensity": 0.5234146248496246,
+          "angle": 12.169499915587096,
+          "sunAltitude": 11.059769460741679,
+          "blockedByCar": false,
+          "blockedByWorld": false,
+          "onScreen": true
+        },
+        {
+          "km": 18.6875,
+          "intensity": 0.512147297890042,
+          "angle": 12.725542250216593,
+          "sunAltitude": 11.059769460741679,
+          "blockedByCar": false,
+          "blockedByWorld": false,
+          "onScreen": true
+        },
+        {
+          "km": 18.5625,
+          "intensity": 0.516436265077276,
+          "angle": 12.513881815004792,
+          "sunAltitude": 11.059769460741679,
+          "blockedByCar": false,
+          "blockedByWorld": false,
+          "onScreen": true
+        }
+      ],
+      "noticeableFraction": 0.9166666666666666,
+      "severeFraction": 0.8333333333333334
+    }
+  ]
+}

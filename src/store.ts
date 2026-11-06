@@ -15,6 +15,8 @@ export const isTouch = typeof matchMedia !== 'undefined' && matchMedia('(pointer
 
 export interface Settings {
   voice: boolean; guidance: boolean;
+  preference: 'arrival' | 'exposure'; extraMinutes: number; extraKm: number; sensitivity: 'standard' | 'sensitive';
+  observationMode: 'connected' | 'example'; exampleCondition: 'attention' | 'stale' | 'direction' | 'missing';
   date: string; minutes: number; weather: Weather; flow: number; glass: boolean; gfx: Gfx; mode: DriveMode;
   startKm: number; endKm: number; mission: number | null;
 }
@@ -32,6 +34,7 @@ export interface Banner { k: string; v: string; s: string; id: number }
 export interface RunResult { title: string; score: number; sec: number; glareSec: number; glareMax: number }
 
 interface State {
+  currentFrame: { state: 'unavailable' | 'analyzing' | 'ready'; level?: 0 | 1 | 2; at?: string; source?: 'camera' | 'game' };
   screen: Screen; phoneOpen: boolean; app: AppId;
   settings: Settings; hud: Hud; banner: Banner | null; result: RunResult | null;
   set: (p: Partial<Settings>) => void;
@@ -41,8 +44,10 @@ interface State {
 
 
 export const useGame = create<State>(set => ({
+  currentFrame: { state: 'unavailable' },
   screen: 'menu', phoneOpen: false, app: 'home',
   settings: {
+    preference: 'arrival', extraMinutes: 5, extraKm: 2, sensitivity: 'standard', observationMode: 'connected', exampleCondition: 'attention',
     voice: true, guidance: true, date: missionDate(INITIAL), minutes: INITIAL.m, weather: 'clear', flow: 0, glass: false, gfx: isTouch ? 'low' : 'high',
     startKm: INITIAL.a, endKm: INITIAL.b,
     mission: 0, mode: 'normal',

@@ -4,13 +4,15 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
-import { BANK_KM, D, TOTAL, LANE_COUNT, LANE_WIDTH, at, kmToS, laneOffset, locationLabel, nearestStation, riskAt, sToKm, stationLabel, type Dir } from './road';
+import { BANK_KM, D, TOTAL, ROAD_W, LANE_COUNT, LANE_WIDTH, at, kmToS, laneOffset, locationLabel, nearestStation, riskAt, sToKm, stationLabel, type Dir } from './road';
 import { compass, hm, simDate, sunDir, sunPos } from './sun';
 import { createWorld, makeRand } from './world';
 import type { Vehicle } from './vehicles';
 import { createCockpit } from './cockpit';
-import { newDrivingFeel, updateDrivingFeel } from './drivingFeel';
+import { newDrivingFeel, updateDrivingFeel, stepDriveSpeed } from './drivingFeel';
 import { createKoreanVoiceGuide } from './voice';
+import { getRoutePreview } from './routePreview';
+import { warningLeadMeters } from './preTrip';
 import { routeZones } from './navigator';
 import type { NavigationZone } from './navigationGuidance';
 import { drawMinimap, drawSpeedo } from './gauges';
@@ -31,7 +33,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
   const rand = makeRand(11);
   const G = useGame;
 
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: !isTouch, preserveDrawingBuffer: true });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   const camera = new THREE.PerspectiveCamera(60, 1, 0.08, 9000);
@@ -67,7 +69,8 @@ export function createEngine(canvas: HTMLCanvasElement) {
     b.sunPosition.value.copy(a.sunPosition.value);
     envRT?.dispose(); envRT = pmrem.fromScene(envScene, 0.04); W.scene.environment = envRT.texture;
   }
-  const composer = new EffectComposer(renderer);
+  const renderTarget = new THREE.WebGLRenderTarget(1, 1, { samples: Math.min(isTouch ? 2 : 4, renderer.capabilities.maxSamples) });
+  const composer = new EffectComposer(renderer, renderTarget);
   composer.addPass(new RenderPass(W.scene, camera));
   // Bloom belongs to bright light sources, not the whole daylight street.
   const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.06, 0.12, 1.6);
@@ -82,7 +85,9 @@ export function createEngine(canvas: HTMLCanvasElement) {
     segFrom: '', segT0: 0, segS0: 0, segGlare: 0,                       // 지금 달리는 역 사이 구간 기록
     minutes: G.getState().settings.minutes,
   };
+  let glareDiagnostics = { intensity: 0, angle: 0, sunAltitude: 0, blockedByCar: false, blockedByWorld: false, onScreen: false };
   const adaptation = newAdaptation();
+  let observerReference: { s: number; direction: number } | null = null;
   let drivingFeel = newDrivingFeel(), visualSteer = 0;
   const voice = createKoreanVoiceGuide();
   let navigationZones: NavigationZone[] = [], navigationKey = '', navT = 0;
@@ -97,7 +102,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
   function applyGfx() {
     const hi = G.getState().settings.gfx === 'high';
     renderer.shadowMap.enabled = hi; W.buildings.forEach(b => b.castShadow = hi);
-    renderer.setPixelRatio(Math.min(devicePixelRatio, hi ? 1.75 : 1)); resize();
+    renderer.setPixelRatio(Math.min(devicePixelRatio, hi ? 2 : 1.5)); resize();
   }
 
   const routeDir = (): Dir => G.getState().settings.endKm >= G.getState().settings.startKm ? 'E' : 'W';
@@ -115,7 +120,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
     voice.reset(); voice.setEnabled(st.voice && st.guidance);
     voice.announce('navigation-start', '경로 안내를 시작합니다.', performance.now(), true);
     navigationKey = ''; navT = 0; drivingFeel = newDrivingFeel(); visualSteer = 0;
-    S.referenceFrame = false;
+    S.referenceFrame = false; observerReference = null;
     resetAdaptation(adaptation);
     S.dir = st.endKm >= st.startKm ? 1 : -1;
     S.s = kmToS(st.startKm); S.v = 0; S.lane = 1; S.laneX = S.targetX = laneOffset(1); S.laneV = 0; S.steerTouch = 0;
@@ -200,7 +205,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
 
   function loop(now: number) {
     raf = requestAnimationFrame(loop);
-    const dt = Math.min(0.05, (now - last) / 1000);
+    const dt = Math.min(0.1, (now - last) / 1000);
     fpsN++; fpsT += (now - last) / 1000; if (fpsT >= 1) { fpsV = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; }
     last = now;
     const gs = G.getState(), st = gs.settings;
@@ -214,9 +219,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
     updateDrivingFeel(drivingFeel, rawThrottle, rawBrake, S.v, S.laneV, dt, running);
     if (running) {
       const thr = drivingFeel.throttle, brk = drivingFeel.brake;
-      // 스포츠 모드: 빨리 시연할 수 있게 가속 · 최고 속도 · 제동을 높임
-      const sport = st.mode === 'sport', acc = sport ? 8 : 3.2, vmax = sport ? 61 : 30.5, brkA = sport ? 14 : 9;
-      S.v += (thr * acc * (1 - .32 * Math.pow(S.v / vmax, 1.5)) - brk * brkA - 0.25 - S.v * (sport ? 0.006 : 0.012)) * dt; S.v = Math.max(0, Math.min(vmax, S.v));
+      S.v = stepDriveSpeed(S.v, thr, brk, dt, st.mode);
       // 앞차에 가까워지면 미리 부드럽게 감속 (갑자기 속도가 꺾이지 않게)
       let cap = Infinity;
       W.traffic.forEach(t => {
@@ -234,7 +237,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
       S.lane = Math.max(0, Math.min(LANE_COUNT - 1, Math.round((S.laneX - laneOffset(0)) / LANE_WIDTH)));
       S.laneV += (k * (S.targetX - S.laneX) - c * S.laneV) * dt;
       S.laneX += S.laneV * dt;
-      // 충돌: 다른 차와 겹치면 밀려나고 속도가 줄며 안전 점수 감점
+      // 충돌: 다른 차와 겹치면 밀려나고 속도가 줄며 게임 내부 점수 조정
       crashT -= dt;
       for (const t of W.traffic) {
         const lon = (t.s - S.s) * S.dir, lat = t.x - S.laneX;
@@ -251,8 +254,8 @@ export function createEngine(canvas: HTMLCanvasElement) {
         if (crashT <= 0) {
           crashT = 2; shake = 0.45; S.score = Math.max(0, S.score - 10);
           banner('💥 충돌', '다른 차와 부딪혔어요', S.glareLv >= 1
-            ? '안전 점수 −10 · 눈부심이 있으면 앞차와 거리를 더 두세요'
-            : '안전 점수 −10 · 속도를 줄이고 앞차와 거리를 두세요');
+            ? '눈부심이 있으면 앞차와 거리를 더 두세요'
+            : '속도를 줄이고 앞차와 거리를 두세요');
         }
       }
       S.minutes += dt * st.flow / 60;
@@ -325,10 +328,18 @@ export function createEngine(canvas: HTMLCanvasElement) {
     {                                                                     // 3인칭 차 지붕도 같은 진행도로 접힘
       W.softTop.set(CP.progress);
     }
-    const fovT = baseFov + (S.running ? Math.min(sportNow ? 12 : 5, S.v * (sportNow ? .22 : .12)) : 0);   // 빠를수록 시야가 넓어지는 속도감
+    const fovT = baseFov + (S.running ? Math.min(sportNow ? 12 : 7, S.v * (sportNow ? .22 : .17)) : 0);   // 빠를수록 시야가 넓어지는 속도감
     if (Math.abs(camera.fov - fovT) > 0.05) { camera.fov += (fovT - camera.fov) * Math.min(1, dt * 3); camera.updateProjectionMatrix(); }
     visualSteer += (Math.max(-1.2, Math.min(1.2, -S.laneV * .15 - bend * 6)) - visualSteer) * (1 - Math.exp(-dt * 9));
     CP.steer(visualSteer);   // 오른쪽으로 옮기거나 휠 때 운전대는 시계 방향
+    if (observerReference) {
+      const q = at(observerReference.s), dir = observerReference.direction;
+      const ahead = at(observerReference.s + dir * 65), rightX = -q.dz * dir, rightZ = q.dx * dir;
+      camera.fov = 48; camera.updateProjectionMatrix();
+      camera.position.set(q.x + rightX * (ROAD_W / 2 + 2), q.y + 4.2, q.z + rightZ * (ROAD_W / 2 + 2));
+      camera.lookAt(ahead.x + rightX * 3.5, ahead.y + 1.1, ahead.z + rightZ * 3.5);
+      rig.visible = false; W.me.m.visible = false;
+    }
     camera.updateMatrixWorld(); rig.updateMatrixWorld();
     const braking = keys.KeyS || keys.ArrowDown || S.brake > 0;
     W.me.brakeMat.emissiveIntensity = braking ? 3 : 0.5;
@@ -353,7 +364,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
     const cached = S.referenceFrame ? null : lookupRouteAnalysis(ROAD_ID, { ...st, minutes: S.minutes }, sToKm(S.s));
     const outsideL = cached?.adaptation?.outsideLuminance ?? sceneLuminance(sp.alt, st.weather);
     const sceneL = section?.covered ? 9 + outsideL * section.sky : outsideL;
-    const vision = stepAdaptation(adaptation, sceneL, running ? dt : 0, S.running && !S.referenceFrame);
+    const vision = stepAdaptation(adaptation, sceneL, running ? dt : 0, S.running && !S.referenceFrame, { covered: !!section?.covered, outsideLuminance: outsideL });
     const aScore = cached?.adaptation ?? adaptationScores(outsideL);
     const adapted = section && S.running ? { name: section.name,
       phase: section.phase === 'approach' ? '진입 전 · 밝기 전환 준비' : section.covered ? (vision.dark > .1 ? '어두워진 시야에 적응 중' : '지하차도 내부') : vision.white > .08 ? '밝아진 시야에 적응 중' : '출구 통과 · 시야 회복',
@@ -363,16 +374,19 @@ export function createEngine(canvas: HTMLCanvasElement) {
     W.sun.position.set(cx + sv.x * 400, Math.max(5, sv.y * 400), cz + sv.z * 400); W.sun.target.position.set(cx, 0, cz);
     const dayK = Math.max(0, Math.min(1, (sp.alt + 4) / 14));
     // Preserve daylight contrast instead of lifting every shaded surface to grey.
-    W.sun.intensity = 2.6 * dayK * wx; W.hemi.intensity = .4 + .55 * dayK + (1 - wx) * .5;
+    W.weather.update(camera.position, st.weather, dayK, sp.alt);
+    W.sun.castShadow = st.gfx === 'high' && st.weather !== 'over';
+    W.sun.intensity = (st.weather === 'over' ? .15 : 2.6 * wx) * dayK; W.hemi.intensity = .4 + .55 * dayK + (1 - wx) * .5;
     W.sunDisc.visible = sp.alt > -1 && st.weather !== 'over' && !section?.covered;
     W.sunDisc.position.copy(camera.position).addScaledVector(sv, SUN_DIST);
     const lowSun = Math.max(0, Math.min(1, (20 - sp.alt) / 20)) * dayK;
-    horizon.setHSL(0.07 + 0.04 * (1 - lowSun), 0.5 + 0.3 * lowSun, 0.22 + 0.28 * dayK);
+    if (st.weather === 'over') horizon.setHSL(.57,.08,.10+.64*dayK);
+    else horizon.setHSL(0.07 + 0.04 * (1 - lowSun), 0.5 + 0.3 * lowSun, 0.22 + 0.28 * dayK);
     (W.scene.fog as THREE.Fog).color.copy(horizon);
     (W.scene.fog as THREE.Fog).near = st.weather === 'over' ? 650 : st.weather === 'cloud' ? 1300 : 1800;
     (W.scene.fog as THREE.Fog).far = st.weather === 'over' ? 3500 : st.weather === 'cloud' ? 6000 : 8000;
     W.sun.color.setHSL(0.09, 0.18 + 0.65 * lowSun, 0.84);
-    W.hemi.color.setHSL(0.08, 0.5 * lowSun, 0.75); W.hemi.groundColor.setHSL(0.06, 0.45, 0.22);
+    W.hemi.color.setHSL(st.weather === 'over' ? .57 : .08, st.weather === 'over' ? .06 : .5 * lowSun, .75); W.hemi.groundColor.setHSL(0.06, 0.45, 0.22);
     renderer.toneMappingExposure = (.46 + .20 * dayK) * (S.running ? vision.exposure : 1);
     updateEnv(sp.alt, sp.az, st.weather);
     W.lampHeads.emissiveIntensity = (1 - dayK) * 2.5;
@@ -397,37 +411,46 @@ export function createEngine(canvas: HTMLCanvasElement) {
     if (S.referenceFrame) S.I = I;
     else S.I += (I - S.I) * Math.min(1, dt * 4);                                // 갑자기 번쩍이지 않게
     const Is = S.I;
+    glareDiagnostics = { intensity: Is, angle: ang, sunAltitude: sp.alt, blockedByCar: blocked, blockedByWorld: occluded, onScreen };
     S.glareLv = Is > 0.5 ? 2 : Is > 0.22 ? 1 : 0;
     const sunMat = W.sunDisc.material as THREE.MeshBasicMaterial;
     sunMat.color.setRGB(1, 0.95, 0.8).multiplyScalar(occluded ? 0.7 : 1.25 + 1.6 * Math.min(1, Is * 1.6));
     const shadeOn = S.running && st.glass && S.glareLv >= 1 && onScreen && !blocked && S.cam === 'cockpit';
     const eff = shadeOn ? Is * 0.35 : Is;
-    if (els.wash) els.wash.style.opacity = (eff * 0.14).toFixed(3);
+    if (els.wash) els.wash.style.opacity = (Math.pow(eff, 1.4) * .36).toFixed(3);
     if (els.glare) els.glare.style.background = onScreen
       ? `radial-gradient(circle at ${sxp}px ${syp}px, rgba(255,250,232,${(eff * 0.7).toFixed(2)}) 0, rgba(255,236,190,${(eff * 0.34).toFixed(2)}) 2.6vh, rgba(255,214,150,${(eff * 0.12).toFixed(2)}) 11vh, rgba(255,210,140,0) 30vh)`
       : 'none';
     if (els.shade) { els.shade.style.opacity = shadeOn ? '1' : '0'; els.shade.style.left = sxp + 'px'; els.shade.style.top = syp + 'px'; }
-    bloom.strength = (st.gfx === 'high' ? 0.06 : 0.04) + eff * 0.22;
+    bloom.strength = (st.gfx === 'high' ? 0.06 : 0.04) + eff * 0.35;
 
     // Temporal contrast loss recovers from illumination history, independent of the sun disk.
-    const white = S.running ? vision.white : 0, dark = S.running ? vision.dark : 0;
+    const white = S.running ? Math.max(vision.white, vision.exitPulse) : 0, dark = S.running ? vision.dark : 0;
     if (els.adaptationVeil) {
       els.adaptationVeil.style.backgroundColor = white >= dark ? '#fff9e8' : '#080a10';
-      els.adaptationVeil.style.opacity = String(Math.max(white * .36, dark * .55));
+      els.adaptationVeil.style.opacity = String(Math.max(white * (vision.exitPulse > .05 ? .58 : .36), dark * .55));
     }
-    canvas.style.filter = S.running && Math.max(white, dark) > .02
-      ? `contrast(${1 - white * .18 - dark * .08}) blur(${(Math.max(0, white - .12) * .5).toFixed(2)}px)` : '';
+    // Keep map text crisp; illustrative contrast loss belongs to the road view.
+    if (els.adaptationVeil) {
+      const compactView = isTouch || (innerWidth <= 900 && innerWidth > innerHeight);
+      const cut = S.cam === 'cockpit' ? compactView ? 57 : 65 : 100;
+      els.adaptationVeil.style.clipPath = `inset(0 0 ${100 - cut}% 0)`;
+      els.adaptationVeil.style.maskImage = `linear-gradient(to bottom,#000 0%,#000 ${cut - 10}%,transparent ${cut}%)`;
+      els.adaptationVeil.style.backdropFilter = S.running && Math.max(white, dark) > .02
+        ? `contrast(${1 - white * (vision.exitPulse > .05 ? .32 : .18) - dark * .08}) blur(${(Math.max(0, white - .12) * (vision.exitPulse > .05 ? 1.1 : .5)).toFixed(2)}px)` : '';
+    }
+    canvas.style.filter = '';
 
     // The dashboard unit follows the same route and position as the vehicle.
     const kmh = S.v * 3.6;
     navT -= dt;
     if (navT <= 0) {
       navT = .1;
-      const key = `${st.date}|${Math.floor(S.minutes)}|${st.weather}|${st.startKm}|${st.endKm}`;
-      if (key !== navigationKey) { navigationKey = key; navigationZones = routeZones(st.startKm, st.endKm, sp, st.weather); }
-      navCue = CP.navigation.draw(S.s, S.running ? S.dir : Math.sign(st.endKm - st.startKm), st.startKm, st.endKm, kmh, navigationZones, st.guidance, st.voice, voice.available, S.running, S.minutes, sp.alt < 0);
-      if (running && st.guidance && navCue && (navCue.active || navCue.meters <= 180)) {
-        voice.announce(`${navCue.id}-${navCue.active ? 'active' : 'ahead'}`, navCue.spoken, now);
+      const key = `${st.date}|${Math.floor(S.minutes)}|${st.weather}|${st.startKm}|${st.endKm}|${st.observationMode}|${st.exampleCondition}`;
+      if (key !== navigationKey) { navigationKey = key; navigationZones = routeZones(st.startKm, st.endKm, sp, st.weather, getRoutePreview({ ...st, minutes: S.minutes }).primary.segments); }
+      navCue = CP.navigation.draw(S.s, S.running ? S.dir : Math.sign(st.endKm - st.startKm), st.startKm, st.endKm, kmh, navigationZones, st.guidance, st.voice, voice.available, S.running, S.minutes, sp.alt < 0, warningLeadMeters(kmh, st.sensitivity));
+      if (running && st.guidance && navCue && (navCue.active || navCue.meters <= warningLeadMeters(kmh, st.sensitivity))) {
+        voice.announce(navCue.kind === 'unverified' ? 'unverified-route' : `${navCue.id}-${navCue.active ? 'active' : 'ahead'}`, navCue.spoken, now);
       }
     }
 
@@ -439,17 +462,17 @@ export function createEngine(canvas: HTMLCanvasElement) {
       if (running && S.glareLv === 2 && kmh > 60) S.score = Math.max(0, S.score - dt * 4);
       const near = nearestStation(kmNow);
       if (Math.abs(near.km - kmNow) < 0.15 && S.lastStation !== near.name) {
-        S.lastStation = near.name; const r2 = riskAt(near.km, dirK);
+        S.lastStation = near.name;
         if (near.name !== S.segFrom) {                                     // 역 사이 구간을 다 지나면 요약
           const sec = (now - S.segT0) / 1000, avg = Math.abs(S.s - S.segS0) / Math.max(1, sec) * 3.6;
           banner(`✅ ${S.segFrom} → ${near.name} 구간 통과`, S.segGlare >= 1 ? `눈부심 ${Math.round(S.segGlare)}초` : '눈부심 없음',
-            IS_SINCHEON ? `평균 ${Math.round(avg)} km/h · 다음 지하차도 밝기 전환에 주의하세요` : `평균 ${Math.round(avg)} km/h · 다음 구간 체험 예시 ${r2.ratio.toFixed(1)}배${near.name === '대구은행' ? ' · 🏦 iM뱅크 본점 앞' : ''}`);
+            `평균 ${Math.round(avg)} km/h · 다음 구간 관측 상태를 확인하세요`);
           S.segFrom = near.name; S.segT0 = now; S.segS0 = S.s; S.segGlare = 0;
-        } else if (near.name === '대구은행') banner('🏦 iM뱅크 본점 구간', `대구은행역 · 체험 예시 ${r2.ratio.toFixed(1)}배`, S.glareLv ? '해가 정면 — 속도를 줄이세요' : '본점 앞을 지나는 중');
-        else if (!IS_SINCHEON) banner(`${near.name}역 구간`, `체험 예시 ${r2.ratio.toFixed(1)}배`, '구간 위험은 체험용 예시값이에요');
+        } else if (near.name === '대구은행') banner('🏦 iM뱅크 본점 구간', '본점 앞을 지나는 중', S.glareLv ? '해가 정면 — 속도를 줄이세요' : '본점 앞을 지나는 중');
+        else if (!IS_SINCHEON) banner(`${near.name}역 구간`, '경로를 따라 주행 중', '도로변 사진과 밝기 변화 안내를 확인하세요');
       }
       if (els.speedo) drawSpeedo(els.speedo, kmh, kmh > 60 && S.glareLv === 2, st.mode === 'sport' ? 240 : 140);
-      mmT -= dt; if (els.minimap && mmT <= 0) { mmT = 0.05; drawMinimap(els.minimap, { x: cx, z: cz }, Math.atan2(hx, -hz), S.s, S.dir, st.startKm, st.endKm); }
+      mmT -= dt; if (els.minimap && mmT <= 0) { mmT = 0.05; drawMinimap(els.minimap, { x: cx, z: cz }, Math.atan2(hx, -hz), S.s, S.dir, st.startKm, st.endKm, navigationZones); }
       hudT -= dt;
       if (hudT <= 0) {
         hudT = 0.1;
@@ -500,7 +523,15 @@ export function createEngine(canvas: HTMLCanvasElement) {
 
   const api = {
     // Offline exporter only: fixed reference sensor view, with no movement or cached-input feedback.
-    prepareReference: (km: number) => { S.referenceFrame = true; S.s = kmToS(km); S.v = 0; S.cam = 'cockpit'; S.lane = 1; S.laneX = S.targetX = laneOffset(1); S.laneV = 0; look_.yaw = look_.pitch = 0; view.init = false; occT = 0; },
+    prepareReference: (km: number) => { observerReference = null; S.referenceFrame = true; S.s = kmToS(km); S.v = 0; S.cam = 'cockpit'; S.lane = 1; S.laneX = S.targetX = laneOffset(1); S.laneV = 0; look_.yaw = look_.pitch = 0; view.init = false; occT = 0; },
+    prepareRoadsideReference: (km: number, direction: number) => {
+      api.prepareReference(km); S.dir = Math.sign(direction) || 1; observerReference = { s: S.s, direction: S.dir };
+    },
+    inspectGlare: () => ({ ...glareDiagnostics }),
+    referenceMetadata: () => {
+      camera.getWorldDirection(fwd);
+      return { latitude: 35.866 - camera.position.z / 110940, longitude: 128.59 + camera.position.x / (111320 * Math.cos(35.866 * Math.PI / 180)), headingDeg: (Math.atan2(fwd.x, -fwd.z) * 180 / Math.PI + 360) % 360, horizontalFovDeg: Math.atan(Math.tan(camera.fov * Math.PI / 360) * camera.aspect) * 360 / Math.PI };
+    },
     S, adaptation, els, startRun, toMenu, changeLane, toggleSport, toggleGlass, setSteer: (v: number) => { S.steerTouch = v; }, routeDir, routeHead, canvas: renderer.domElement,
     setPedal: (kind: 'throttle' | 'brake', v: number) => { S[kind] = v; },
     toggleCam: () => { S.cam = S.cam === 'cockpit' ? 'chase' : 'cockpit'; },
