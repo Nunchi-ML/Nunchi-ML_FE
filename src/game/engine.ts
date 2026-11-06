@@ -12,7 +12,7 @@ import { createCockpit } from './cockpit';
 import { newDrivingFeel, updateDrivingFeel, stepDriveSpeed } from './drivingFeel';
 import { createKoreanVoiceGuide } from './voice';
 import { getRoutePreview } from './routePreview';
-import { warningLeadMeters } from './preTrip';
+import { warningLeadMeters, type SegmentAssessment } from './preTrip';
 import { routeZones } from './navigator';
 import type { NavigationZone } from './navigationGuidance';
 import { drawMinimap, drawSpeedo } from './gauges';
@@ -22,6 +22,7 @@ import { lookupRouteAnalysis } from './routeAnalysis';
 import { ROAD_ID, IS_SINCHEON } from './roadSelection';
 import { underpassAt } from './underpasses';
 import { adaptationScores, newAdaptation, resetAdaptation, sceneLuminance, stepAdaptation } from './adaptation';
+import { createLightGlare } from './lightGlare';
 
 /** 매 프레임 직접 고치는 화면 요소 (React 재렌더 없이) */
 export interface Els { wash?: HTMLElement; glare?: HTMLElement; shade?: HTMLElement; adaptationVeil?: HTMLElement; cockpit?: HTMLElement; speedo?: HTMLCanvasElement; minimap?: HTMLCanvasElement; phone?: HTMLElement; phoneDim?: HTMLElement }
@@ -69,12 +70,22 @@ export function createEngine(canvas: HTMLCanvasElement) {
     b.sunPosition.value.copy(a.sunPosition.value);
     envRT?.dispose(); envRT = pmrem.fromScene(envScene, 0.04); W.scene.environment = envRT.texture;
   }
-  const renderTarget = new THREE.WebGLRenderTarget(1, 1, { samples: Math.min(isTouch ? 2 : 4, renderer.capabilities.maxSamples) });
+  // Bloom needs values above 1. An unsigned-byte MSAA buffer clipped the sun
+  // before bloom, leaving only the old white overlay visible.
+  const hdr = renderer.extensions.has('EXT_color_buffer_float') || renderer.extensions.has('EXT_color_buffer_half_float');
+  const gl = renderer.getContext() as WebGL2RenderingContext;
+  const sampleCounts: number[] = hdr && renderer.capabilities.isWebGL2
+    ? Array.from(gl.getInternalformatParameter(gl.RENDERBUFFER, gl.RGBA16F, gl.SAMPLES) as Int32Array)
+    : [renderer.capabilities.maxSamples];
+  const samples = Math.max(0, ...sampleCounts.filter(n => n <= (isTouch ? 2 : 4)));
+  const renderTarget = new THREE.WebGLRenderTarget(1, 1, { type: hdr ? THREE.HalfFloatType : THREE.UnsignedByteType, samples });
   const composer = new EffectComposer(renderer, renderTarget);
   composer.addPass(new RenderPass(W.scene, camera));
   // Bloom belongs to bright light sources, not the whole daylight street.
   const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.06, 0.12, 1.6);
-  composer.addPass(bloom); composer.addPass(new OutputPass());
+  const lightGlare = createLightGlare();
+  lightGlare.maskBloom(bloom.materialHighPassFilter); lightGlare.maskBloom(bloom.blendMaterial);
+  composer.addPass(bloom); composer.addPass(lightGlare.pass); composer.addPass(new OutputPass());
 
   /* ---------- 주행 상태 ---------- */
   const S = {
@@ -91,6 +102,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
   let drivingFeel = newDrivingFeel(), visualSteer = 0;
   const voice = createKoreanVoiceGuide();
   let navigationZones: NavigationZone[] = [], navigationKey = '', navT = 0;
+  let roadsideObservations: SegmentAssessment[] = [];
   let navCue: ReturnType<typeof CP.navigation.draw> = null;
   const keys: Record<string, boolean> = {};
 
@@ -406,7 +418,10 @@ export function createEngine(canvas: HTMLCanvasElement) {
     if (rig.visible && I > 0.02) { ray.set(camera.position, sv); ray.far = 4; blocked = ray.intersectObjects(CP.blockers, false).length > 0; }
     if (blocked) I *= 0.15;
     occT -= dt;
-    if (occT <= 0 && I > 0.02) { occT = 0.2; ray.set(camera.position, sv); ray.far = 3000; occluded = ray.intersectObjects(W.occluders, true).length > 0; }
+    if (occT <= 0 && I > 0.02) { occT = 0.2; ray.set(camera.position, sv); ray.far = 3000;
+      const visibleSigns = W.roadsideSigns.slots.filter(slot => slot.group.visible).map(slot => slot.group);
+      occluded = ray.intersectObjects([...W.occluders, ...visibleSigns], true).length > 0;
+    }
     if (section?.covered) I = 0;
     if (occluded) I *= 0.12;
     if (S.referenceFrame) S.I = I;
@@ -418,32 +433,29 @@ export function createEngine(canvas: HTMLCanvasElement) {
     sunMat.color.setRGB(1, 0.95, 0.8).multiplyScalar(occluded ? 0.7 : 1.25 + 1.6 * Math.min(1, Is * 1.6));
     const shadeOn = S.running && st.glass && S.glareLv >= 1 && onScreen && !blocked && S.cam === 'cockpit';
     const eff = shadeOn ? Is * 0.35 : Is;
-    const sunlightWash = Math.pow(Math.max(0, (eff - .04) / .96), 1.15) * .62;
-    if (els.wash) els.wash.style.opacity = sunlightWash.toFixed(3);
-    if (els.glare) els.glare.style.background = onScreen
-      ? `radial-gradient(circle at ${sxp}px ${syp}px, rgba(255,250,232,${(eff * .95).toFixed(2)}) 0, rgba(255,236,190,${(eff * .58).toFixed(2)}) 4vh, rgba(255,214,150,${(eff * .28).toFixed(2)}) 14vh, rgba(255,210,140,0) 35vh)`
-      : 'none';
+    if (els.wash) els.wash.style.opacity = '0';
+    if (els.glare) els.glare.style.background = 'none';
     if (els.shade) { els.shade.style.opacity = shadeOn ? '1' : '0'; els.shade.style.left = sxp + 'px'; els.shade.style.top = syp + 'px'; }
-    bloom.strength = (st.gfx === 'high' ? 0.06 : 0.04) + eff * .8;
+    const exitLight = S.running ? Math.max(vision.exitPulse, vision.white * .35) : 0;
+    bloom.strength = (st.gfx === 'high' ? .06 : .04) + eff * .5 + exitLight * .65;
+    bloom.threshold = 1.6 - exitLight * .65;
+    const compactView = isTouch || (innerWidth <= 900 && innerWidth > innerHeight);
+    const roadBottom = S.cam === 'cockpit' ? compactView ? .57 : .65 : 1;
+    const directLight = W.sunDisc.visible && onScreen && !blocked && !occluded && !section?.covered ? Math.pow(eff, 1.25) : 0;
+    lightGlare.update(sxp, syp, innerWidth, innerHeight, directLight, exitLight, roadBottom);
 
     // Temporal contrast loss recovers from illumination history, independent of the sun disk.
-    const white = S.running ? Math.max(vision.white, vision.exitPulse) : 0, dark = S.running ? vision.dark : 0;
+    const dark = S.running ? vision.dark : 0;
     if (els.adaptationVeil) {
-      els.adaptationVeil.style.backgroundColor = white >= dark ? '#fff9e8' : '#080a10';
-      els.adaptationVeil.style.opacity = String(Math.max(white * (vision.exitPulse > .05 ? .82 : .4), dark * .62));
+      els.adaptationVeil.style.backgroundColor = '#080a10';
+      els.adaptationVeil.style.opacity = String(dark * .45);
     }
     // Keep map text crisp; illustrative contrast loss belongs to the road view.
     if (els.adaptationVeil) {
-      const compactView = isTouch || (innerWidth <= 900 && innerWidth > innerHeight);
-      const cut = S.cam === 'cockpit' ? compactView ? 57 : 65 : 100;
-      if (els.wash) {
-        els.wash.style.clipPath = `inset(0 0 ${100 - cut}% 0)`;
-        els.wash.style.maskImage = `linear-gradient(to bottom,#000 0%,#000 ${cut - 10}%,transparent ${cut}%)`;
-      }
+      const cut = roadBottom * 100;
       els.adaptationVeil.style.clipPath = `inset(0 0 ${100 - cut}% 0)`;
       els.adaptationVeil.style.maskImage = `linear-gradient(to bottom,#000 0%,#000 ${cut - 10}%,transparent ${cut}%)`;
-      els.adaptationVeil.style.backdropFilter = S.running && Math.max(white, dark) > .02
-        ? `contrast(${1 - white * (vision.exitPulse > .05 ? .5 : .2) - dark * .08}) blur(${(Math.max(0, white - .12) * (vision.exitPulse > .05 ? 1.6 : .5)).toFixed(2)}px)` : '';
+      els.adaptationVeil.style.backdropFilter = '';
     }
     canvas.style.filter = '';
 
@@ -453,8 +465,11 @@ export function createEngine(canvas: HTMLCanvasElement) {
     if (navT <= 0) {
       navT = .1;
       const key = `${st.date}|${Math.floor(S.minutes)}|${st.weather}|${st.startKm}|${st.endKm}|${st.observationMode}|${st.exampleCondition}`;
-      if (key !== navigationKey) { navigationKey = key; navigationZones = routeZones(st.startKm, st.endKm, sp, st.weather, getRoutePreview({ ...st, minutes: S.minutes }).primary.segments); }
-      W.roadsideSigns.update(S.s, S.dir, st.startKm, st.endKm, navigationZones, S.running);
+      if (key !== navigationKey) {
+        navigationKey = key; roadsideObservations = getRoutePreview({ ...st, minutes: S.minutes }).primary.segments;
+        navigationZones = routeZones(st.startKm, st.endKm, sp, st.weather, roadsideObservations, { date: st.date, minutes: S.minutes });
+      }
+      W.roadsideSigns.update(S.s, S.dir, st.startKm, st.endKm, navigationZones, S.running, roadsideObservations);
       navCue = CP.navigation.draw(S.s, S.running ? S.dir : Math.sign(st.endKm - st.startKm), st.startKm, st.endKm, kmh, navigationZones, st.guidance, st.voice, voice.available, S.running, S.minutes, sp.alt < 0, warningLeadMeters(kmh, st.sensitivity));
       if (running && st.guidance && navCue && (navCue.active || navCue.meters <= warningLeadMeters(kmh, st.sensitivity))) {
         voice.announce(navCue.kind === 'unverified' ? 'unverified-route' : `${navCue.id}-${navCue.active ? 'active' : 'ahead'}`, navCue.spoken, now);
@@ -535,6 +550,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
       api.prepareReference(km); S.dir = Math.sign(direction) || 1; observerReference = { s: S.s, direction: S.dir };
     },
     inspectGlare: () => ({ ...glareDiagnostics }),
+    lightEffects: lightGlare,
     referenceMetadata: () => {
       camera.getWorldDirection(fwd);
       return { latitude: 35.866 - camera.position.z / 110940, longitude: 128.59 + camera.position.x / (111320 * Math.cos(35.866 * Math.PI / 180)), headingDeg: (Math.atan2(fwd.x, -fwd.z) * 180 / Math.PI + 360) % 360, horizontalFovDeg: Math.atan(Math.tan(camera.fov * Math.PI / 360) * camera.aspect) * 360 / Math.PI };
@@ -550,7 +566,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
       removeEventListener('resize', resize);
       canvas.removeEventListener('dblclick', onDbl); canvas.removeEventListener('pointerdown', onPDown); canvas.removeEventListener('pointermove', onPMove);
       canvas.removeEventListener('pointerup', onPUp); canvas.removeEventListener('pointercancel', onPUp);
-      W.dispose(); composer.dispose(); mirrorRT.dispose(); sideMirrors.forEach(m => m.rt.dispose()); envRT?.dispose(); pmrem.dispose(); renderer.dispose();
+      W.dispose(); lightGlare.pass.dispose(); composer.dispose(); mirrorRT.dispose(); sideMirrors.forEach(m => m.rt.dispose()); envRT?.dispose(); pmrem.dispose(); renderer.dispose();
     },
   };
   (window as unknown as { __nunchi: unknown }).__nunchi = api;            // 시험용

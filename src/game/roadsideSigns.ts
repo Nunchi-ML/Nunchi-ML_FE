@@ -1,17 +1,28 @@
 import * as THREE from 'three';
 import { at, kmToS, ROAD_W, UNDERPASSES } from './road';
 import { navigationCue, type NavigationZone } from './navigationGuidance';
+import type { SegmentAssessment } from './preTrip';
 
-export function roadsideMessage(s: number, dir: number, end: number, zones: NavigationZone[]) {
+export function roadsideMessage(s: number, dir: number, end: number, zones: NavigationZone[], observations: SegmentAssessment[] = []) {
   const photo = navigationCue(s, dir, end, zones.filter(z => z.kind !== 'exit'), 700);
   const exit = navigationCue(s, dir, end, zones.filter(z => z.kind === 'exit'), 700);
   const caution = photo?.kind === 'glare';
+  const normal = !caution ? observations.filter(a => a.state === 'normal' && a.level === 0)
+    .map(a => ({ assessment: a, start: kmToS(a.segment.km0), end: kmToS(a.segment.km1) }))
+    .filter(a => (a.end - s) * dir >= 0 && (a.start - s) * dir <= 700 && (a.start - end) * dir <= 0)
+    .sort((a, b) => Math.max(0, (a.start - s) * dir) - Math.max(0, (b.start - s) * dir))[0] : undefined;
+  const photoZone = photo && zones.find(z => z.id === photo.id);
+  const transition = exit && zones.find(z => z.id === exit.id)?.adaptation;
+  const burden = (score: number) => score >= .65 ? '큼' : score >= .35 ? '보통' : '작음';
+  const distance = (target: number) => `전방 ${Math.max(10, Math.round((target - s) * dir / 10) * 10)} m`;
+  const portal = transition && (transition.entryS - s) * dir > 0 ? transition.entryS : exit ? zones.find(z => z.id === exit.id)!.start : s;
+  const photoSource = (normal ? normal.assessment.example : photo?.source === 'example') ? '가상 사진 판정 예시' : caution || normal ? '전방 카메라 사진 + 태양·날씨 판정' : '전방 카메라 사진 미확인';
   return {
-    state: caution ? 'caution' : photo?.kind === 'unverified' ? 'unknown' : 'information',
-    title: caution ? '전방 눈부심 주의' : photo?.kind === 'unverified' ? '도로변 관측 미확인' : '도로변 관측 안내',
-    body: caution ? '관측 구간 앞 · 미리 감속' : '전방 주시 · 차간거리 유지',
-    transition: exit ? '전방 지하차도 · 출구 밝기 변화' : '사진은 관측 당시의 상태입니다',
-    source: photo?.source === 'example' ? '가상 관측 예시 · 도착 시 달라질 수 있음' : caution ? '도로변 사진 + 태양·날씨 · 도착 시 달라질 수 있음' : '사진·방향·유효시간 확인 필요',
+    state: caution ? 'caution' : normal ? 'observed' : photo?.kind === 'unverified' ? 'unknown' : 'information',
+    title: caution ? `${photo.active ? '현재 구간' : `전방 ${photo.meters} m`} · ${photoZone?.level === 2 ? '눈부심 강함' : '눈부심 주의'}` : normal ? `${(normal.start - s) * dir > 0 ? distance(normal.start) : '현재 관측 구간'} · 눈부심 관측 없음` : photo?.kind === 'unverified' ? '전방 눈부심 · 관측 미확인' : '도로변 관측 안내',
+    body: exit ? `${distance(portal)} ${transition && portal === transition.entryS ? '지하차도' : '출구'} · 미리 감속` : caution ? '관측 구간 앞 · 미리 감속' : '전방 주시 · 차간거리 유지',
+    transition: transition ? `${transition.exit >= transition.entry ? '출구' : '진입'} 밝기 전환 부담 ${burden(Math.max(transition.entry, transition.exit))}` : exit ? '전방 지하차도 · 출구 밝기 변화' : '관측 당시 상태 · 도착 시 달라질 수 있음',
+    source: `${photoSource}${transition ? ` · ${transition.source === 'model' ? '밝기 전환 모델 예상' : '밝기 전환 체험값'}` : ' · 도착 시 달라질 수 있음'}`,
   };
 }
 
@@ -45,7 +56,7 @@ export function createRoadsideSigns(scene: THREE.Scene) {
   let routeKey = '', placements: number[] = [];
   return {
     slots,
-    update(s: number, dir: number, startKm: number, endKm: number, zones: NavigationZone[], running: boolean) {
+    update(s: number, dir: number, startKm: number, endKm: number, zones: NavigationZone[], running: boolean, observations: SegmentAssessment[] = []) {
       const start = kmToS(startKm), end = kmToS(endKm), key = `${start}|${end}|${dir}`;
       if (key !== routeKey) { routeKey = key; placements = roadsidePlacements(start, end); }
       const ahead = placements.filter(p => (p - s) * dir > -45 && (p - s) * dir < 1400);
@@ -53,7 +64,7 @@ export function createRoadsideSigns(scene: THREE.Scene) {
         const position = ahead[i]; slot.group.visible = running && position != null;
         if (!slot.group.visible) return;
         slot.s = position; const p = at(position); slot.group.position.set(p.x, p.y, p.z); slot.group.rotation.y = Math.atan2(-p.dx * dir, -p.dz * dir);
-        const message = roadsideMessage(position, dir, end, zones), next = JSON.stringify(message); slot.message = message;
+        const message = roadsideMessage(position, dir, end, zones, observations), next = JSON.stringify(message); slot.message = message;
         if (next === slot.key) return; slot.key = next;
         const g = slot.canvas.getContext('2d')!, W = slot.canvas.width;
         g.fillStyle = '#090e0c'; g.fillRect(0, 0, W, 682);
@@ -62,7 +73,7 @@ export function createRoadsideSigns(scene: THREE.Scene) {
         g.fillStyle = message.state === 'caution' ? '#ffbd49' : message.state === 'unknown' ? '#e1decf' : '#bce1ad';
         g.font = 'bold 142px "Noto Sans KR",sans-serif'; g.fillText(message.title, W / 2, 262, W - 130);
         g.font = 'bold 103px "Noto Sans KR",sans-serif'; g.fillStyle = '#ffe1a0'; g.fillText(message.body, W / 2, 405, W - 130);
-        g.font = '600 77px "Noto Sans KR",sans-serif'; g.fillStyle = '#e3e8d7'; g.fillText(message.transition, W / 2, 525, W - 130);
+        g.font = '600 100px "Noto Sans KR",sans-serif'; g.fillStyle = '#e3e8d7'; g.fillText(message.transition, W / 2, 525, W - 130);
         g.strokeStyle = '#43553b'; g.lineWidth = 3; g.beginPath(); g.moveTo(70, 563); g.lineTo(W - 70, 563); g.stroke();
         g.font = '500 43px "Noto Sans KR",sans-serif'; g.fillStyle = '#a1b09a'; g.fillText(message.source, W / 2, 635, W - 130);
         slot.texture.needsUpdate = true;

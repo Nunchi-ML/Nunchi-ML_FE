@@ -16,7 +16,7 @@ async function load(isSincheon) {
     .replace("from 'three'", `from '${pathToFileURL(require.resolve('three')).href}'`);
   return { road, ...await import(moduleUrl(source)) };
 }
-const { roadsideMessage } = await load(false);
+const { roadsideMessage, road: dalguRoad } = await load(false);
 
 test('Roadside signs keep unknown photo status separate from tunnel transition guidance', () => {
   for (const dir of [-1, 1]) {
@@ -31,10 +31,28 @@ test('Roadside signs keep unknown photo status separate from tunnel transition g
 
 test('Example versus actual photo sources remain explicit and passed/beyond-destination alerts are not displayed', () => {
   const zone = { id: 'photo', start: 1100, end: 1200, kind: 'glare', name: '사진', source: 'example' };
-  const example = roadsideMessage(1000, 1, 1500, [zone]); assert.equal(example.state, 'caution'); assert.match(example.source, /가상 관측 예시/);
-  const actual = roadsideMessage(1000, 1, 1500, [{ ...zone, source: 'roadside' }]); assert.match(actual.source, /도로변 사진 \+ 태양·날씨/);
+  const example = roadsideMessage(1000, 1, 1500, [zone]); assert.equal(example.state, 'caution'); assert.match(example.source, /가상 사진 판정 예시/);
+  const actual = roadsideMessage(1000, 1, 1500, [{ ...zone, source: 'roadside' }]); assert.match(actual.source, /전방 카메라 사진 \+ 태양·날씨 판정/);
   assert.notEqual(roadsideMessage(1300, 1, 1500, [zone]).state, 'caution');
   assert.notEqual(roadsideMessage(1000, 1, 1050, [zone]).state, 'caution');
+});
+
+test('Forward camera grades and tunnel burden are announced before the entrance in both directions', () => {
+  for (const dir of [-1, 1]) {
+    const s = 1000, end = s + dir * 1000;
+    const photo = { id: 'camera', start: s + dir * 200, end: s + dir * 350, kind: 'glare', name: '카메라 구간', source: 'example', level: 2 };
+    const exit = { id: 'exit', start: s + dir * 400, end: s + dir * 500, kind: 'exit', name: '지하차도', source: 'model',
+      adaptation: { entryS: s + dir * 150, entry: .45, exit: .9, source: 'model' } };
+    const prediction = roadsideMessage(s, dir, end, [photo, exit]);
+    assert.match(prediction.title, /전방 200 m · 눈부심 강함/);
+    assert.match(prediction.body, /전방 150 m 지하차도/);
+    assert.equal(prediction.transition, '출구 밝기 전환 부담 큼');
+    assert.match(prediction.source, /밝기 전환 모델 예상/);
+    const caution = roadsideMessage(s, dir, end, [{ ...photo, level: 1 }]);
+    assert.match(caution.title, /눈부심 주의/); assert.doesNotMatch(caution.title, /강함/);
+    const draft = roadsideMessage(s, dir, end, [{ ...exit, source: 'simulation', adaptation: { ...exit.adaptation, source: 'simulation', entry: .8, exit: .2 } }]);
+    assert.equal(draft.transition, '진입 밝기 전환 부담 큼'); assert.match(draft.source, /밝기 전환 체험값/);
+  }
 });
 
 test('Virtual signs are ahead, within the selected trip and outside underpass ramps in both directions', async () => {
@@ -51,4 +69,17 @@ test('Virtual signs are ahead, within the selected trip and outside underpass ra
     }
     assert.deepEqual(roadsidePlacements(100, 120), []);
   }
+});
+
+test('A valid grade zero is reported as an observation, and never clears a later caution', () => {
+  const s = 1000, end = 2000;
+  const normal = { state: 'normal', level: 0, example: true,
+    segment: { km0: dalguRoad.sToKm(1100), km1: dalguRoad.sToKm(1200) } };
+  const unknown = { id: 'unknown', start: 1000, end: 2000, kind: 'unverified', source: 'unknown', name: '미확인' };
+  const message = roadsideMessage(s, 1, end, [unknown], [normal]);
+  assert.equal(message.state, 'observed'); assert.match(message.title, /전방 100 m · 눈부심 관측 없음/);
+  assert.match(message.source, /가상 사진 판정 예시/); assert.match(message.source, /도착 시 달라질 수 있음/);
+  const later = { id: 'later', start: 1400, end: 1500, kind: 'glare', source: 'example', level: 2, name: '주의' };
+  assert.match(roadsideMessage(s, 1, end, [unknown, later], [normal]).title, /전방 400 m · 눈부심 강함/);
+  assert.equal(roadsideMessage(s, 1, end, [unknown], [{ ...normal, state: 'unknown' }]).state, 'unknown');
 });

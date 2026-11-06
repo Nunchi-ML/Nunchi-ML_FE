@@ -1,10 +1,13 @@
 import * as THREE from 'three';
 import { drawNavigationDisplay, isCompactNavigation } from './navigationDisplay';
-import { UNDERPASSES, kmToS } from './road';
+import { UNDERPASSES, kmToS, sToKm } from './road';
 import type { SegmentAssessment } from './preTrip';
 import { type NavigationZone } from './navigationGuidance';
+import { adaptationScores, sceneLuminance } from './adaptation';
+import { lookupRouteAnalysis } from './routeAnalysis';
+import { ROAD_ID } from './roadSelection';
 
-export function routeZones(startKm: number, endKm: number, sun: { alt: number; az: number }, _weather: string, assessments?: SegmentAssessment[]): NavigationZone[] {
+export function routeZones(startKm: number, endKm: number, sun: { alt: number; az: number }, weather: 'clear' | 'cloud' | 'over', assessments?: SegmentAssessment[], context?: { date: string; minutes: number }): NavigationZone[] {
   const dir = Math.sign(endKm - startKm), start = kmToS(startKm), end = kmToS(endKm), lo = Math.min(start, end), hi = Math.max(start, end);
   const zones: NavigationZone[] = [];
   if (assessments) {
@@ -13,16 +16,21 @@ export function routeZones(startKm: number, endKm: number, sun: { alt: number; a
       const source = a.state === 'unknown' ? 'unknown' : a.example ? 'example' : 'roadside';
       const kind = a.state === 'unknown' ? 'unverified' : 'glare';
       const id = a.state === 'unknown' ? 'unverified' : a.observation?.id ?? a.segment.id;
+      const level = a.level === 1 || a.level === 2 ? a.level : undefined;
       const start = kmToS(a.segment.km0), end = kmToS(a.segment.km1), previous = zones[zones.length - 1];
-      if (previous && previous.kind === kind && previous.source === source && previous.id.startsWith(id) && Math.abs(previous.end - start) < 1) previous.end = end;
-      else zones.push({ id: `${id}-${Math.round(start)}`, start, end, kind, source, name: a.state === 'unknown' ? '도로변 관측 미확인' : '도로변 사진 관측 주의 구간' });
+      if (previous && previous.kind === kind && previous.level === level && previous.source === source && previous.id.startsWith(id) && Math.abs(previous.end - start) < 1) previous.end = end;
+      else zones.push({ id: `${id}-${Math.round(start)}`, start, end, kind, source, level, name: a.state === 'unknown' ? '도로변 관측 미확인' : '도로변 사진 관측 주의 구간' });
     }
   }
   if (sun.alt <= 0) return zones;
   for (const u of UNDERPASSES) {
     const exit = dir > 0 ? u.s1 : u.s0;
     if (exit < lo || exit > hi) continue;
-    zones.push({ id: `exit-${u.osmWayIds.join('-')}`, start: exit, end: exit + dir * 150, name: u.name, kind: 'exit', source: 'simulation' });
+    const final = context ? lookupRouteAnalysis(ROAD_ID, { ...context, weather, startKm, endKm }, sToKm(exit))?.adaptation : undefined;
+    const valid = !!(final?.method === 'ml-luminance' && final.modelVersion && [final.entry, final.exit].every(n => Number.isFinite(n) && n >= 0 && n <= 1));
+    const scores = valid ? final : adaptationScores(sceneLuminance(sun.alt, weather));
+    zones.push({ id: `exit-${u.osmWayIds.join('-')}`, start: exit, end: exit + dir * 150, name: u.name, kind: 'exit', source: valid ? 'model' : 'simulation',
+      adaptation: { entryS: dir > 0 ? u.s0 : u.s1, entry: scores!.entry, exit: scores!.exit, source: valid ? 'model' : 'simulation' } });
   }
   return zones;
 }
