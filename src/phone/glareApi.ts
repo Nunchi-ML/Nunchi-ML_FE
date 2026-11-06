@@ -111,3 +111,39 @@ export async function predictPhotoG(image: Blob, context: PhotoGContext, signal:
   }
   return parsePhotoGReading(await response.json());
 }
+
+/* ── 실제 휴대폰 카메라 → 선정 모델 ───────────────────────────────────────────
+ * 휴대폰은 GPS(위치)와 나침반·기울기 센서(뒷면 카메라 방향)를 알 수 있다.
+ * 나침반은 자북 기준이라 대구의 편각(약 −8.5°, 서편)을 더해 진북으로 바꾼다.
+ * 화각은 일반 휴대폰 뒷면 기본 카메라(긴 변 약 66°)로 가정한다.
+ */
+export const DAEGU_DECLINATION_DEG = -8.5;
+export const PHONE_LONG_SIDE_FOV_DEG = 66;
+const norm360 = (d: number) => ((d % 360) + 360) % 360;
+/** deviceorientation(절대값) α·β·γ로 뒷면 카메라(기기 −Z축)가 향한 방위와 위아래 기울기를 구한다. */
+export function rearCameraDirection(alpha: number, beta: number, gamma: number) {
+  const r = Math.PI / 180, a = alpha * r, b = beta * r, g = gamma * r;
+  const ca = Math.cos(a), sa = Math.sin(a), cb = Math.cos(b), sb = Math.sin(b), cg = Math.cos(g), sg = Math.sin(g);
+  // W3C 기기 좌표(Z-X'-Y'')의 Z축을 지구 좌표(동·북·위)로. 카메라는 −Z 방향.
+  const east = -(ca * sg + sa * sb * cg), north = -(sa * sg - ca * sb * cg), up = -(cb * cg);
+  const heading = norm360(Math.atan2(east, north) * 180 / Math.PI);
+  const pitch = Math.atan2(up, Math.hypot(east, north)) * 180 / Math.PI;
+  return { heading, pitch };
+}
+/** 자북 기준 방위를 진북 기준으로. */
+export const trueHeading = (magnetic: number, declination = DAEGU_DECLINATION_DEG) => norm360(magnetic + declination);
+/** 현재 시각을 한국 시간 ISO 문자열로. */
+export function nowKstIso(nowMs = Date.now(), offsetMinutes = 0) {
+  return new Date(nowMs + (9 * 60 + offsetMinutes) * 60000).toISOString().slice(0, 19) + '+09:00';
+}
+/** 실제 휴대폰 카메라 사진의 촬영 정보. 날씨는 사용자가 고른 값(맑음/구름/흐림)이다. */
+export function realCameraContext(sensor: { latitude: number; longitude: number; headingDeg: number },
+  size: { width: number; height: number }, weather: string, nowMs = Date.now(), longSideFovDeg = PHONE_LONG_SIDE_FOV_DEG): PhotoGContext {
+  const w = SIM_WEATHER[weather] ?? SIM_WEATHER.clear;
+  return {
+    lat: sensor.latitude, lon: sensor.longitude, heading: norm360(sensor.headingDeg),
+    focal: 0.5 / Math.tan(longSideFovDeg * Math.PI / 360), width: size.width, height: size.height,
+    captured_at: nowKstIso(nowMs), cloud: w.cloud, sunshine: w.sunshine, weather_observed_at: nowKstIso(nowMs, -10),
+    weather_source: 'user_selected_weather', geometry_source: 'phone_gps_compass_assumed_fov', projection: 'legacy_level_assumed',
+  };
+}

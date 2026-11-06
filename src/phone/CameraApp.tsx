@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { useGame } from '../store';
 import { getEngine } from '../game/engine';
 import { Back } from './Phone';
-import { frameSize, MAX_IMAGE_BYTES, predictGlare, predictPhotoG, simulatorContext, type GlareReading, type PhotoGReading } from './glareApi';
+import { frameSize, MAX_IMAGE_BYTES, predictGlare, predictPhotoG, realCameraContext, simulatorContext, type GlareReading, type PhotoGReading } from './glareApi';
+import { sensorReadiness, startPhoneSensors, stopPhoneSensors } from './phoneSensors';
 
+const WEATHER_CHOICES: [string, string][] = [['clear', '맑음'], ['cloud', '구름'], ['over', '흐림']];
 const NAMES = ['정상', '눈부심', '많이 눈부심'], COLS = ['#3BA55C', '#FF8A1F', '#F2522E'];
 let acknowledged = false;
 export function CameraApp() {
@@ -14,6 +16,9 @@ export function CameraApp() {
   const [state, setState] = useState<'waiting' | 'loading' | 'ready' | 'error'>('waiting');
   const [error, setError] = useState(''), [retry, setRetry] = useState(0), [aspect, setAspect] = useState(4 / 3);
   const canvas = useRef<HTMLCanvasElement>(null), video = useRef<HTMLVideoElement>(null);
+  const [realWeather, setRealWeather] = useState('clear'), weatherRef = useRef('clear');
+  const [basis, setBasis] = useState('');
+  useEffect(() => () => stopPhoneSensors(), []);
   useEffect(() => {
     let alive = true, stream: MediaStream | null = null, timer = 0;
     let controller: AbortController | null = null;
@@ -43,13 +48,24 @@ export function CameraApp() {
         }
         controller = new AbortController();
         timeout = window.setTimeout(() => controller?.abort(), 90000);
-        // 시뮬레이터 화면은 카메라 위치·방향·화각과 설정 시각·날씨를 알고 있어 발표 선정 모델로 판정한다.
-        // 실제 카메라는 방향·화각을 알 수 없어 사진만 보는 시범 모델을 쓴다.
+        // 시뮬레이터 화면: 가상 카메라 위치·방향·화각과 설정 시각·날씨로 발표 선정 모델 판정.
+        // 실제 카메라: 휴대폰 GPS·나침반·현재 시각·직접 고른 날씨로 선정 모델 판정. 센서를 못 받으면 시범 모델로 판정하고 이유를 밝힌다.
         const engine = getEngine();
-        const result = src === 'game' && engine
-          ? await predictPhotoG(blob, simulatorContext(engine.referenceMetadata(), size, useGame.getState().settings.date,
-            engine.S.minutes, useGame.getState().settings.weather), controller.signal)
-          : await predictGlare(blob, 'camera', controller.signal);
+        let result: GlareReading | PhotoGReading;
+        if (src === 'game' && engine) {
+          result = await predictPhotoG(blob, simulatorContext(engine.referenceMetadata(), size, useGame.getState().settings.date,
+            engine.S.minutes, useGame.getState().settings.weather), controller.signal);
+          setBasis('시뮬레이터 설정 시각·날씨와 가상 카메라 위치·방향');
+        } else {
+          const ready = sensorReadiness();
+          if (ready.ok) {
+            result = await predictPhotoG(blob, realCameraContext(ready, size, weatherRef.current), controller.signal);
+            setBasis(`휴대폰 GPS · 방향 ${Math.round(ready.headingDeg)}° · 현재 시각 · 날씨 ${WEATHER_CHOICES.find(w => w[0] === weatherRef.current)?.[1]}(직접 선택) · 화각은 일반 휴대폰 값으로 가정`);
+          } else {
+            result = await predictGlare(blob, 'camera', controller.signal);
+            setBasis(`${ready.reason} → 사진만 보는 시범 모델로 판정했어요`);
+          }
+        }
         if (!alive) return;
         setReading(result); setState('ready'); setError('');
         useGame.setState({ currentFrame: { state: 'ready', level: result.level, at: new Date().toISOString(), source: src === 'real' ? 'camera' : 'game' } });
@@ -77,15 +93,19 @@ export function CameraApp() {
   const scores = reading ? [reading.scores.normal, reading.scores.glare, reading.scores.severe] : null;
   return (
     <div className="pv">
-      <Back /><h3>현재 전방 사진 <small className="small">{src === 'game' ? '선정 모델' : '사진 1장 시범'}</small></h3>
+      <Back /><h3>현재 전방 사진 <small className="small">{reading && 'brightest' in reading ? '사진 1장 시범' : '선정 모델'}</small></h3>
       <div className="small">지금 사진의 태양광 눈부심 등급을 확인합니다. 도로변 사진 기반의 앞 구간 안내와 구분하며, 현재 사진이 정상이어도 이후 경로 안내는 유지해요.</div>
-      {!ack && <div className="safety">시뮬레이터 실험용 기능입니다. 시작하면 현재 화면과 카메라 위치·방향·시각·날씨를 분석 서버로 보냅니다. 시뮬레이터 화면은 발표 선정 모델(사진 + 해 위치·날씨), 실제 카메라는 사진만 보는 시범 모델로 판정해요. 사진은 저장하지 않아요.
+      {!ack && <div className="safety">시뮬레이터 실험용 기능입니다. 시작하면 현재 화면과 카메라 위치·방향·시각·날씨를 분석 서버로 보냅니다. 시뮬레이터 화면과 실제 카메라 모두 발표 선정 모델(사진 + 해 위치·날씨)로 판정해요. 실제 카메라는 휴대폰 위치·방향 권한이 필요하고, 받지 못하면 사진만 보는 시범 모델로 판정해요. 사진과 위치는 저장하지 않아요.
         <button className="pbtn" onClick={() => { acknowledged = true; setAck(true); }}>확인하고 분석 시작</button></div>}
       <div className="srcs">
-        <button className={src === 'real' ? 'on' : ''} disabled={!ack} onClick={() => setSrc('real')}>실제 카메라</button>
-        <button className={src === 'game' ? 'on' : ''} onClick={() => setSrc('game')}>시뮬레이터 화면 · 실험</button>
+        <button className={src === 'real' ? 'on' : ''} disabled={!ack} onClick={() => { void startPhoneSensors(); setSrc('real'); }}>실제 카메라</button>
+        <button className={src === 'game' ? 'on' : ''} onClick={() => { stopPhoneSensors(); setSrc('game'); }}>시뮬레이터 화면 · 실험</button>
       </div>
-      <div className="cam" style={{ aspectRatio: aspect }}>
+      {src === 'real' && <div className="srcs" role="group" aria-label="지금 날씨">
+        {WEATHER_CHOICES.map(([id, name]) => <button key={id} className={realWeather === id ? 'on' : ''} onClick={() => { weatherRef.current = id; setRealWeather(id); }}>지금 {name}</button>)}
+      </div>}
+      {/* 세로 사진(휴대폰 카메라)은 높이를 줄여 판정 결과가 스크롤 없이 보이게 한다. */}
+      <div className="cam" style={aspect < 1 ? { aspectRatio: aspect, height: 'min(34vh, 250px)', width: 'auto', alignSelf: 'center', margin: '0 auto' } : { aspectRatio: aspect }}>
         <video ref={video} playsInline muted style={{ display: 'none' }} /><canvas ref={canvas} />
         <div className="lv" style={{ background: reading ? COLS[reading.level] : '#655d55' }}>
           {reading ? NAMES[reading.level] : state === 'loading' ? '분석 대기 중' : state === 'error' ? '판정 불가' : '분석 전'}
@@ -95,6 +115,7 @@ export function CameraApp() {
       <div role="status" aria-live="polite" className="small">{error || (reading
         ? `${'brightest' in reading ? '시범 모델' : '선정 모델'} 점수 · 정상 ${Math.round(reading.scores.normal * 100)} · 눈부심 ${Math.round(reading.scores.glare * 100)} · 많이 ${Math.round(reading.scores.severe * 100)}`
         : state === 'loading' ? '서버가 깨어나는 첫 분석은 최대 90초 걸릴 수 있어요.' : '확인 후 분석을 시작해 주세요.')}</div>
+      {reading && basis && <div className="small">판정에 쓴 정보 · {basis}</div>}
       {state === 'error' && <button className="pbtn" onClick={() => setRetry(n => n + 1)}>다시 분석</button>}
       {scores && <div className="bars">{scores.map((score, i) => <div key={i} style={{ background: COLS[i], width: `${score * 100}%` }} />)}</div>}
       <div className="tl">{Array.from({ length: 30 }, (_, i) => <i key={i} style={{ background: history[i] == null ? '#E6DACB' : COLS[history[i]] }} />)}</div>
