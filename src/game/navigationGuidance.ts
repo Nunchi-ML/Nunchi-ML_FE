@@ -1,5 +1,7 @@
 export interface NavigationZone {
   id: string; start: number; end: number; kind: 'glare' | 'exit' | 'unverified'; name: string; source: 'simulation' | 'model' | 'roadside' | 'example' | 'unknown';
+  level?: 1 | 2;
+  adaptation?: { entryS: number; entry: number; exit: number; source: 'simulation' | 'model' };
 }
 export interface NavigationCue { id: string; text: string; spoken: string; meters: number; kind: NavigationZone['kind']; source: NavigationZone['source']; active: boolean }
 /** Distances are along the driven route, including reverse-direction trips. */

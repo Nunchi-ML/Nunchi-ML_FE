@@ -65,5 +65,6 @@ export function PreTripPanel({ inPhone = false }: { inPhone?: boolean }) {
     </details>
     <p className="pretrip-qualification">예상 노출·이동 조건을 비교하는 안내입니다. 노출 감소·사고 예방 효과는 아직 검증하지 않았습니다.</p>
     <p className="pretrip-qualification">도로 전광판도 같은 관측 상태를 안내해요. 3D 전광판은 가상 배치한 연동 체험이며 실제 설치·운영 정보가 아닙니다.</p>
+    <p className="pretrip-qualification">앞 구간 카메라 사진으로 눈부심 정도를 판단해 내비·전광판에서 미리 안내하는 흐름입니다. 지하차도는 진입·출구의 예상 밝기 전환 부담도 안내해요. 예시 판정과 최종 모델 연결 상태는 구분합니다.</p>
   </section>;
 }
