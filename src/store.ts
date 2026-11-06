@@ -27,7 +27,7 @@ export interface Hud {
   riskRatio: number; glareLv: 0 | 1 | 2; glassText: string; score: number; kmh: number;
   prog: number; remainKm: number; from: string; to: string; ticks: number[]; station: string; warn: boolean; fps: number;
   navigation?: { text: string; meters: number; source: string; voiceAvailable: boolean; inCab: boolean };
-  analysis?: { level: 0 | 1 | 2; modelVersion: string; aheadMeters: number | null };
+  analysis?: { level: 0 | 1 | 2; modelVersion: string; aheadMeters: number | null; aheadLevel?: 0 | 1 | 2 | null };
   adaptation?: { name: string; phase: string; burden: number; score: number; entryScore: number; exitScore: number; pupil: number; distance: number; coveredSeconds: number };
 }
 

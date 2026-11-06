@@ -17,7 +17,23 @@ test('Offline inputs cover weather scenarios without fake final model results',a
   assert.equal(inputs.predictionsReady,false);assert.equal(inputs.cases.length,21);
   assert.equal(inputs.missionSha256,audit.missionSha256);
   for(const c of inputs.cases){assert.ok(c.segments.length>0);assert.equal(c.referenceView.flow,0);assert.equal(c.source,'selected-simulation-conditions');for(const s of c.segments){assert.ok(s.km1>s.km0);assert.ok(s.km>=s.km0&&s.km<=s.km1);assert.equal(s.level,undefined);}}
-  const predictions=JSON.parse(await readFile(new URL('../src/data/route_analysis.json',import.meta.url),'utf8'));assert.deepEqual(predictions.cases,[]);
+  // 미리 판정한 경로 결과는 발표 선정 모델이 시뮬레이터 화면을 실제로 판정한 값만 허용한다(임의 값 금지).
+  const predictions=JSON.parse(await readFile(new URL('../src/data/route_analysis.json',import.meta.url),'utf8'));
+  assert.match(predictions.method,/시뮬레이터.*선정 모델.*실제 도로 사진.*아님/);
+  for(const c of predictions.cases){
+    const course=inputs.cases.find(r=>c.id===`${r.road}-${r.id}`);
+    assert.ok(course,`${c.id} must match a recommended course condition`);
+    assert.equal(c.status,'final');assert.match(c.modelVersion,/^photo-g-candidate-v1 · B_geometry_aug$/);
+    assert.equal(c.minutes,course.minutes);assert.equal(c.date.slice(4),course.date.slice(4));
+    assert.equal(c.weather,course.weather);assert.equal(c.direction,course.direction);
+    const lo=Math.min(...course.segments.map(x=>x.km0)),hi=Math.max(...course.segments.map(x=>x.km1));
+    for(const x of c.samples){
+      assert.ok([0,1,2].includes(x.level));assert.match(x.imageSha256,/^[a-f0-9]{64}$/);
+      assert.ok(Math.abs(x.scores.normal+x.scores.glare+x.scores.severe-1)<.01);
+      assert.ok(x.km0<x.km1&&x.km>=x.km0&&x.km<=x.km1);
+      assert.ok(x.km>=lo-1e-6&&x.km<=hi+1e-6);
+    }
+  }
 });
 
 test('The longest real underpass is offered with a reproducible observation speed and an honest roof time',()=>{
