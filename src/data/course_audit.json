@@ -16,6 +16,7 @@
       "underpasses": 0,
       "tunnelObservations": [],
       "observationKmh": 0,
+      "defaultObservationKmh": 0,
       "bankIncluded": true,
       "passed": true
     },
@@ -33,6 +34,7 @@
       "underpasses": 0,
       "tunnelObservations": [],
       "observationKmh": 0,
+      "defaultObservationKmh": 0,
       "bankIncluded": false,
       "passed": true
     },
@@ -50,6 +52,7 @@
       "underpasses": 0,
       "tunnelObservations": [],
       "observationKmh": 0,
+      "defaultObservationKmh": 0,
       "bankIncluded": false,
       "passed": true
     },
@@ -77,6 +80,7 @@
         }
       ],
       "observationKmh": 40,
+      "defaultObservationKmh": 0,
       "bankIncluded": false,
       "passed": true
     },
@@ -104,6 +108,7 @@
         }
       ],
       "observationKmh": 40,
+      "defaultObservationKmh": 0,
       "bankIncluded": false,
       "passed": true
     },
@@ -149,6 +154,7 @@
         }
       ],
       "observationKmh": 0,
+      "defaultObservationKmh": 0,
       "bankIncluded": false,
       "passed": true
     },
@@ -185,6 +191,7 @@
         }
       ],
       "observationKmh": 0,
+      "defaultObservationKmh": 0,
       "bankIncluded": false,
       "passed": true
     }

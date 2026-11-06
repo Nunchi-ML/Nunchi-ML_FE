@@ -100,11 +100,12 @@ export function Menu() {
   const [picking, setPicking] = useState<0 | 1>(0);
   const [size, setSize] = useState(0);
   const compact = useTouchControls();
-  const [mapExpanded, setMapExpanded] = useState(false), [mapFocus, setMapFocus] = useState(compact);
+  const [mapExpanded, setMapExpanded] = useState(false), [mapFocus, setMapFocus] = useState(true);
+  const [showCourses, setShowCourses] = useState(false);
   const [mapZoom, setMapZoom] = useState(1), [mapPan, setMapPan] = useState({ x: 0, y: 0 });
   const pointers = useRef(new Map<number, { x: number; y: number }>()), mapDragged = useRef(false);
   const resetMap = () => { setMapZoom(1); setMapPan({ x: 0, y: 0 }); };
-  useEffect(() => { setMapFocus(compact); resetMap(); }, [compact]);
+  useEffect(() => { setMapFocus(true); resetMap(); }, [compact]);
   useEffect(resetMap, [st.startKm, st.endKm]);
   useEffect(() => {
     const observer = new ResizeObserver(() => setSize(n => n + 1)); observer.observe(cv.current!);
@@ -131,6 +132,12 @@ export function Menu() {
   const a = locationLabel(st.startKm), b = locationLabel(st.endKm);
   // picking은 다음 지도 클릭의 역할일 뿐, 화면에 표시된 코스의 유효성과 무관하다.
   const validCourse = Math.abs(st.endKm - st.startKm) >= 0.1;
+  const selectedMission = st.mission == null ? undefined : MISSIONS[st.mission];
+  const weatherLabel = WXS.find(([id]) => id === st.weather)?.[1] ?? '';
+  const selectMission = (i: number) => {
+    const m = MISSIONS[i]; setPicking(0); setShowCourses(false);
+    set({ mission: i, startKm: m.a, endKm: m.b, minutes: m.m, date: missionDate(m), weather: 'clear', flow: 0, mode: 'normal', observationSpeed: 0 });
+  };
 
   const onMap = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (mapDragged.current) { mapDragged.current = false; return; }
@@ -160,49 +167,45 @@ export function Menu() {
   return (
     <div id="menu">
       <div className="left">
+        <div className="menu-scroll">
         <div className="logo">
           <img src="./logo.png" alt="" onError={e => { e.currentTarget.style.display = 'none'; }} />
-          <div><h1>눈치 <em>드라이브</em></h1><div className="sub">눈부심 노출을 비교하고, 앞 구간을 미리 알아채요</div></div>
+          <div><h1>눈치 <em>드라이브</em></h1><div className="sub">눈부심과 밝기 변화를 미리 살펴보는 주행 체험</div></div>
         </div>
 
-        <div className="sect">① 어떤 시야 변화를 체험할까요?</div>
+        <div className="sect">어디를 달릴까요?</div>
         <div className="roads" role="group" aria-label="도로와 체험 선택">
           <button className={`road${ROAD_ID === 'dalgu' ? ' on' : ''}`} aria-pressed={ROAD_ID === 'dalgu'} onClick={() => chooseRoad('dalgu')}>
-            <span className="road-purpose">햇빛과 전방 시야</span>
             <b>달구벌대로</b>
-            <span className="road-experience">눈앞으로 들어오는 햇빛,<br />앞이 얼마나 잘 보일까요?</span>
-            <small>동서 · 32.8 km</small>
+            <span className="road-purpose">햇빛과 전방 시야</span>
+            <small>낮은 해의 눈부심을 체험해요</small>
           </button>
           <button className={`road${IS_SINCHEON ? ' on' : ''}`} aria-pressed={IS_SINCHEON} onClick={() => chooseRoad('sincheon')}>
-            <span className="road-purpose">밝기 변화와 눈의 적응</span>
             <b>신천대로</b>
-            <span className="road-experience">어두운 지하차도에서 밝은 밖으로,<br />눈은 어떻게 적응할까요?</span>
-            <small>남북·서측 · {IS_SINCHEON ? D.total_km.toFixed(1) : '14.3'} km</small>
+            <span className="road-purpose">지하차도와 밝기 전환</span>
+            <small>어두운 안과 밝은 출구를 비교해요</small>
           </button>
         </div>
-        <div className="road-guide" aria-live="polite">
-          <b>{IS_SINCHEON ? '밝은 출구에서 달라지는 시야를 느껴보세요' : '햇빛 아래에서 앞이 잘 보이는지 확인해보세요'}</b>
-          <p>{IS_SINCHEON
-            ? '지하차도에 들어갈 때 어두워지는 시야와, 밝은 밖으로 나와 서서히 적응하는 과정을 체험해요.'
-            : '정면 햇빛 때문에 전방을 알아보기 어려워지는 순간을 체험하고, 운전 중 어떤 안내가 필요한지 살펴봐요.'}</p>
+        <div className="sect">선택한 코스</div>
+        <div className="selected-course" aria-live="polite">
+          <span>{selectedMission?.badge ?? '직접 고른 코스'}</span>
+          <h2>{selectedMission?.t ?? `${a} → ${b}`}</h2>
+          <p>{Math.abs(st.endKm - st.startKm).toFixed(1)} km <i /> {hm(st.minutes)} <i /> {weatherLabel}</p>
+          <button className="menu-map-shortcut" onClick={() => { setMapExpanded(true); resetMap(); }}>지도 크게 보기</button>
         </div>
-
-        {IS_SINCHEON && <div className="note">실제 도로·건물 데이터 · 지하차도 {D.underpasses?.length}곳<br />입·출구는 OSM 좌표, 깊이·높이와 눈의 회복 연출은 시뮬레이션 가정입니다.</div>}
-        <div className="sect">② 추천 코스</div>
+        <details className="menu-fold course-picker" open={showCourses} onToggle={e => setShowCourses(e.currentTarget.open)}>
+          <summary><span>다른 추천 코스 보기<small>{MISSIONS.length}개 코스 중 선택</small></span><em>선택</em></summary>
         <div className="missions">
-          {MISSIONS.map((m, i) => (
-            <button key={i} className={`mission${st.mission === i ? ' on' : ''}`}
-              onClick={() => { setPicking(0); set({ mission: i, startKm: m.a, endKm: m.b, minutes: m.m, date: missionDate(m), weather: 'clear', flow: 0, mode: 'normal', observationSpeed: m.observeKmh ?? 0 }); }}>
-              <div><div className="mt">{m.t}</div><div className="ms">{m.s}</div></div>
+          {MISSIONS.map((m, i) => <button key={m.id} className={`mission${st.mission === i ? ' on' : ''}`} aria-pressed={st.mission === i} onClick={() => selectMission(i)}>
+              <div><div className="mt">{m.t}</div><div className="ms">{Math.abs(m.b - m.a).toFixed(1)} km · {hm(m.m)} · {m.purpose === 'adaptation' ? '밝기 변화' : '햇빛과 시야'}</div></div>
               {m.badge && <span className="badge">{m.badge}</span>}
-            </button>
-          ))}
+            </button>)}
         </div>
+        </details>
 
-        <div className="note">추천 코스는 출발 때의 햇빛과 날씨를 유지해 같은 조건으로 체험해요.</div>
-        {IS_SINCHEON && <CourseObservation />}
-        <PreTripPanel />
-        <div className="sect">③ 언제 달릴까</div>
+        <details className="menu-fold">
+          <summary><span>날짜·날씨·음성<small>{st.date.slice(5).replace('-', '.')} {hm(st.minutes)} · {weatherLabel} · 음성 {st.voice ? '켜짐' : '꺼짐'}</small></span><em>변경</em></summary>
+          <div className="menu-fold-body">
         <div className="row"><label>날짜</label>
           <input aria-label="출발 날짜" type="date" value={st.date} onChange={e => e.target.value && set({ date: e.target.value })}
             style={{ flex: 1, background: 'transparent', color: 'var(--cream)', border: '1px solid #fff4', borderRadius: 8, padding: '4px 8px', font: 'inherit' }} /></div>
@@ -219,8 +222,29 @@ export function Menu() {
         </div>
 
         <div className="row"><label>음성 안내</label><div className="seg"><button className={st.voice ? 'on' : ''} onClick={() => set({ voice: true })}>켜기</button><button className={!st.voice ? 'on' : ''} onClick={() => set({ voice: false })}>끄기</button></div></div>
+          <p className="note">추천 코스는 출발 시각을 고정해 같은 햇빛 조건으로 체험해요.</p>
+          </div>
+        </details>
+        {IS_SINCHEON && <details className="menu-fold">
+          <summary><span>관찰 속도·통과 시간<small>{st.observationSpeed ? `${st.observationSpeed} km/h 상한 적용 중` : '자유 주행 · 관찰 상한 없음'}</small></span><em>선택</em></summary>
+          <CourseObservation />
+        </details>}
+        <details className="menu-fold">
+          <summary><span>전방 구간 안내·연결 상태<small>{st.observationMode === 'example' ? '가상 관측 예시 사용 중' : preview.primary.observedM ? '도로변 관측 확인됨' : '도로변 관측 미확인'}</small></span><em>확인</em></summary>
+          <PreTripPanel />
+        </details>
+        <details className="menu-fold">
+          <summary><span>체험 방법·데이터 안내<small>이 코스에서 확인할 수 있는 것</small></span><em>읽기</em></summary>
+          <div className="menu-fold-body">
+            <p>{IS_SINCHEON ? '지하차도 안과 밝은 출구를 지나며 시야 변화를 비교해요. 사진 판정과 전광판 안내 예시는 구간 안내에서 확인할 수 있어요.' : '정면 햇빛 때문에 앞을 알아보기 어려운 순간과, 내비·전광판의 사전 안내를 체험해요.'}</p>
+            <p className="note">실제 도로·건물 데이터를 바탕으로 단순화했습니다.{IS_SINCHEON && ` 지하차도 ${D.underpasses?.length}곳의 입·출구는 OSM 좌표이며 깊이·높이·시야 회복은 시뮬레이션 가정입니다.`} 예시 판정은 최종 모델 결과와 구분합니다.</p>
+          </div>
+        </details>
+        </div>
+        <div className="menu-start">
+          <div className="menu-start-status"><span>{st.observationSpeed ? `관찰 상한 ${st.observationSpeed} km/h` : '자유 주행'}</span>{st.observationSpeed ? <button onClick={() => set({ observationSpeed: 0 })}>상한 해제</button> : <small>가속·제동은 직접 조작해요</small>}</div>
         <button id="go" disabled={!validCourse} onClick={() => validCourse && getEngine()?.startRun()}><span>{validCourse ? '출발하기 ▶' : '서로 다른 출발·도착 지점을 선택하세요'}</span></button>
-        <div className="note">시뮬레이터 화면은 실제 장소를 본떠 단순화한 것입니다. 실제 운전 중에는 사용하지 마세요.</div>
+        </div>
       </div>
       <div className="right">
         <div id="mapwrap" className={mapExpanded ? 'route-map-expanded' : ''}>
@@ -234,14 +258,14 @@ export function Menu() {
             <button className="map-focus" onClick={() => { setMapFocus(v => !v); resetMap(); }}>{mapFocus ? '전체 도로' : '선택 코스'}</button>
           </div>
           <div id="maptip">{picking === 0
-            ? <>지도에서 <b style={{ color: 'var(--green)' }}>출발</b> → <b style={{ color: 'var(--red)' }}>도착</b> 지점을 차례로 누르세요</>
+            ? <>지도에서 <b style={{ color: 'var(--green)' }}>출발</b>·<b style={{ color: 'var(--red)' }}>도착</b> 지점 선택</>
             : validCourse
               ? <>출발 <b style={{ color: 'var(--green)' }}>{a}</b> · 도착 <b style={{ color: 'var(--red)' }}>{b}</b> · 바로 출발하거나 도착 지점을 바꿀 수 있어요</>
               : <>출발 <b style={{ color: 'var(--green)' }}>{a}</b> · 이제 다른 <b style={{ color: 'var(--red)' }}>도착</b> 지점을 누르세요</>}</div>
           <div id="legend"><span><i style={{ background: 'var(--orange)' }} />주의 관측</span><span><i style={{ background: '#98938a' }} />미확인</span>{IS_SINCHEON && <span>· 파란 표시는 지하차도</span>}</div>
         </div>
         <div id="sumbar">
-          <div className="slab"><div className="in"><div className="k">코스</div><div className="v">{a} → {b}</div></div></div>
+          <div className="slab"><div className="in"><div className="k">코스</div><div className="v">{selectedMission?.t ?? `${a} → ${b}`}</div></div></div>
           <div className="slab"><div className="in"><div className="k">거리 · 방향</div><div className="v">{Math.abs(st.endKm - st.startKm).toFixed(1)} km · {compass(head)}쪽</div></div></div>
           <div className="slab"><div className="in"><div className="k">해 위치</div><div className="v">{sp.alt < 0 ? '해 진 뒤' : `${compass(sp.az)} · 높이 ${sp.alt.toFixed(0)}°`}</div></div></div>
         </div>

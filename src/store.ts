@@ -52,7 +52,7 @@ export const useGame = create<State>(set => ({
     preference: 'arrival', extraMinutes: 5, extraKm: 2, sensitivity: 'standard', observationMode: 'connected', exampleCondition: 'attention',
     voice: true, guidance: true, date: missionDate(INITIAL), minutes: INITIAL.m, weather: 'clear', flow: 0, glass: false, gfx: isTouch ? 'low' : 'high',
     startKm: INITIAL.a, endKm: INITIAL.b,
-    mission: 0, mode: 'normal', observationSpeed: INITIAL.observeKmh ?? 0,
+    mission: 0, mode: 'normal', observationSpeed: 0,
   },
   hud: { riskRatio: 1, glareLv: 0, glassText: '대기', score: 100, kmh: 0, prog: 0, remainKm: 0, from: '-', to: '-', ticks: [], station: '-', warn: false, fps: 0 },
   banner: null, result: null,
