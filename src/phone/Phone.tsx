@@ -19,7 +19,11 @@ const GLARE = ['정상', '눈부심', '많이 눈부심'];
 const BASE_W = 390, BASE_H = 800;                       // 폰 기준 크기 (px) — 화면에 맞춰 통째로 확대
 
 export function Back() {
-  return <button className="back" onClick={() => useGame.setState({ app: 'home' })}>‹ 홈</button>;
+  const camOnly = useGame(s => s.camOnly);
+  // 메인에서 카메라만 연 경우: 홈 대신 휴대폰을 닫고 메인으로 돌아간다.
+  return camOnly
+    ? <button className="back" onClick={() => useGame.setState({ phoneOpen: false, camOnly: false })}>‹ 메인으로</button>
+    : <button className="back" onClick={() => useGame.setState({ app: 'home' })}>‹ 홈</button>;
 }
 
 /** 상태 표시줄 아이콘: 신호 · 와이파이 · 배터리 */
@@ -46,9 +50,12 @@ export function Phone() {
     e.els.phone = phoneEl.current ?? undefined; e.els.phoneDim = dimEl.current ?? undefined;
     return () => { e.els.phone = undefined; e.els.phoneDim = undefined; };
   }, []);
-  const close = () => useGame.setState({ phoneOpen: false });
+  const camOnly = useGame(s => s.camOnly);
+  const close = () => useGame.setState({ phoneOpen: false, camOnly: false });
+  // 어떤 경로로든 휴대폰이 닫히면 카메라 전용 상태를 푼다(다음에 열 때는 홈 화면).
+  useEffect(() => { if (!open && useGame.getState().camOnly) useGame.setState({ camOnly: false }); }, [open]);
   const sp = sunPos(simDate(st.date, st.minutes));
-  const home = app === 'home';
+  const home = app === 'home' && !camOnly;
   const [mo, d] = st.date.slice(5).split('-').map(Number);
 
   return (
@@ -86,11 +93,11 @@ export function Phone() {
                 </div>
               </div>
             )}
-            {open && app === 'cam' && <CameraApp />}
-            {open && app === 'map' && <MapApp />}
-            {open && app === 'res' && <ResultsApp />}
-            {open && app === 'set' && <SettingsApp />}
-            <div className="homebar" onClick={() => (home ? close() : useGame.setState({ app: 'home' }))} />
+            {open && (app === 'cam' || camOnly) && <CameraApp />}
+            {open && !camOnly && app === 'map' && <MapApp />}
+            {open && !camOnly && app === 'res' && <ResultsApp />}
+            {open && !camOnly && app === 'set' && <SettingsApp />}
+            <div className="homebar" onClick={() => (home || camOnly ? close() : useGame.setState({ app: 'home' }))} />
           </div>
         </div>
       </div>

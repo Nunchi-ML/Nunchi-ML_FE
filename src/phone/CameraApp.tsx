@@ -11,7 +11,7 @@ let acknowledged = false, startReal = false;
 /** 메인 화면 버튼: 주행 없이 휴대폰을 열고 실제 카메라로 바로 시작한다. 클릭 안에서 불러야 iOS 방향 권한을 물을 수 있다. */
 export function openGlareCamera() {
   startReal = true; void startPhoneSensors();
-  useGame.setState({ phoneOpen: true, app: 'cam' });
+  useGame.setState({ phoneOpen: true, app: 'cam', camOnly: true });
 }
 export function CameraApp() {
   // 초기값 함수는 개발 모드에서 두 번 불릴 수 있어 읽기만 하고, 표시는 마운트 뒤에 지운다.
