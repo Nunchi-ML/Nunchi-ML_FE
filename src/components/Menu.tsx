@@ -10,6 +10,7 @@ import { PreTripPanel } from './PreTripPanel';
 import { CourseObservation } from './CourseObservation';
 import { RoadScene } from './RoadScene';
 import { getRoutePreview } from '../game/routePreview';
+import { routeAnalysisSummary } from '../game/routeAnalysis';
 import type { SegmentAssessment } from '../game/preTrip';
 import { useTouchControls } from './useTouchControls';
 
@@ -107,6 +108,7 @@ const WXS: [Weather, string][] = [['clear', '맑음'], ['cloud', '구름'], ['ov
 export function Menu() {
   const st = useGame(s => s.settings), set = useGame(s => s.set);
   const preview = getRoutePreview(st);
+  const modelSummary = routeAnalysisSummary(ROAD_ID, st);
   const cv = useRef<HTMLCanvasElement>(null), T = useRef<Tf | null>(null);
   const [picking, setPicking] = useState<0 | 1>(0);
   const [size, setSize] = useState(0);
@@ -258,14 +260,14 @@ export function Menu() {
           <CourseObservation />
         </details>}
         <details className="menu-fold">
-          <summary><span>전방 구간 안내·연결 상태<small>{st.observationMode === 'example' ? '가상 관측 예시 사용 중' : preview.primary.observedM ? '도로변 관측 확인됨' : '도로변 관측 미확인'}</small></span><em>확인</em></summary>
+          <summary><span>전방 구간 안내·연결 상태<small>{modelSummary ? `선정 모델 판정 · 심한 눈부심 ${modelSummary.severeM ? `${(modelSummary.severeM / 1000).toFixed(1)} km` : '없음'}` : st.observationMode === 'example' ? '가상 관측 예시 사용 중' : preview.primary.observedM ? '도로변 관측 확인됨' : '도로변 관측 미확인'}</small></span><em>확인</em></summary>
           <PreTripPanel />
         </details>
         <details className="menu-fold">
           <summary><span>체험 방법·데이터 안내<small>이 코스에서 확인할 수 있는 것</small></span><em>읽기</em></summary>
           <div className="menu-fold-body">
             <p>{IS_SINCHEON ? '지하차도 안과 밝은 출구를 지나며 시야 변화를 비교해요. 사진 판정과 전광판 안내 예시는 구간 안내에서 확인할 수 있어요.' : '정면 햇빛 때문에 앞을 알아보기 어려운 순간과, 내비·전광판의 사전 안내를 체험해요.'}</p>
-            <p className="note">실제 도로·건물 데이터를 바탕으로 단순화했습니다.{IS_SINCHEON && ` 지하차도 ${D.underpasses?.length}곳의 입·출구는 OSM 좌표이며 깊이·높이·시야 회복은 시뮬레이션 가정입니다.`} 예시 판정은 최종 모델 결과와 구분합니다.</p>
+            <p className="note">실제 도로·건물 데이터를 바탕으로 단순화했습니다.{IS_SINCHEON && ` 지하차도 ${D.underpasses?.length}곳의 입·출구는 OSM 좌표이며 깊이·높이·시야 회복은 시뮬레이션 가정입니다.`} 카메라 앱과 주행 화면의 눈부심 판정은 발표 선정 모델(사진 + 해 위치·날씨)이 해요. 도로변 사진 안내 예시는 가상 관측이에요.</p>
           </div>
         </details>
         </div>

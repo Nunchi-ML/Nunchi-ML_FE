@@ -471,6 +471,13 @@ button,summary{touch-action:manipulation}
  #menu ~ #rotate{display:none}
 }
 
+/* 출발 전 안내: 선정 모델 경로 판정 요약 */
+.pretrip-model{margin-top:10px;padding:10px 11px;border-radius:10px;background:#ff8a2014;border:1px solid #ff8a2040;display:flex;flex-direction:column;gap:5px}
+.pretrip-model small{font-size:10px;color:#ffcf8a}.pretrip-model b{font-size:15px;color:#fff4d8}
+.pretrip-model span{font-size:10px;color:#d4c3aa;line-height:1.5}
+.pretrip-model-bar{display:flex;gap:2px;height:8px}.pretrip-model-bar i{flex:1;border-radius:2px}
+.pretrip-model-bar .lv0{background:#3BA55C}.pretrip-model-bar .lv1{background:#FF8A1F}.pretrip-model-bar .lv2{background:#F2522E}
+
 /* 메인 화면: 눈부심 카메라 바로 쓰기 (보조 입구) */
 .menu-camera{margin-top:8px;width:100%;padding:9px 12px;border:1px solid rgba(255,212,94,.45);border-radius:12px;background:rgba(255,212,94,.08);color:var(--cream);font:inherit;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:2px}
 .menu-camera b{font-size:15px}.menu-camera small{font-size:11.5px;color:#d9c6a8}

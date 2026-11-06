@@ -46,3 +46,16 @@ export function lookupRouteAnalysis(road: RoadId, settings: { date: string; minu
     .sort((a, b) => Math.abs(a.km - km) - Math.abs(b.km - km))[0];
   return { sample, ahead, adaptation: validatedTransitionResult(entry.adaptation), modelVersion: entry.modelVersion, caseId: entry.id };
 }
+
+/** 출발 전 안내용: 지금 설정(도로·날짜·시각·날씨·방향)에 맞는 미리 판정 결과를 등급별 거리로 요약한다. 없으면 null. */
+export function routeAnalysisSummary(road: RoadId, settings: { date: string; minutes: number; weather: string; startKm: number; endKm: number }, data = DATA) {
+  if (!Number.isFinite(settings.minutes)) return null;
+  const direction = Math.sign(settings.endKm - settings.startKm);
+  const entry = data.cases.find(c => c.status === 'final' && c.road === road && c.date === settings.date && c.weather === settings.weather &&
+    Math.abs(c.minutes - settings.minutes) < .01 && c.direction === direction);
+  if (!entry || !entry.samples.length) return null;
+  const meters = [0, 0, 0];
+  for (const s of entry.samples) meters[s.level] += Math.round(Math.abs(s.km1 - s.km0) * 1000);
+  const ordered = [...entry.samples].sort((a, b) => (a.km - b.km) * direction);
+  return { modelVersion: entry.modelVersion, points: entry.samples.length, normalM: meters[0], glareM: meters[1], severeM: meters[2], levels: ordered.map(s => s.level) };
+}
