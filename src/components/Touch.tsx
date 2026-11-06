@@ -28,6 +28,7 @@ export function Touch() {
   const enabled = useTouchControls();
   const phoneOpen = useGame(s => s.phoneOpen), glass = useGame(s => s.settings.glass);
   const voice = useGame(s => s.settings.voice), set = useGame(s => s.set);
+  const sport = useGame(s => s.settings.mode === 'sport'), guidance = useGame(s => s.settings.guidance);
   const speed = useGame(s => s.hud.kmh);
   const active = useRef(new Set<Action>()), [pressed, setPressed] = useState<Action[]>([]);
   const change = (action: Action, down: boolean) => {
@@ -63,9 +64,11 @@ export function Touch() {
     <div className="touch-speed" aria-label={`현재 속도 ${Math.round(speed)}킬로미터 매시`}><b>{Math.round(speed)}</b><span>km/h</span></div>
     <div className="drive-tools" role="group" aria-label="주행 도구">
       <button aria-label="내비게이션 음성 안내" aria-pressed={voice} className={voice ? 'active' : ''} onClick={() => set({ voice: !voice })}><DriveIcon name={voice ? 'voice' : 'muted'} /><small>음성</small></button>
-      <button aria-label="휴대폰 열기" onClick={() => useGame.setState({ phoneOpen: true, app: 'home' })}><DriveIcon name="apps" /><small>앱</small></button>
+      <button aria-label="주행 설정" onClick={() => useGame.setState({ phoneOpen: true, app: 'set' })}><DriveIcon name="settings" /><small>설정</small></button>
       <button aria-label="스마트 유리" aria-pressed={glass} className={glass ? 'active' : ''} onClick={() => getEngine()?.toggleGlass()}><DriveIcon name="glass" /><small>차광</small></button>
       <button aria-label="시점 전환" onClick={() => getEngine()?.toggleCam()}><DriveIcon name="view" /><small>시점</small></button>
+      <button aria-label="스포츠 모드" aria-pressed={sport} className={sport ? 'active' : ''} onClick={() => getEngine()?.toggleSport()}><DriveIcon name="mode" /><small>스포츠</small></button>
+      <button aria-label="내비게이션 시야 안내" aria-pressed={guidance} className={guidance ? 'active' : ''} onClick={() => set({ guidance: !guidance })}><DriveIcon name="guide" /><small>안내</small></button>
       <button aria-label="코스 메뉴" onClick={() => getEngine()?.toMenu()}><DriveIcon name="menu" /><small>코스</small></button>
     </div>
   </div>;

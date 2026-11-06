@@ -26,9 +26,11 @@ export function Hud({ visible, bind }: { visible: boolean; bind: <K extends keyo
   const sport = st.mode === 'sport', progress = Math.max(0, Math.min(1, h.prog));
   const openSettings = () => useGame.setState({ phoneOpen: true, app: 'set' });
   const adaptation = st.guidance && h.adaptation && (h.adaptation.distance < 150 || h.adaptation.burden > .1) ? h.adaptation : null;
+  const entering = adaptation?.phase.includes('진입 전');
+  const inTunnel = adaptation?.phase.includes('어두워진') || adaptation?.phase.includes('내부');
   return <div id="hud" className={`drive-hud${compact ? ' compact-controls' : ''}${phoneOpen ? ' phone-open' : ''}`} style={{ display: visible ? 'block' : 'none' }}>
     <header className="drive-header">
-      <div className="drive-identity"><span className="drive-mark">N<span /></span><div><b>NUNCHI <em>DRIVE</em></b><small>{ROAD_NAME}<i />주행 체험</small></div></div>
+      <div className="drive-identity"><img className="drive-mark" src={`${import.meta.env.BASE_URL}logo.png`} alt="눈치" /><div><b>NUNCHI <em>DRIVE</em></b><small>{ROAD_NAME}<i />주행 체험</small></div></div>
       <div className="drive-route-summary" aria-label={`목적지까지 ${h.remainKm.toFixed(1)}킬로미터`}>
         <div className="drive-route-top"><span className="drive-route-origin">{h.from}</span><span className="drive-route-arrow">→</span><strong>{h.to}</strong><span className="drive-route-distance">{h.remainKm < 1 ? `${Math.round(h.remainKm * 1000)} m` : `${h.remainKm.toFixed(1)} km`}</span></div>
         <div className="drive-progress"><i style={{ width: `${progress * 100}%` }} /><span style={{ left: `${progress * 100}%` }} /></div>
@@ -38,7 +40,9 @@ export function Hud({ visible, bind }: { visible: boolean; bind: <K extends keyo
     <DriveToast />
     {adaptation && <aside className="drive-adaptation" aria-label="밝기 적응 체험 상태">
       <div className="drive-eye"><i style={{ transform: `scale(${.22 + adaptation.pupil * .65})` }} /></div>
-      <div><small>밝기 적응 <span>체험</span></small><b title={adaptation.phase}>{adaptation.phase}</b></div>
+      <div className="drive-adaptation-copy"><small>밝기 변화 안내 <span>체험</span></small><b>{adaptation.phase}</b>
+        <p>{entering ? '지하차도 진입 전 속도를 줄이세요' : inTunnel ? '전방 차선과 앞차 간격을 확인하세요' : '시야가 회복될 때까지 천천히 주행하세요'}</p>
+      </div>
       <div className="drive-adaptation-meter"><i style={{ width: `${Math.min(100, adaptation.burden * 100)}%` }} /></div>
     </aside>}
     {!compact && <div className={`drive-speed${h.warn ? ' caution' : ''}`} aria-label={`현재 속도 ${Math.round(h.kmh)}킬로미터 매시`}>

@@ -183,7 +183,7 @@ export function createCockpit(paint = 0xb2331f) {
   // A필러 · 앞유리 (뼈대)
   fixed(link(V(-0.78, -0.4, -1.08), V(-0.84, 0.42, -0.6), l => new THREE.BoxGeometry(0.07, l, 0.12), trim));
   fixed(link(V(1.52, -0.4, -1.08), V(1.58, 0.42, -0.6), l => new THREE.BoxGeometry(0.07, l, 0.12), trim));
-  const glassMat = new THREE.MeshPhysicalMaterial({ color: 0xcfe3ea, roughness: 0.04, metalness: 0, transparent: true, opacity: 0.07, depthWrite: false, side: THREE.DoubleSide });
+  const glassMat = new THREE.MeshPhysicalMaterial({ color: 0xe2edf0, roughness: 0.02, metalness: 0, reflectivity: .12, envMapIntensity: .2, transparent: true, opacity: 0.025, depthWrite: false, side: THREE.DoubleSide });
   const shield = (topY: number, topZ: number) => {                             // 카울에서 위쪽 틀까지 걸친 앞유리
     const m = link(V(CAR_X, -0.5, -1.1), V(CAR_X, topY, topZ), l => new THREE.PlaneGeometry(2.25, l), glassMat);
     m.renderOrder = 5; return m;

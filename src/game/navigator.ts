@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { drawNavigationDisplay } from './navigationDisplay';
+import { drawNavigationDisplay, isCompactNavigation } from './navigationDisplay';
 import { UNDERPASSES, at, kmToS } from './road';
 import { IS_SINCHEON } from './roadSelection';
 import { type NavigationZone } from './navigationGuidance';
@@ -44,6 +44,9 @@ export function createNavigator() {
   const face=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({map:texture,toneMapped:false})); face.position.z=.007; face.name='navigation-screen'; group.add(face);
   const lowerTrim=new THREE.Mesh(new THREE.BoxGeometry(1.12,.012,.024),new THREE.MeshStandardMaterial({color:0x697e8a,metalness:.7,roughness:.35})); lowerTrim.position.set(0,-.166,-.008); group.add(lowerTrim);
   return { group, canvas, draw: (...args: Parameters<typeof drawNavigationDisplay> extends [HTMLCanvasElement, ...infer T] ? T : never) => {
+    const compact = isCompactNavigation();
+    const compactX = Math.min(.46, (innerWidth / 2 - 18) * .8 / (innerHeight * .866) - .4704);
+    group.position.set(compact ? compactX : .36, compact ? -.21 : -.28, compact ? -.8 : -.87); group.scale.setScalar(compact ? .84 : .72);
     const cue=drawNavigationDisplay(canvas,...args);
     const attention=cue && (cue.active || cue.meters<=100);
     chassis.material.emissive.setHex(attention ? 0x922d2d : 0x000000);

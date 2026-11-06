@@ -5,17 +5,23 @@ import { ROAD_NAME } from './roadSelection';
 import { hm } from './sun';
 import { navigationCue, type NavigationZone } from './navigationGuidance';
 
+const brandLogo = new Image();
+brandLogo.src = `${import.meta.env.BASE_URL}logo.png`;
+
 const FONT = '"Noto Sans KR", sans-serif';
+export const isCompactNavigation = () => matchMedia('(any-pointer: coarse), (max-width: 900px) and (orientation: landscape)').matches;
+
 export function drawNavigationDisplay(canvas: HTMLCanvasElement, s: number, dir: number, startKm: number, endKm: number, kmh: number, zones: NavigationZone[], guidance: boolean, voice: boolean, voiceAvailable: boolean, running: boolean, minutes: number, night: boolean) {
-  const g = canvas.getContext('2d')!, W = canvas.width, H = canvas.height, split = 400;
+  const compact = isCompactNavigation();
+  const g = canvas.getContext('2d')!, W = canvas.width, H = canvas.height, split = compact ? 0 : 400, header = compact ? 122 : 86;
   const p = at(s), f = { x: p.dx * dir, z: p.dz * dir }, scale = .95;
   const T = (x: number, z: number) => ({ x: split + (W - split) * .53 + ((x - p.x) * -f.z + (z - p.z) * f.x) * scale,
     y: 290 - ((x - p.x) * f.x + (z - p.z) * f.z) * scale });
-  const colors = night ? { land: '#18262c', building: '#2e3e45', edge: '#3c5057', road: '#51616a', roadEdge: '#23333c', park: '#233e35', water: '#274e61', text: '#b7c9d2' }
+  const colors = night ? { land: '#26221c', building: '#39342c', edge: '#4e463b', road: '#655d50', roadEdge: '#322c24', park: '#233e35', water: '#274e61', text: '#d0c5b4' }
     : { land: '#eff0e8', building: '#d9ddd5', edge: '#c4cbc1', road: '#ffffff', roadEdge: '#d1d8cf', park: '#d6e4c9', water: '#b5d9e9', text: '#697b81' };
-  g.fillStyle = '#0c151e'; g.fillRect(0, 0, W, H);
-  g.save(); g.beginPath(); g.rect(split, 86, W - split, H - 162); g.clip();
-  g.fillStyle = colors.land; g.fillRect(split, 86, W - split, H - 162);
+  g.fillStyle = '#181513'; g.fillRect(0, 0, W, H);
+  g.save(); g.beginPath(); g.rect(split, header, W - split, H - header - 76); g.clip();
+  g.fillStyle = colors.land; g.fillRect(split, header, W - split, H - header - 76);
   const polygon = (points: [number, number][], fill: string, stroke?: string) => {
     g.beginPath(); points.forEach(([x, z], i) => { const q = T(x, z); if (i) g.lineTo(q.x, q.y); else g.moveTo(q.x, q.y); }); g.closePath();
     g.fillStyle = fill; g.fill(); if (stroke) { g.strokeStyle = stroke; g.lineWidth = .9; g.stroke(); }
@@ -51,7 +57,7 @@ export function drawNavigationDisplay(canvas: HTMLCanvasElement, s: number, dir:
   path(Math.max(0, s - 850), Math.min(TOTAL, s + 850), colors.road, 24);
   const lo = kmToS(Math.min(startKm, endKm)), hi = kmToS(Math.max(startKm, endKm));
   path(Math.max(lo, s - 850), Math.min(hi, s + 850), '#ffffff', 21);
-  path(Math.max(lo, s - 850), Math.min(hi, s + 850), '#1679f5', 14);
+  path(Math.max(lo, s - 850), Math.min(hi, s + 850), '#eb861d', 14);
   if (guidance) for (const z of zones) {
     const a = Math.max(Math.min(z.start, z.end), s - 800), b = Math.min(Math.max(z.start, z.end), s + 800);
     path(a, b, '#ed8d39', 16);
@@ -73,40 +79,48 @@ export function drawNavigationDisplay(canvas: HTMLCanvasElement, s: number, dir:
   const goal = at(kmToS(endKm)), dest = T(goal.x, goal.z);
   g.fillStyle = '#ed6750'; g.beginPath(); g.arc(dest.x, dest.y, 12, 0, 7); g.fill();
   g.fillStyle = night ? '#e9f2f8' : '#3a4c5e'; g.font = `bold 19px ${FONT}`; g.textAlign = 'center'; g.fillText('도착', dest.x, dest.y - 22);
-  const car = T(p.x, p.z); g.shadowColor = '#174da955'; g.shadowBlur = 12;
-  g.fillStyle = '#1977f3'; g.strokeStyle = '#fff'; g.lineWidth = 4; g.beginPath(); g.moveTo(car.x, car.y - 27); g.lineTo(car.x - 22, car.y + 23); g.lineTo(car.x, car.y + 13); g.lineTo(car.x + 22, car.y + 23); g.closePath(); g.fill(); g.stroke(); g.shadowBlur = 0;
+  const car = T(p.x, p.z); g.shadowColor = '#a54f1355'; g.shadowBlur = 12;
+  g.fillStyle = '#ee7a1a'; g.strokeStyle = '#fff'; g.lineWidth = 4; g.beginPath(); g.moveTo(car.x, car.y - 27); g.lineTo(car.x - 22, car.y + 23); g.lineTo(car.x, car.y + 13); g.lineTo(car.x + 22, car.y + 23); g.closePath(); g.fill(); g.stroke(); g.shadowBlur = 0;
   g.textAlign = 'right'; g.font = `13px ${FONT}`; g.fillStyle = colors.text; g.fillText('© OpenStreetMap · 브이월드', W - 14, H - 84); g.restore();
-  // Integrated driver display: restrained white type and one blue accent.
-  g.fillStyle = '#101e2a'; g.fillRect(0, 0, split, H);
-  const gradient = g.createLinearGradient(0, 0, split, H); gradient.addColorStop(0, '#162b3b'); gradient.addColorStop(1, '#09121b'); g.fillStyle = gradient; g.fillRect(0, 0, split, H);
-  g.textAlign = 'left'; g.fillStyle = '#b5d5e6'; g.font = `500 21px ${FONT}`; g.fillText('NUNCHI  DRIVE', 28, 39);
-  g.textAlign = 'right'; g.fillStyle = '#91b1c3'; g.fillText(hm(minutes), split - 26, 39);
-  g.strokeStyle = '#2d4a5c'; g.lineWidth = 8; g.beginPath(); g.arc(split / 2, 235, 139, Math.PI * .82, Math.PI * 2.18); g.stroke();
-  g.strokeStyle = '#52c4f3'; g.beginPath(); g.arc(split / 2, 235, 139, Math.PI * .82, Math.PI * (.82 + 1.36 * Math.min(1, kmh / 140))); g.stroke();
-  g.fillStyle = '#f2f8fb'; g.textAlign = 'center'; g.font = `500 112px ${FONT}`; g.fillText(String(Math.round(kmh)), split / 2, 252);
-  g.font = `20px ${FONT}`; g.fillStyle = '#9ab7c8'; g.fillText('km/h', split / 2, 287);
-  g.font = `bold 29px ${FONT}`; g.fillStyle = '#a6e0f5'; g.fillText('D', split / 2, 349);
-  g.font = `19px ${FONT}`; g.fillStyle = '#8fa9b8'; g.fillText('SIMULATION  ·  눈치', split / 2, 404);
-  g.fillStyle = '#1c3343'; g.fillRect(split - 1, 0, 2, H);
+  if (!compact) {
+    // Shared Nunchi identity: charcoal, cream, sun yellow and orange.
+    g.fillStyle = '#1e1915'; g.fillRect(0, 0, split, H);
+    const gradient = g.createLinearGradient(0, 0, split, H); gradient.addColorStop(0, '#30251b'); gradient.addColorStop(1, '#151210'); g.fillStyle = gradient; g.fillRect(0, 0, split, H);
+    if (brandLogo.complete && brandLogo.naturalWidth) g.drawImage(brandLogo, 25, 15, 42, 42);
+    g.textAlign = 'left'; g.fillStyle = '#f2dcc0'; g.font = `600 20px ${FONT}`; g.fillText('NUNCHI DRIVE', 78, 42);
+    g.textAlign = 'right'; g.fillStyle = '#cbb79d'; g.fillText(hm(minutes), split - 26, 39);
+    g.strokeStyle = '#58452f'; g.lineWidth = 8; g.beginPath(); g.arc(split / 2, 235, 139, Math.PI * .82, Math.PI * 2.18); g.stroke();
+    g.strokeStyle = '#ffd45e'; g.beginPath(); g.arc(split / 2, 235, 139, Math.PI * .82, Math.PI * (.82 + 1.36 * Math.min(1, kmh / 140))); g.stroke();
+    g.fillStyle = '#fff8e7'; g.textAlign = 'center'; g.font = `500 112px ${FONT}`; g.fillText(String(Math.round(kmh)), split / 2, 252);
+    g.font = `20px ${FONT}`; g.fillStyle = '#d6c2a7'; g.fillText('km/h', split / 2, 287);
+    g.font = `bold 29px ${FONT}`; g.fillStyle = '#ffd45e'; g.fillText('D', split / 2, 349);
+    g.font = `19px ${FONT}`; g.fillStyle = '#baa58b'; g.fillText('SIMULATION  ·  눈치', split / 2, 404);
+    g.fillStyle = '#4a3826'; g.fillRect(split - 1, 0, 2, H);
+  }
   const cue = guidance ? navigationCue(s, dir, kmToS(endKm), zones) : null;
   const urgent = !!cue && (cue.active || cue.meters <= 100), attention = !!cue && (cue.active || cue.meters <= 180);
-  const accent = urgent ? '#ff7778' : attention ? '#ffd38a' : '#7bd5ff';
-  g.fillStyle = urgent ? '#3a2029' : attention ? '#393126' : '#102635'; g.fillRect(split, 0, W - split, 86);
-  g.fillStyle = accent; g.font = `bold 45px ${FONT}`; g.textAlign = 'left'; g.fillText(cue ? '!' : '↑', split + 24, 56);
-  g.font = `bold 30px ${FONT}`; g.fillStyle = '#eff8ff'; g.fillText(cue ? `${cue.active ? '지금' : `${cue.meters} m 앞`}  ${cue.text}` : running ? '경로를 따라 주행하세요' : '경로 안내 준비', split + 76, 39, W - split - 250);
-  g.font = `18px ${FONT}`; g.fillStyle = urgent ? '#f8c7c7' : '#9cb7c8';
-  g.fillText(cue ? `${cue.kind === 'exit' ? '출구 안팎의 밝기가 크게 달라져요' : '햇빛 때문에 전방 식별이 어려울 수 있어요'}  ·  ${cue.source === 'model' ? '사전 분석' : '체험 안내'}` : `${ROAD_NAME}  ·  ${guidance ? '주행 안내' : '시야 안내 꺼짐'}`, split + 76, 68);
-  g.textAlign = 'right'; g.fillStyle = '#abc7d6'; g.fillText(voiceAvailable ? voice ? '음성 ON' : '음성 OFF' : '음성 미지원', W - 24, 45);
-  g.fillStyle = '#f5f7f6'; g.fillRect(split, H - 76, W - split, 76);
-  const remain = Math.max(0, (kmToS(endKm) - s) * dir / TOTAL * D.total_km), eta = Math.max(1, Math.ceil(remain / Math.max(20, kmh || 40) * 60));
-  g.textAlign = 'left'; g.fillStyle = '#334f60'; g.font = `bold 25px ${FONT}`;
-  const badgeWidth = attention ? 170 : 0;
+  const accent = urgent ? '#ff7778' : attention ? '#ffd38a' : '#ffd45e';
+  g.fillStyle = urgent ? '#3a2029' : attention ? '#393126' : '#261e17'; g.fillRect(split, 0, W - split, header);
+  const navCenter = split + (W - split) / 2;
+  g.textAlign = 'center'; g.font = `bold ${compact ? 70 : 38}px ${FONT}`; g.fillStyle = '#fff8e7';
+  g.fillText(cue ? `${cue.active ? '지금' : `${cue.meters} m 앞`}  ${cue.text}` : running ? '경로를 따라 주행하세요' : '경로 안내 준비', navCenter, compact ? 61 : 41, W - split - 200);
+  g.font = `${compact ? 32 : 21}px ${FONT}`; g.fillStyle = urgent ? '#f8c7c7' : '#e1cdb3';
+  g.fillText(cue ? `${cue.kind === 'exit' ? '출구 안팎의 밝기가 크게 달라져요' : '햇빛 때문에 전방 식별이 어려울 수 있어요'}  ·  ${cue.source === 'model' ? '사전 분석' : '체험 안내'}` : `${ROAD_NAME}  ·  ${guidance ? '주행 안내' : '시야 안내 꺼짐'}`, navCenter, compact ? 106 : 72, W - split - 160);
+  g.textAlign = 'right'; g.font = `16px ${FONT}`; g.fillStyle = '#d7c2a6'; g.fillText(voiceAvailable ? voice ? '음성 ON' : '음성 OFF' : '음성 미지원', W - 22, 22);
   if (attention) {
-    g.fillStyle = urgent ? '#fff0f0' : '#fff4df'; g.beginPath(); g.roundRect(split + 18, H - 61, 142, 44, 12); g.fill();
-    g.fillStyle = urgent ? '#bd353e' : '#986316'; g.font = `bold 23px ${FONT}`; g.fillText(urgent ? '시야 주의' : '주의 구간 앞', split + 34, H - 31);
+    // The central map area stays visible beside the steering wheel.
+    const width = Math.min(compact ? 1600 : 900, W - split - 80), left = navCenter - width / 2;
+    g.fillStyle = urgent ? '#5a1825f5' : '#46331bf5'; g.beginPath(); g.roundRect(left, compact ? 138 : 108, width, compact ? 112 : 80, 16); g.fill();
+    g.strokeStyle = urgent ? '#ff9399' : '#f3c67c'; g.lineWidth = 2; g.stroke();
+    g.fillStyle = accent; g.textAlign = 'center'; g.font = `bold ${compact ? 64 : 36}px ${FONT}`;
+    g.fillText(urgent ? compact ? '시야 주의 · 감속하세요' : '시야 주의 · 속도를 줄이세요' : compact ? '주의 구간 앞 · 미리 감속하세요' : '주의 구간 앞 · 미리 속도를 줄이세요', navCenter, compact ? 186 : 144, width - 40);
+    g.font = `${compact ? 32 : 20}px ${FONT}`; g.fillStyle = '#f5e8e6';
+    g.fillText(cue!.kind === 'exit' ? '출구에서 앞차와의 간격을 유지하세요' : '전방 차선과 앞차를 확인하세요', navCenter, compact ? 229 : 174, width - 40);
   }
-  g.fillStyle = '#334f60'; g.font = `bold 25px ${FONT}`; g.fillText(locationLabel(endKm), split + 24 + badgeWidth, H - 30, 690 - badgeWidth);
-  g.textAlign = 'right'; g.fillStyle = '#0d70ca'; g.font = `bold 31px ${FONT}`; g.fillText(`${remain < 1 ? `${Math.round(remain * 1000)} m` : `${remain.toFixed(1)} km`}  ·  약 ${eta}분`, W - 26, H - 28);
+  g.fillStyle = '#f8f2e7'; g.fillRect(split, H - 76, W - split, 76);
+  const remain = Math.max(0, (kmToS(endKm) - s) * dir / TOTAL * D.total_km), eta = Math.max(1, Math.ceil(remain / Math.max(20, kmh || 40) * 60));
+  if (!compact) { g.textAlign = 'left'; g.fillStyle = '#56422d'; g.font = `bold 25px ${FONT}`; g.fillText(locationLabel(endKm), split + 24, H - 30, 690); }
+  g.textAlign = compact ? 'center' : 'right'; g.fillStyle = '#a54f13'; g.font = `bold ${compact ? 48 : 31}px ${FONT}`; g.fillText(`${remain < 1 ? `${Math.round(remain * 1000)} m` : `${remain.toFixed(1)} km`}  ·  약 ${eta}분`, compact ? navCenter : W - 26, H - 28);
   if (attention) {
     // Persistent, restrained border; no flashing or claim about accident probability.
     g.save(); g.strokeStyle = urgent ? '#ef565f' : '#e6ae50'; g.lineWidth = urgent ? 8 : 5;

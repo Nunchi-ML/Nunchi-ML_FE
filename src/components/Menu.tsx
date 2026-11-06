@@ -5,18 +5,23 @@ import { getEngine } from '../game/engine';
 import { BANK_POS } from '../game/city';
 import { MISSIONS, missionDate, useGame, type Weather } from '../store';
 
+import { useTouchControls } from './useTouchControls';
+
 import { IS_SINCHEON, ROAD_ID, chooseRoad } from '../game/roadSelection';
 
 type Tf = (x: number, z: number) => [number, number];
 
-function drawRouteMap(c: HTMLCanvasElement, startKm: number, endKm: number, dir: Dir): Tf | null {
+function drawRouteMap(c: HTMLCanvasElement, startKm: number, endKm: number, dir: Dir, view: { focus: boolean; zoom: number; pan: { x: number; y: number }; compact: boolean }): Tf | null {
   const g = c.getContext('2d')!; if (!c.width) return null;
   const pr = devicePixelRatio;
-  const xs = P.map(p => p.x), zs = P.map(p => p.z);
-  const minx = Math.min(...xs), maxx = Math.max(...xs), minz = Math.min(...zs), maxz = Math.max(...zs);
-  const pad = 70 * pr, sc = Math.min((c.width - pad * 2) / (maxx - minx), (c.height - pad * 2) / (maxz - minz));
-  const ox = (c.width - (maxx - minx) * sc) / 2, oy = (c.height - (maxz - minz) * sc) / 2;
-  const T: Tf = (x, z) => [ox + (x - minx) * sc, oy + (z - minz) * sc];
+  const begin = kmToS(Math.min(startKm, endKm)), finish = kmToS(Math.max(startKm, endKm));
+  const points = view.focus ? Array.from({ length: Math.ceil((finish - begin) / 25) + 1 }, (_, i) => at(Math.min(finish, begin + i * 25))) : P;
+  const xs = points.map(p => p.x), zs = points.map(p => p.z);
+  const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cz = (Math.min(...zs) + Math.max(...zs)) / 2;
+  const spanX = Math.max(400, Math.max(...xs) - Math.min(...xs)), spanZ = Math.max(400, Math.max(...zs) - Math.min(...zs));
+  const pad = (view.compact ? 52 : 70) * pr;
+  const sc = Math.max(.001, Math.min((c.width - pad * 2) / spanX, (c.height - pad * 2) / spanZ)) * view.zoom;
+  const T: Tf = (x, z) => [c.width / 2 + (x - cx) * sc + view.pan.x * pr, c.height / 2 + (z - cz) * sc + view.pan.y * pr];
   g.clearRect(0, 0, c.width, c.height);
   g.strokeStyle = 'rgba(255,170,80,.08)'; g.lineWidth = 1;
   for (let x = 0; x < c.width; x += 40 * pr) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, c.height); g.stroke(); }
@@ -81,6 +86,22 @@ export function Menu() {
   const cv = useRef<HTMLCanvasElement>(null), T = useRef<Tf | null>(null);
   const [picking, setPicking] = useState<0 | 1>(0);
   const [size, setSize] = useState(0);
+  const compact = useTouchControls();
+  const [mapExpanded, setMapExpanded] = useState(false), [mapFocus, setMapFocus] = useState(compact);
+  const [mapZoom, setMapZoom] = useState(1), [mapPan, setMapPan] = useState({ x: 0, y: 0 });
+  const pointers = useRef(new Map<number, { x: number; y: number }>()), mapDragged = useRef(false);
+  const resetMap = () => { setMapZoom(1); setMapPan({ x: 0, y: 0 }); };
+  useEffect(() => { setMapFocus(compact); resetMap(); }, [compact]);
+  useEffect(resetMap, [st.startKm, st.endKm]);
+  useEffect(() => {
+    const observer = new ResizeObserver(() => setSize(n => n + 1)); observer.observe(cv.current!);
+    return () => observer.disconnect();
+  }, []);
+  useEffect(() => {
+    if (!mapExpanded) return;
+    const escape = (e: KeyboardEvent) => { if (e.key === 'Escape') setMapExpanded(false); };
+    addEventListener('keydown', escape); return () => removeEventListener('keydown', escape);
+  }, [mapExpanded]);
   const dir: Dir = st.endKm >= st.startKm ? 'E' : 'W';
 
   useEffect(() => {
@@ -88,8 +109,8 @@ export function Menu() {
   }, []);
   useEffect(() => {
     const c = cv.current!; c.width = c.clientWidth * devicePixelRatio; c.height = c.clientHeight * devicePixelRatio;
-    T.current = drawRouteMap(c, st.startKm, st.endKm, dir);
-  }, [st.startKm, st.endKm, dir, size]);
+    T.current = drawRouteMap(c, st.startKm, st.endKm, dir, { focus: mapFocus, zoom: mapZoom, pan: mapPan, compact });
+  }, [st.startKm, st.endKm, dir, size, mapFocus, mapZoom, mapPan, compact]);
 
   const sp = sunPos(simDate(st.date, st.minutes));
   const head = getEngine()?.routeHead() ?? 0;
@@ -100,6 +121,7 @@ export function Menu() {
   const validCourse = Math.abs(st.endKm - st.startKm) >= 0.1;
 
   const onMap = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (mapDragged.current) { mapDragged.current = false; return; }
     if (!T.current) return; const r = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - r.left) * devicePixelRatio, y = (e.clientY - r.top) * devicePixelRatio;
     let best = null as null | (typeof D.stations)[number], bd = 1e9;
@@ -110,6 +132,19 @@ export function Menu() {
     else { if (hit.km === st.startKm) return; set({ endKm: hit.km, mission: null }); setPicking(0); }
   };
 
+  const moveMap = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const old = pointers.current.get(e.pointerId); if (!old) return;
+    const before = [...pointers.current.values()];
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const after = [...pointers.current.values()];
+    if (after.length === 2) {
+      const distance = (p: { x: number; y: number }[]) => Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+      const previous = distance(before); if (previous > 5) setMapZoom(z => Math.max(.5, Math.min(6, z * distance(after) / previous)));
+      mapDragged.current = true;
+    } else if (Math.hypot(e.clientX - old.x, e.clientY - old.y) > 1) {
+      setMapPan(p => ({ x: p.x + e.clientX - old.x, y: p.y + e.clientY - old.y })); mapDragged.current = true;
+    }
+  };
   return (
     <div id="menu">
       <div className="left">
@@ -174,8 +209,16 @@ export function Menu() {
         <div className="note">시뮬레이터 화면은 실제 장소를 본떠 단순화한 것입니다. 실제 운전 중에는 사용하지 마세요.</div>
       </div>
       <div className="right">
-        <div id="mapwrap">
-          <canvas id="mapcv" ref={cv} onClick={onMap} />
+        <div id="mapwrap" className={mapExpanded ? 'route-map-expanded' : ''}>
+          <canvas id="mapcv" ref={cv} onClick={onMap} aria-label="경로 지도. 끌어서 이동하거나 두 손가락으로 확대할 수 있습니다."
+            onPointerDown={e => { if (e.button !== 0) return; if (!pointers.current.size) mapDragged.current = false; pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY }); e.currentTarget.setPointerCapture(e.pointerId); }}
+            onPointerMove={moveMap} onPointerUp={e => pointers.current.delete(e.pointerId)} onPointerCancel={e => { pointers.current.delete(e.pointerId); mapDragged.current = true; }} />
+          <button className="map-expand" aria-expanded={mapExpanded} onClick={() => { setMapExpanded(v => !v); resetMap(); }}>{mapExpanded ? '↙ 지도 접기' : '⛶ 지도 크게 보기'}</button>
+          <div className="map-zoom" role="group" aria-label="지도 확대와 이동">
+            <button aria-label="지도 축소" disabled={mapZoom <= .5} onClick={() => setMapZoom(z => Math.max(.5, z / 1.4))}>−</button>
+            <button aria-label="지도 확대" disabled={mapZoom >= 6} onClick={() => setMapZoom(z => Math.min(6, z * 1.4))}>＋</button>
+            <button className="map-focus" onClick={() => { setMapFocus(v => !v); resetMap(); }}>{mapFocus ? '전체 도로' : '선택 코스'}</button>
+          </div>
           <div id="maptip">{picking === 0
             ? <>지도에서 <b style={{ color: 'var(--green)' }}>출발</b> → <b style={{ color: 'var(--red)' }}>도착</b> 지점을 차례로 누르세요</>
             : validCourse
