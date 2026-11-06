@@ -6,9 +6,10 @@ import { simDate } from './sun';
 import { assessRoute, selectRoute, type RouteCandidate, type RoadsideObservation } from './preTrip';
 import type { Settings } from '../store';
 
-export function nativeCandidate(settings: Pick<Settings, 'startKm' | 'endKm' | 'date' | 'minutes'>): RouteCandidate {
+export function nativeCandidate(settings: Pick<Settings, 'startKm' | 'endKm' | 'date' | 'minutes'> & { observationSpeed?: number }): RouteCandidate {
   const start = kmToS(settings.startKm), end = kmToS(settings.endKm), dir = Math.sign(end - start) || 1;
   const distanceM = Math.abs(settings.endKm - settings.startKm) * 1000, clock = simDate(settings.date, settings.minutes).getTime();
+  const assumedKmh = settings.observationSpeed || 50;
   const segments: RouteCandidate['segments'] = [];
   for (let traveled = 0; traveled < Math.abs(end - start) - .01; traveled += 50) {
     const next = Math.min(traveled + 50, Math.abs(end - start)), middle = at(start + dir * (traveled + next) / 2);
@@ -16,9 +17,9 @@ export function nativeCandidate(settings: Pick<Settings, 'startKm' | 'endKm' | '
     const km1 = settings.startKm + (settings.endKm - settings.startKm) * next / Math.abs(end - start);
     segments.push({ id: `segment-${Math.round((km0 + km1) * 500)}`, km0, km1,
       distanceM: Math.abs(km1 - km0) * 1000, headingDeg: (Math.atan2(middle.dx * dir, -middle.dz * dir) * 180 / Math.PI + 360) % 360,
-      eta: new Date(clock + traveled / (50 / 3.6) * 1000).toISOString() });
+      eta: new Date(clock + traveled / (assumedKmh / 3.6) * 1000).toISOString() });
   }
-  return { id: 'native-road', name: '기본 코스', road: ROAD_ID, distanceM, durationSec: distanceM / (50 / 3.6), timeSource: 'simulation', traffic: 'unknown', closure: 'unknown', segments };
+  return { id: 'native-road', name: '기본 코스', road: ROAD_ID, distanceM, durationSec: distanceM / (assumedKmh / 3.6), assumedKmh, timeSource: 'simulation', traffic: 'unknown', closure: 'unknown', segments };
 }
 export function getRoutePreview(settings: Settings) {
   const route = nativeCandidate(settings), now = simDate(settings.date, settings.minutes).toISOString();

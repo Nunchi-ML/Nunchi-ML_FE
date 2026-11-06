@@ -17,3 +17,16 @@ test('No final model values are fabricated or served for unmatched conditions',(
   assert.equal(lookupRouteAnalysis('dalgu',settings,22.75,{cases:[{...entry,status:'pilot'}]}),null);
   assert.equal(lookupRouteAnalysis('dalgu',settings,22.75,{cases:[entry]}).sample.level,1);
 });
+
+test('An entrance-only candidate never becomes a validated exit prediction',()=>{
+ const adaptation={method:'ml-luminance',modelVersion:'scope-fixture',outsideLuminance:3000,entry:.5,exit:.9};
+ const lookup=a=>lookupRouteAnalysis('dalgu',settings,22.75,{cases:[{...entry,adaptation:a}]});
+ assert.equal(lookup(adaptation).adaptation,undefined);
+ assert.equal(lookup({...adaptation,validatedZones:['entry']}).adaptation,undefined);
+ assert.equal(lookup({...adaptation,validatedZones:['exit']}).adaptation,undefined);
+ assert.equal(lookup({...adaptation,validatedZones:['entry','exit']}).adaptation.exit,.9);
+ assert.equal(lookup({...adaptation,validatedZones:['entry','exit'],exit:NaN}).adaptation,undefined);
+ assert.equal(lookup({...adaptation,validatedZones:'entryexit'}).adaptation,undefined);
+ assert.equal(lookup({...adaptation,validatedZones:['entry','exit'],modelVersion:' '}).adaptation,undefined);
+ assert.equal(lookup({...adaptation,validatedZones:['entry']}).sample.level,1,'scope checks must not replace photo labels');
+});

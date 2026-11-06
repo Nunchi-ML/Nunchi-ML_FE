@@ -19,6 +19,7 @@ export interface Settings {
   observationMode: 'connected' | 'example'; exampleCondition: 'attention' | 'stale' | 'direction' | 'missing';
   date: string; minutes: number; weather: Weather; flow: number; glass: boolean; gfx: Gfx; mode: DriveMode;
   startKm: number; endKm: number; mission: number | null;
+  observationSpeed: 0 | 40 | 60 | 80;
 }
 
 /** HUD에 보여줄 값 (엔진이 초당 10번 넣어 줌) */
@@ -27,11 +28,12 @@ export interface Hud {
   prog: number; remainKm: number; from: string; to: string; ticks: number[]; station: string; warn: boolean; fps: number;
   navigation?: { text: string; meters: number; source: string; voiceAvailable: boolean; inCab: boolean };
   analysis?: { level: 0 | 1 | 2; modelVersion: string; aheadMeters: number | null };
-  adaptation?: { name: string; phase: string; burden: number; score: number; entryScore: number; exitScore: number; pupil: number; distance: number };
+  adaptation?: { name: string; phase: string; burden: number; score: number; entryScore: number; exitScore: number; pupil: number; distance: number; coveredSeconds: number };
 }
 
 export interface Banner { k: string; v: string; s: string; id: number }
-export interface RunResult { title: string; score: number; sec: number; glareSec: number; glareMax: number }
+export interface PassageRecord { name: string; roofM: number; seconds: number; completed: boolean }
+export interface RunResult { title: string; score: number; sec: number; glareSec: number; glareMax: number; passages: PassageRecord[] }
 
 interface State {
   currentFrame: { state: 'unavailable' | 'analyzing' | 'ready'; level?: 0 | 1 | 2; at?: string; source?: 'camera' | 'game' };
@@ -50,7 +52,7 @@ export const useGame = create<State>(set => ({
     preference: 'arrival', extraMinutes: 5, extraKm: 2, sensitivity: 'standard', observationMode: 'connected', exampleCondition: 'attention',
     voice: true, guidance: true, date: missionDate(INITIAL), minutes: INITIAL.m, weather: 'clear', flow: 0, glass: false, gfx: isTouch ? 'low' : 'high',
     startKm: INITIAL.a, endKm: INITIAL.b,
-    mission: 0, mode: 'normal',
+    mission: 0, mode: 'normal', observationSpeed: INITIAL.observeKmh ?? 0,
   },
   hud: { riskRatio: 1, glareLv: 0, glassText: '대기', score: 100, kmh: 0, prog: 0, remainKm: 0, from: '-', to: '-', ticks: [], station: '-', warn: false, fps: 0 },
   banner: null, result: null,

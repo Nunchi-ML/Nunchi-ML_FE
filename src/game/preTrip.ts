@@ -15,6 +15,7 @@ export interface PlannedSegment {
   id: string; km0: number; km1: number; distanceM: number; headingDeg: number; eta: string;
 }
 export interface RouteCandidate {
+  assumedKmh?: number;
   id: string; name: string; road: string; distanceM: number; durationSec: number;
   traffic: 'smooth' | 'slow' | 'congested' | 'unknown'; timeSource: 'traffic-cache' | 'simulation';
   closure: 'open' | 'closed' | 'unknown'; segments: PlannedSegment[];

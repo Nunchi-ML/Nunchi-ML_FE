@@ -14,8 +14,10 @@ export function updateDrivingFeel(state: DrivingFeel, throttle: number, brake: n
 }
 
 /** Simulator response, with following-distance limits applied separately by the engine. */
-export function stepDriveSpeed(speed: number, throttle: number, brake: number, dt: number, mode: 'normal' | 'sport') {
+export function stepDriveSpeed(speed: number, throttle: number, brake: number, dt: number, mode: 'normal' | 'sport', observationKmh = 0) {
   const sport=mode==='sport',acc=sport?8:5.4,vmax=sport?61:36.1,brakeA=sport?14:11;
   const change=clamp(throttle,0,1)*acc*(1-.32*Math.pow(Math.max(0,speed)/vmax,1.5))-clamp(brake,0,1)*brakeA-.25-speed*(sport?.006:.009);
-  return clamp(speed+change*clamp(dt,0,.1),0,vmax);
+  const elapsed = clamp(dt, 0, .1), proposed = clamp(speed + change * elapsed, 0, vmax);
+  const cap = observationKmh > 0 ? Math.min(vmax, observationKmh / 3.6) : vmax;
+  return speed > cap ? Math.min(proposed, Math.max(cap, speed - 3.5 * elapsed)) : Math.min(proposed, cap);
 }

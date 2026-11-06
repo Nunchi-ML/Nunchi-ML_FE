@@ -30,6 +30,7 @@ export function Touch() {
   const voice = useGame(s => s.settings.voice), set = useGame(s => s.set);
   const sport = useGame(s => s.settings.mode === 'sport'), guidance = useGame(s => s.settings.guidance);
   const speed = useGame(s => s.hud.kmh);
+  const observationSpeed = useGame(s => s.settings.observationSpeed);
   const active = useRef(new Set<Action>()), [pressed, setPressed] = useState<Action[]>([]);
   const change = (action: Action, down: boolean) => {
     if (down) active.current.add(action); else active.current.delete(action);
@@ -61,7 +62,7 @@ export function Touch() {
       {button('brake', '브레이크', <><span className="pedal-bars" aria-hidden="true">━━</span><small>브레이크</small></>)}
       {button('throttle', '가속', <><span className="pedal-bars" aria-hidden="true">Ⅱ</span><small>가속</small></>)}
     </div>
-    <div className="touch-speed" aria-label={`현재 속도 ${Math.round(speed)}킬로미터 매시`}><b>{Math.round(speed)}</b><span>km/h</span></div>
+    <div className="touch-speed" aria-label={`현재 속도 ${Math.round(speed)}킬로미터 매시`}><b>{Math.round(speed)}</b><span>km/h{observationSpeed ? ` · 관찰 상한 ${observationSpeed}` : ''}</span></div>
     <div className="drive-tools" role="group" aria-label="주행 도구">
       <button aria-label="내비게이션 음성 안내" aria-pressed={voice} className={voice ? 'active' : ''} onClick={() => set({ voice: !voice })}><DriveIcon name={voice ? 'voice' : 'muted'} /><small>음성</small></button>
       <button aria-label="휴대폰 열기" onClick={() => useGame.setState({ phoneOpen: true, app: 'home' })}><DriveIcon name="apps" /><small>휴대폰</small></button>

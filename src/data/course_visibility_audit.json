@@ -1,6 +1,6 @@
 {
   "format": "nunchi-scene-course-audit-v1",
-  "missionSha256": "d1a2eb670e856e2eced64566f60675fb7fffa2174a7bdb88bbfef286016889d8",
+  "missionSha256": "3a9ab7d637ef605bd9b72b7c3d03e38d592a57ae9e4761cee2e429683b7ab895",
   "note": "12 authored cockpit scene probes per course, clear weather, normal mode, glass off. Includes actual scene buildings and car blocking. Not a learned-model, physiological or real-driver performance result.",
   "courses": [
     {

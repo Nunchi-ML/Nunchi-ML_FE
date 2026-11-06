@@ -24,6 +24,11 @@ for (const road of ['dalgu', 'sincheon']) {
     const lo = Math.min(m.a, m.b), hi = Math.max(m.a, m.b), bounds = new Set([lo, hi]);
     for (let km = lo + .05; km < hi; km += .05) bounds.add(Number(km.toFixed(6)));
     const passages = r.UNDERPASSES.filter(u => r.sToKm(u.s0) > lo && r.sToKm(u.s1) < hi);
+    const tunnelObservations = passages.map(u => ({ name: u.name, roofM: Number((u.s1 - u.s0).toFixed(3)),
+      entryKm: r.sToKm(direction > 0 ? u.s0 : u.s1), exitKm: r.sToKm(direction > 0 ? u.s1 : u.s0),
+      secondsAt40: Number(((u.s1 - u.s0) / 40 * 3.6).toFixed(1)),
+      secondsAt60: Number(((u.s1 - u.s0) / 60 * 3.6).toFixed(1)),
+      secondsAt80: Number(((u.s1 - u.s0) / 80 * 3.6).toFixed(1)) }));
     for (const u of passages) for (const portal of [u.s0, u.s1]) for (let d = -80; d <= 80; d += 10) {
       const km = r.sToKm(portal + d); if (km > lo && km < hi) bounds.add(Number(km.toFixed(6)));
     }
@@ -42,10 +47,10 @@ for (const road of ['dalgu', 'sincheon']) {
     if (!passed || (m.id === 'im-bank-sunset' && !bankIncluded)) throw new Error(`Course audit failed: ${m.id}`);
     courses.push({ id: m.id, title: m.t, road, date, minutes: m.m, distanceKm: Number((hi - lo).toFixed(3)),
       estimatedSecondsAt40Kmh: Math.round((hi - lo) / 40 * 3600), sunAltitude: sun.alt, sunAzimuth: sun.az,
-      frontFraction, underpasses: passages.length, bankIncluded, passed });
+      frontFraction, underpasses: passages.length, tunnelObservations, observationKmh: m.observeKmh ?? 0, bankIncluded, passed });
     for (const weather of ['clear', 'cloud', 'over']) cases.push({ id: `${m.id}-${weather}`, missionId: m.id, road, date, minutes: m.m,
       weather, direction, source: 'selected-simulation-conditions', cloudOktasAssumed: { clear: 0, cloud: 5, over: 10 }[weather],
-      sunAltitude: sun.alt, sunAzimuth: sun.az, referenceView: { camera: 'cockpit', lane: 1, flow: 0 }, segments });
+      sunAltitude: sun.alt, sunAzimuth: sun.az, referenceView: { camera: 'cockpit', lane: 1, flow: 0, observationSpeed: m.observeKmh ?? 0 }, tunnelObservations, segments });
   }
 }
 await writeFile(new URL('src/data/route_inputs.json', root), JSON.stringify({ format: 'nunchi-route-input-v1', year, missionSha256,

@@ -6,6 +6,7 @@ import { BANK_POS } from '../game/city';
 import { MISSIONS, missionDate, useGame, type Weather } from '../store';
 
 import { PreTripPanel } from './PreTripPanel';
+import { CourseObservation } from './CourseObservation';
 import { getRoutePreview } from '../game/routePreview';
 import type { SegmentAssessment } from '../game/preTrip';
 import { useTouchControls } from './useTouchControls';
@@ -121,7 +122,7 @@ export function Menu() {
   useEffect(() => {
     const c = cv.current!; c.width = c.clientWidth * devicePixelRatio; c.height = c.clientHeight * devicePixelRatio;
     T.current = drawRouteMap(c, st.startKm, st.endKm, { focus: mapFocus, zoom: mapZoom, pan: mapPan, compact }, preview.primary.segments);
-  }, [st.startKm, st.endKm, size, mapFocus, mapZoom, mapPan, compact, st.date, st.minutes, st.weather, st.observationMode, st.exampleCondition]);
+  }, [st.startKm, st.endKm, size, mapFocus, mapZoom, mapPan, compact, st.date, st.minutes, st.weather, st.observationMode, st.exampleCondition, st.observationSpeed]);
 
   const sp = sunPos(simDate(st.date, st.minutes));
   const head = getEngine()?.routeHead() ?? 0;
@@ -191,7 +192,7 @@ export function Menu() {
         <div className="missions">
           {MISSIONS.map((m, i) => (
             <button key={i} className={`mission${st.mission === i ? ' on' : ''}`}
-              onClick={() => { setPicking(0); set({ mission: i, startKm: m.a, endKm: m.b, minutes: m.m, date: missionDate(m), weather: 'clear', flow: 0 }); }}>
+              onClick={() => { setPicking(0); set({ mission: i, startKm: m.a, endKm: m.b, minutes: m.m, date: missionDate(m), weather: 'clear', flow: 0, mode: 'normal', observationSpeed: m.observeKmh ?? 0 }); }}>
               <div><div className="mt">{m.t}</div><div className="ms">{m.s}</div></div>
               {m.badge && <span className="badge">{m.badge}</span>}
             </button>
@@ -199,6 +200,7 @@ export function Menu() {
         </div>
 
         <div className="note">추천 코스는 출발 때의 햇빛과 날씨를 유지해 같은 조건으로 체험해요.</div>
+        {IS_SINCHEON && <CourseObservation />}
         <PreTripPanel />
         <div className="sect">③ 언제 달릴까</div>
         <div className="row"><label>날짜</label>

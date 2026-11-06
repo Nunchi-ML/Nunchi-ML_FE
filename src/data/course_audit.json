@@ -1,6 +1,6 @@
 {
   "year": 2026,
-  "missionSha256": "d1a2eb670e856e2eced64566f60675fb7fffa2174a7bdb88bbfef286016889d8",
+  "missionSha256": "3a9ab7d637ef605bd9b72b7c3d03e38d592a57ae9e4761cee2e429683b7ab895",
   "courses": [
     {
       "id": "im-bank-sunset",
@@ -14,6 +14,8 @@
       "sunAzimuth": 270.85959359340075,
       "frontFraction": 1,
       "underpasses": 0,
+      "tunnelObservations": [],
+      "observationKmh": 0,
       "bankIncluded": true,
       "passed": true
     },
@@ -29,6 +31,8 @@
       "sunAzimuth": 126.97848636387965,
       "frontFraction": 0.7999999999999995,
       "underpasses": 0,
+      "tunnelObservations": [],
+      "observationKmh": 0,
       "bankIncluded": false,
       "passed": true
     },
@@ -44,6 +48,35 @@
       "sunAzimuth": 247.76264801403323,
       "frontFraction": 1,
       "underpasses": 0,
+      "tunnelObservations": [],
+      "observationKmh": 0,
+      "bankIncluded": false,
+      "passed": true
+    },
+    {
+      "id": "chimsan-observation",
+      "title": "침산교 · 내부를 더 오래 관찰",
+      "road": "sincheon",
+      "date": "2026-10-30",
+      "minutes": 750,
+      "distanceKm": 0.672,
+      "estimatedSecondsAt40Kmh": 60,
+      "sunAltitude": 40.13213922363164,
+      "sunAzimuth": 186.58988493119233,
+      "frontFraction": 0,
+      "underpasses": 1,
+      "tunnelObservations": [
+        {
+          "name": "침산교지하차도",
+          "roofM": 191.366,
+          "entryKm": 8.239495663057461,
+          "exitKm": 8.431185562159529,
+          "secondsAt40": 17.2,
+          "secondsAt60": 11.5,
+          "secondsAt80": 8.6
+        }
+      ],
+      "observationKmh": 40,
       "bankIncluded": false,
       "passed": true
     },
@@ -59,6 +92,18 @@
       "sunAzimuth": 186.58988493119233,
       "frontFraction": 0.9999999999999986,
       "underpasses": 1,
+      "tunnelObservations": [
+        {
+          "name": "중동교지하차도",
+          "roofM": 93.102,
+          "entryKm": 0.7783795902919676,
+          "exitKm": 0.6851196393802934,
+          "secondsAt40": 8.4,
+          "secondsAt60": 5.6,
+          "secondsAt80": 4.2
+        }
+      ],
+      "observationKmh": 40,
       "bankIncluded": false,
       "passed": true
     },
@@ -74,6 +119,36 @@
       "sunAzimuth": 195.91227692356247,
       "frontFraction": 0,
       "underpasses": 3,
+      "tunnelObservations": [
+        {
+          "name": "중동교지하차도",
+          "roofM": 93.102,
+          "entryKm": 0.6851196393802934,
+          "exitKm": 0.7783795902919676,
+          "secondsAt40": 8.4,
+          "secondsAt60": 5.6,
+          "secondsAt80": 4.2
+        },
+        {
+          "name": "희망교지하차도",
+          "roofM": 80.284,
+          "entryKm": 1.370719278507934,
+          "exitKm": 1.4511392361780695,
+          "secondsAt40": 7.2,
+          "secondsAt60": 4.8,
+          "secondsAt80": 3.6
+        },
+        {
+          "name": "대봉교지하차도",
+          "roofM": 95.498,
+          "entryKm": 2.2153088339496114,
+          "exitKm": 2.3109687835980215,
+          "secondsAt40": 8.6,
+          "secondsAt60": 5.7,
+          "secondsAt80": 4.3
+        }
+      ],
+      "observationKmh": 0,
       "bankIncluded": false,
       "passed": true
     },
@@ -89,6 +164,27 @@
       "sunAzimuth": 234.4837871490273,
       "frontFraction": 1,
       "underpasses": 2,
+      "tunnelObservations": [
+        {
+          "name": "팔달교 (Paldalgyo) 하부",
+          "roofM": 107.208,
+          "entryKm": 12.38180348271151,
+          "exitKm": 12.48919342618572,
+          "secondsAt40": 9.6,
+          "secondsAt60": 6.4,
+          "secondsAt80": 4.8
+        },
+        {
+          "name": "신천대로 지하차도",
+          "roofM": 87.202,
+          "entryKm": 13.34533297554794,
+          "exitKm": 13.4326829295704,
+          "secondsAt40": 7.8,
+          "secondsAt60": 5.2,
+          "secondsAt80": 3.9
+        }
+      ],
+      "observationKmh": 0,
       "bankIncluded": false,
       "passed": true
     }
