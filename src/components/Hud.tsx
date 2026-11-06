@@ -28,6 +28,12 @@ export function Hud({ visible, bind }: { visible: boolean; bind: <K extends keyo
   const adaptation = st.guidance && h.adaptation && (h.adaptation.distance < 150 || h.adaptation.burden > .1) ? h.adaptation : null;
   const entering = adaptation?.phase.includes('진입 전');
   const inTunnel = adaptation?.phase.includes('어두워진') || adaptation?.phase.includes('내부');
+  // 미리 판정한 경로 결과(route_analysis.json): 시뮬레이터 화면에 사진 + 해 위치·날씨 모델을 적용한 값.
+  const a = st.guidance && !adaptation ? h.analysis : undefined;
+  const GLARE = ['정상', '눈부심', '심한 눈부심'], GLARE_COLOR = ['#3BA55C', '#FF8A1F', '#F2522E'];
+  const mlGlare = a && (a.level > 0 || a.aheadMeters != null) ? (a.level > 0
+    ? { color: GLARE_COLOR[a.level], title: `지금 ${GLARE[a.level]}`, note: a.level === 2 ? '앞이 잘 안 보일 수 있어요 · 속도를 줄이고 차간 거리를 넓히세요' : '전방 시야에 주의하세요' }
+    : { color: GLARE_COLOR[a.aheadLevel ?? 1], title: `${a.aheadMeters} m 앞 ${GLARE[a.aheadLevel ?? 1]}`, note: '눈부심 구간이 다가와요 · 미리 속도를 줄이세요' }) : null;
   return <div id="hud" className={`drive-hud${compact ? ' compact-controls' : ''}${phoneOpen ? ' phone-open' : ''}`} style={{ display: visible ? 'block' : 'none' }}>
     <header className="drive-header">
       <div className="drive-identity"><img className="drive-mark" src={`${import.meta.env.BASE_URL}logo.png`} alt="눈치" /><div><b>NUNCHI <em>DRIVE</em></b><small>{ROAD_NAME}<i />주행 체험</small></div></div>
@@ -38,6 +44,12 @@ export function Hud({ visible, bind }: { visible: boolean; bind: <K extends keyo
       <div className="drive-time"><b>{hm(st.minutes % 1440)}</b><span>{st.date.slice(5).replace('-', '.')}<i />{WEATHER[st.weather]}</span></div>
     </header>
     <DriveToast />
+    {mlGlare && <aside className="drive-adaptation" aria-label="태양광 눈부심 분류 모델 판정" style={{ borderColor: mlGlare.color }}>
+      <div className="drive-eye" style={{ background: mlGlare.color }} />
+      <div className="drive-adaptation-copy"><small>태양광 눈부심 판정 <span>선정 모델</span></small><b>{mlGlare.title}</b>
+        <p>{mlGlare.note}</p>
+      </div>
+    </aside>}
     {adaptation && <aside className="drive-adaptation" aria-label="밝기 적응 체험 상태">
       <div className="drive-eye"><i style={{ transform: `scale(${.22 + adaptation.pupil * .65})` }} /></div>
       <div className="drive-adaptation-copy"><small>밝기 변화 안내 <span>체험</span></small><b>{adaptation.phase}</b>

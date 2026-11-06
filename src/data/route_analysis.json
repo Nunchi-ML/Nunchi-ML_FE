@@ -1,1 +1,602 @@
-{"format":"nunchi-route-analysis-v1","cases":[]}
+{
+ "format": "nunchi-route-analysis-v1",
+ "generatedAt": "2026-11-06",
+ "method": "시뮬레이터 운전석 화면(코스 100 m 간격, 이동 없이 고정 시점)을 발표 선정 모델 API(/predict/glare/photo-g)로 판정한 결과. 실제 도로 사진·도로변 카메라 판정이 아님",
+ "cases": [
+  {
+   "id": "dalgu-im-bank-sunset-clear",
+   "road": "dalgu",
+   "date": "2026-04-05",
+   "minutes": 1080,
+   "weather": "clear",
+   "direction": -1,
+   "status": "final",
+   "modelVersion": "photo-g-candidate-v1 · B_geometry_aug",
+   "samples": [
+    {
+     "km0": 22.75,
+     "km1": 22.85,
+     "km": 22.8,
+     "level": 2,
+     "scores": {
+      "normal": 0.3792,
+      "glare": 0.0555,
+      "severe": 0.5653
+     },
+     "imageSha256": "7ef9654f55b6f221516d2f03150c67b309649e0e6b879ebd99049e9d10a66703",
+     "geometricGlare": 0.5049
+    },
+    {
+     "km0": 22.65,
+     "km1": 22.75,
+     "km": 22.7,
+     "level": 2,
+     "scores": {
+      "normal": 0.4128,
+      "glare": 0.0532,
+      "severe": 0.534
+     },
+     "imageSha256": "941beb4fb419fc4d686be16e4c65a97269df89ae31ed8d4f45d76596827809ca",
+     "geometricGlare": 0.503
+    },
+    {
+     "km0": 22.55,
+     "km1": 22.65,
+     "km": 22.6,
+     "level": 2,
+     "scores": {
+      "normal": 0.3654,
+      "glare": 0.0501,
+      "severe": 0.5845
+     },
+     "imageSha256": "50619df903b387b59da63ad8452959d1cbcbb9ad574a8385e6c3baac6351b47f",
+     "geometricGlare": 0.5169
+    },
+    {
+     "km0": 22.45,
+     "km1": 22.55,
+     "km": 22.5,
+     "level": 2,
+     "scores": {
+      "normal": 0.4945,
+      "glare": 0.0252,
+      "severe": 0.4804
+     },
+     "imageSha256": "5855e5df8476e485db9a22a87d525ec4e98ce293ecef61d610aab87cddd59242",
+     "geometricGlare": 0.5559
+    },
+    {
+     "km0": 22.35,
+     "km1": 22.45,
+     "km": 22.4,
+     "level": 2,
+     "scores": {
+      "normal": 0.4272,
+      "glare": 0.0191,
+      "severe": 0.5537
+     },
+     "imageSha256": "67107eca1142fc69b6c80131807e496dc15041d6750d9ae185e6b8938ed45264",
+     "geometricGlare": 0.5802
+    },
+    {
+     "km0": 22.25,
+     "km1": 22.35,
+     "km": 22.3,
+     "level": 2,
+     "scores": {
+      "normal": 0.4581,
+      "glare": 0.032,
+      "severe": 0.5099
+     },
+     "imageSha256": "4929f57682fd9be75a2b772c2c458d61152fd38baa319e52cc19d50655216fcc",
+     "geometricGlare": 0.5416
+    },
+    {
+     "km0": 22.15,
+     "km1": 22.25,
+     "km": 22.2,
+     "level": 0,
+     "scores": {
+      "normal": 0.8558,
+      "glare": 0.0157,
+      "severe": 0.1285
+     },
+     "imageSha256": "cb16eac85069fde2df29e0699af15883880ff77949e4505feb480f33f09327d0",
+     "geometricGlare": 0.0578
+    },
+    {
+     "km0": 22.05,
+     "km1": 22.15,
+     "km": 22.1,
+     "level": 0,
+     "scores": {
+      "normal": 0.9281,
+      "glare": 0.0104,
+      "severe": 0.0615
+     },
+     "imageSha256": "7f997cad8847bb38f2e049d2995f4973b488f2d8f5959dc88ceeb70089853017",
+     "geometricGlare": 0.4501
+    },
+    {
+     "km0": 21.95,
+     "km1": 22.05,
+     "km": 22,
+     "level": 0,
+     "scores": {
+      "normal": 0.5374,
+      "glare": 0.0739,
+      "severe": 0.3888
+     },
+     "imageSha256": "7754d5c3a8a0461cbb27c91ac6487846c8740575d7adb5de4f3fc832f3c65bf7",
+     "geometricGlare": 0.436
+    },
+    {
+     "km0": 21.85,
+     "km1": 21.95,
+     "km": 21.9,
+     "level": 2,
+     "scores": {
+      "normal": 0.3922,
+      "glare": 0.0864,
+      "severe": 0.5214
+     },
+     "imageSha256": "28493faa30d885d04cad54177c0a70b66536987bab30faa622a225d9deee9e76",
+     "geometricGlare": 0.4506
+    },
+    {
+     "km0": 21.75,
+     "km1": 21.85,
+     "km": 21.8,
+     "level": 0,
+     "scores": {
+      "normal": 0.9929,
+      "glare": 0.0008,
+      "severe": 0.0063
+     },
+     "imageSha256": "6acf0145a94b92e4ca72763705a4bfae44e2f5f18bd03fc11a0943a73a002308",
+     "geometricGlare": 0.0582
+    }
+   ]
+  },
+  {
+   "id": "dalgu-winter-morning-clear",
+   "road": "dalgu",
+   "date": "2026-12-20",
+   "minutes": 505,
+   "weather": "clear",
+   "direction": 1,
+   "status": "final",
+   "modelVersion": "photo-g-candidate-v1 · B_geometry_aug",
+   "samples": [
+    {
+     "km0": 8.25,
+     "km1": 8.35,
+     "km": 8.3,
+     "level": 2,
+     "scores": {
+      "normal": 0.32,
+      "glare": 0.02,
+      "severe": 0.66
+     },
+     "imageSha256": "45bbfe22ddefd6548abc60000d45feb18a8b6cc019a1d02241fd633f3c577279",
+     "geometricGlare": 0.6335
+    },
+    {
+     "km0": 8.35,
+     "km1": 8.45,
+     "km": 8.4,
+     "level": 0,
+     "scores": {
+      "normal": 0.711,
+      "glare": 0.0098,
+      "severe": 0.2792
+     },
+     "imageSha256": "a00993367660af7949b1992257e9f26879c6bf2dd0766ef0a748657fa7aa2c70",
+     "geometricGlare": 0.6259
+    },
+    {
+     "km0": 8.45,
+     "km1": 8.55,
+     "km": 8.5,
+     "level": 2,
+     "scores": {
+      "normal": 0.3027,
+      "glare": 0.0289,
+      "severe": 0.6685
+     },
+     "imageSha256": "94582606b4000ffd39b7826f10f3307fa25eb46e48008d0fff1b0a292d792c55",
+     "geometricGlare": 0.6123
+    },
+    {
+     "km0": 8.55,
+     "km1": 8.65,
+     "km": 8.6,
+     "level": 2,
+     "scores": {
+      "normal": 0.3597,
+      "glare": 0.042,
+      "severe": 0.5984
+     },
+     "imageSha256": "3bb3ded6728e4c3b0936bc71eaea9836a74b95ddc10583d8ac0ce0a69d086e65",
+     "geometricGlare": 0.5748
+    },
+    {
+     "km0": 8.65,
+     "km1": 8.75,
+     "km": 8.7,
+     "level": 0,
+     "scores": {
+      "normal": 0.8206,
+      "glare": 0.0256,
+      "severe": 0.1538
+     },
+     "imageSha256": "c4f075d27c5ae7bae96d263bc9ebb8dcd5da85b9a4390a3b4ed1dcc2ef9b4c71",
+     "geometricGlare": 0.4898
+    },
+    {
+     "km0": 8.75,
+     "km1": 8.85,
+     "km": 8.8,
+     "level": 0,
+     "scores": {
+      "normal": 0.922,
+      "glare": 0.0179,
+      "severe": 0.06
+     },
+     "imageSha256": "03e3619de6b56bc1c1569bd6f3f44bc4dd46da1957bef5206eb8c3b3ea142f16",
+     "geometricGlare": 0.4186
+    },
+    {
+     "km0": 8.85,
+     "km1": 8.95,
+     "km": 8.9,
+     "level": 0,
+     "scores": {
+      "normal": 0.5128,
+      "glare": 0.1946,
+      "severe": 0.2926
+     },
+     "imageSha256": "d76023fca56414f8caa8f80b9d418b58ce43c24a86cea9202c4331e649c981f4",
+     "geometricGlare": 0.3095
+    },
+    {
+     "km0": 8.95,
+     "km1": 9.05,
+     "km": 9,
+     "level": 0,
+     "scores": {
+      "normal": 0.7016,
+      "glare": 0.1654,
+      "severe": 0.1329
+     },
+     "imageSha256": "75151e9b5e68281b2f29bb85e08fa60dd43439c629697b64594cae69f891136d",
+     "geometricGlare": 0.2119
+    },
+    {
+     "km0": 9.05,
+     "km1": 9.15,
+     "km": 9.1,
+     "level": 0,
+     "scores": {
+      "normal": 0.9829,
+      "glare": 0.0124,
+      "severe": 0.0047
+     },
+     "imageSha256": "c6cdeabd46dabd99881fc475bc4a688369a7f2fd8f26555aa5dd4e8343b1bfd4",
+     "geometricGlare": 0.0152
+    },
+    {
+     "km0": 9.15,
+     "km1": 9.25,
+     "km": 9.2,
+     "level": 0,
+     "scores": {
+      "normal": 0.9601,
+      "glare": 0.0334,
+      "severe": 0.0065
+     },
+     "imageSha256": "3460c8bded40799f911e18cbc721ba88bdc8c57008bba15a2943eecf62deabd1",
+     "geometricGlare": 0.0013
+    },
+    {
+     "km0": 9.25,
+     "km1": 9.35,
+     "km": 9.3,
+     "level": 0,
+     "scores": {
+      "normal": 0.9938,
+      "glare": 0.0055,
+      "severe": 0.0007
+     },
+     "imageSha256": "726072e54938b43f147525002eb97e855c64784e4498add273edb8cbfe8934df",
+     "geometricGlare": 0
+    },
+    {
+     "km0": 9.35,
+     "km1": 9.45,
+     "km": 9.4,
+     "level": 0,
+     "scores": {
+      "normal": 0.9874,
+      "glare": 0.0114,
+      "severe": 0.0012
+     },
+     "imageSha256": "7e5b2455558b210a13fd6cbb9b509decbffdb0fb1b0c2a7f6f532957eabad515",
+     "geometricGlare": 0
+    },
+    {
+     "km0": 9.45,
+     "km1": 9.55,
+     "km": 9.5,
+     "level": 0,
+     "scores": {
+      "normal": 0.9992,
+      "glare": 0.0007,
+      "severe": 0.0001
+     },
+     "imageSha256": "a34579dc9ad32929f63462472c1c9d72bd994e5f76fa23ab4f519caf1153a7d9",
+     "geometricGlare": 0
+    },
+    {
+     "km0": 9.55,
+     "km1": 9.65,
+     "km": 9.6,
+     "level": 0,
+     "scores": {
+      "normal": 0.9937,
+      "glare": 0.0059,
+      "severe": 0.0004
+     },
+     "imageSha256": "997411d8b268d56229c36333194864b1b99820b3a98c8c1f52a8ab53cda75d4f",
+     "geometricGlare": 0
+    },
+    {
+     "km0": 9.65,
+     "km1": 9.75,
+     "km": 9.7,
+     "level": 0,
+     "scores": {
+      "normal": 0.931,
+      "glare": 0.0643,
+      "severe": 0.0047
+     },
+     "imageSha256": "dd983500a1ff1b8a9bc2196abaaeed60d4e63ee999774358d4cf1fbd92b3a303",
+     "geometricGlare": 0
+    },
+    {
+     "km0": 9.75,
+     "km1": 9.85,
+     "km": 9.8,
+     "level": 0,
+     "scores": {
+      "normal": 0.9788,
+      "glare": 0.0191,
+      "severe": 0.0021
+     },
+     "imageSha256": "05a338b2cb6e36c2bc6f4f4cced5163de4f7a12d49f2b6b2489cb2ca0539019c",
+     "geometricGlare": 0
+    }
+   ]
+  },
+  {
+   "id": "dalgu-winter-evening-clear",
+   "road": "dalgu",
+   "date": "2026-02-20",
+   "minutes": 1030,
+   "weather": "clear",
+   "direction": -1,
+   "status": "final",
+   "modelVersion": "photo-g-candidate-v1 · B_geometry_aug",
+   "samples": [
+    {
+     "km0": 19.95,
+     "km1": 20.05,
+     "km": 20,
+     "level": 0,
+     "scores": {
+      "normal": 0.9996,
+      "glare": 0,
+      "severe": 0.0004
+     },
+     "imageSha256": "1b893b80e00a1099acf2c42b9abf7d78816259d2c518093859ce579ef8b13f6b",
+     "geometricGlare": 0.0549
+    },
+    {
+     "km0": 19.85,
+     "km1": 19.95,
+     "km": 19.9,
+     "level": 0,
+     "scores": {
+      "normal": 1,
+      "glare": 0,
+      "severe": 0
+     },
+     "imageSha256": "eda8285e1bc541bc35227e539fa1371eb392355b7004d915382059b5a2acb2a6",
+     "geometricGlare": 0.4921
+    },
+    {
+     "km0": 19.75,
+     "km1": 19.85,
+     "km": 19.8,
+     "level": 0,
+     "scores": {
+      "normal": 0.9962,
+      "glare": 0.0002,
+      "severe": 0.0035
+     },
+     "imageSha256": "2eec2b3c0a62b153c1314168a37938cd7fbcf369871f5aae7b8591dfee8a4126",
+     "geometricGlare": 0.4694
+    },
+    {
+     "km0": 19.65,
+     "km1": 19.75,
+     "km": 19.7,
+     "level": 0,
+     "scores": {
+      "normal": 0.7569,
+      "glare": 0.0213,
+      "severe": 0.2217
+     },
+     "imageSha256": "b57369d7637c5803d6aa144433e70df5d82130264e23dfeb830ddf615cbb8003",
+     "geometricGlare": 0.4399
+    },
+    {
+     "km0": 19.55,
+     "km1": 19.65,
+     "km": 19.6,
+     "level": 0,
+     "scores": {
+      "normal": 0.9928,
+      "glare": 0.0007,
+      "severe": 0.0065
+     },
+     "imageSha256": "94a691558e54f3c5815e2cea3cd3223f23d9388ebb1b85b7beaf6c2620884a12",
+     "geometricGlare": 0.4293
+    },
+    {
+     "km0": 19.45,
+     "km1": 19.55,
+     "km": 19.5,
+     "level": 0,
+     "scores": {
+      "normal": 0.9032,
+      "glare": 0.0085,
+      "severe": 0.0883
+     },
+     "imageSha256": "254f2254e37653088e78d67b4486157faf75ab2114ef9d63881de36abd051b85",
+     "geometricGlare": 0.44
+    },
+    {
+     "km0": 19.35,
+     "km1": 19.45,
+     "km": 19.4,
+     "level": 0,
+     "scores": {
+      "normal": 0.5364,
+      "glare": 0.0397,
+      "severe": 0.4238
+     },
+     "imageSha256": "c7587f58b2d480c7d4c65a93e82d3176815dc9f0f7893cfeb7419d2aac532068",
+     "geometricGlare": 0.4419
+    },
+    {
+     "km0": 19.25,
+     "km1": 19.35,
+     "km": 19.3,
+     "level": 0,
+     "scores": {
+      "normal": 0.8406,
+      "glare": 0.0143,
+      "severe": 0.145
+     },
+     "imageSha256": "b05eab280e69198b80b2b7b7addab53e36f26beb5d046ef89c280a4cb304f905",
+     "geometricGlare": 0.4379
+    },
+    {
+     "km0": 19.15,
+     "km1": 19.25,
+     "km": 19.2,
+     "level": 0,
+     "scores": {
+      "normal": 0.8677,
+      "glare": 0.012,
+      "severe": 0.1203
+     },
+     "imageSha256": "e832ae22f3c5494e62ed871671a244adca2ac25eef949cae7d00ec91c08946cc",
+     "geometricGlare": 0.4363
+    },
+    {
+     "km0": 19.05,
+     "km1": 19.15,
+     "km": 19.1,
+     "level": 0,
+     "scores": {
+      "normal": 0.7897,
+      "glare": 0.0187,
+      "severe": 0.1916
+     },
+     "imageSha256": "04f9f0dbe7831bf7a80948aa740489bd47588b100782d98b8d528c11bb65144e",
+     "geometricGlare": 0.4385
+    },
+    {
+     "km0": 18.95,
+     "km1": 19.05,
+     "km": 19,
+     "level": 0,
+     "scores": {
+      "normal": 0.7324,
+      "glare": 0.02,
+      "severe": 0.2477
+     },
+     "imageSha256": "82f2bd765f308aec069bd9ece7644cc728dcc21f6b4fa5b68e3cb5e75f94e1dc",
+     "geometricGlare": 0.4536
+    },
+    {
+     "km0": 18.85,
+     "km1": 18.95,
+     "km": 18.9,
+     "level": 0,
+     "scores": {
+      "normal": 0.7105,
+      "glare": 0.0223,
+      "severe": 0.2671
+     },
+     "imageSha256": "9f6d5eb8c107dbd2ae35c4fd6a919a0ecc2f932349084df1a4fe196cd292b7da",
+     "geometricGlare": 0.4515
+    },
+    {
+     "km0": 18.75,
+     "km1": 18.85,
+     "km": 18.8,
+     "level": 0,
+     "scores": {
+      "normal": 0.6106,
+      "glare": 0.0304,
+      "severe": 0.3589
+     },
+     "imageSha256": "ffc6d7d241836f930b915db8429269e70c51dc35533f647ae86f7130fb50ffe9",
+     "geometricGlare": 0.4499
+    },
+    {
+     "km0": 18.65,
+     "km1": 18.75,
+     "km": 18.7,
+     "level": 0,
+     "scores": {
+      "normal": 0.6428,
+      "glare": 0.0244,
+      "severe": 0.3328
+     },
+     "imageSha256": "0ac9ba9bab26a3f17945b97b54f272f1d9c17fdc6ae11afbed39b1dce3687f7c",
+     "geometricGlare": 0.4611
+    },
+    {
+     "km0": 18.55,
+     "km1": 18.65,
+     "km": 18.6,
+     "level": 0,
+     "scores": {
+      "normal": 0.7227,
+      "glare": 0.0198,
+      "severe": 0.2575
+     },
+     "imageSha256": "1b625426056a5410daadd728dbebdaaee1380f573529e1b19373edef962e1e3e",
+     "geometricGlare": 0.4584
+    },
+    {
+     "km0": 18.45,
+     "km1": 18.55,
+     "km": 18.5,
+     "level": 0,
+     "scores": {
+      "normal": 0.6778,
+      "glare": 0.023,
+      "severe": 0.2992
+     },
+     "imageSha256": "6d5a1ebbbd810830c03a40ae7dbd9bc6c83df913c686e679f65802a1d9683e79",
+     "geometricGlare": 0.4574
+    }
+   ]
+  }
+ ]
+}

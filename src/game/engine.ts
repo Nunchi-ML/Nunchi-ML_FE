@@ -511,7 +511,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
       if (hudT <= 0) {
         hudT = 0.1;
         const glassText = !st.glass ? '꺼짐' : shadeOn ? `${sxp < innerWidth / 2 ? '왼쪽' : '오른쪽'} ${syp < innerHeight * 0.35 ? '위' : '가운데'} 부분 차광 중` : '대기';
-        G.setState({ hud: { ...gs.hud, riskRatio: riskAt(kmNow, dirK).ratio, glareLv: S.glareLv, glassText, adaptation: adapted, navigation: { text: navCue?.text ?? '경로를 따라 주행하세요', meters: navCue?.meters ?? 0, source: navCue?.source ?? 'route', voiceAvailable: voice.available, inCab: S.cam === 'cockpit' }, analysis: cached ? { level: cached.sample.level, modelVersion: cached.modelVersion, aheadMeters: cached.ahead ? Math.round(Math.abs(cached.ahead.km - kmNow) * 1000) : null } : undefined, score: Math.round(S.score), kmh,
+        G.setState({ hud: { ...gs.hud, riskRatio: riskAt(kmNow, dirK).ratio, glareLv: S.glareLv, glassText, adaptation: adapted, navigation: { text: navCue?.text ?? '경로를 따라 주행하세요', meters: navCue?.meters ?? 0, source: navCue?.source ?? 'route', voiceAvailable: voice.available, inCab: S.cam === 'cockpit' }, analysis: cached ? { level: cached.sample.level, modelVersion: cached.modelVersion, aheadMeters: cached.ahead ? Math.round(Math.abs(cached.ahead.km - kmNow) * 1000) : null, aheadLevel: cached.ahead?.level ?? null } : undefined, score: Math.round(S.score), kmh,
           prog: Math.max(0, Math.min(1, (kmNow - st.startKm) / (st.endKm - st.startKm))), remainKm: Math.abs(st.endKm - kmNow),
           station: near.name, warn: running && S.glareLv === 2 && kmh > 60, fps: fpsV },
           settings: { ...st, minutes: S.minutes } });
