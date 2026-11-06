@@ -28,3 +28,14 @@ test('Normal simulator driving accelerates promptly and remains consistent at 10
  let braking=normal;for(let i=0;i<180;i++)braking=stepDriveSpeed(braking,0,1,1/60,'normal');assert.equal(braking,0);
  assert.equal(stepDriveSpeed(0,0,0,.1,'normal'),0);
 });
+
+test('Optional observation speed is reproducible, can be released, and does not override stronger driver braking',()=>{
+ for(const mode of ['normal','sport'])for(const dt of [1/60,.1]){
+  let speed=0;for(let t=0;t<30;t+=dt)speed=stepDriveSpeed(speed,1,0,dt,mode,40);
+  assert.ok(Math.abs(speed*3.6-40)<.001);
+  const slowed=stepDriveSpeed(25,1,0,dt,mode,40);assert.ok(slowed<25&&slowed>24,'lowering a cap should decelerate smoothly');
+  assert.ok(stepDriveSpeed(25,0,1,dt,mode,40)<slowed,'the driver can brake harder');
+  for(let t=0;t<4;t+=dt)speed=stepDriveSpeed(speed,1,0,dt,mode,0);
+  assert.ok(speed*3.6>60,'free driving must restore normal performance');
+ }
+});

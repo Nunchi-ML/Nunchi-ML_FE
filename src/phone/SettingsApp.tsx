@@ -29,6 +29,8 @@ export function SettingsApp() {
         <div className="row"><label>날씨</label><Seg<Weather> items={[['clear', '맑음'], ['cloud', '구름'], ['over', '흐림']]} value={st.weather} on={v => set({ weather: v })} /></div>
         <div className="row"><label>스마트 유리</label><Seg items={[[true, '켜기'], [false, '끄기']]} value={st.glass} on={v => set({ glass: v })} /></div>
         <div className="row"><label>주행 모드</label><Seg<DriveMode> items={[['normal', '일반'], ['sport', '스포츠']]} value={st.mode} on={v => set({ mode: v })} /></div>
+        <div className="row"><label>관찰 상한</label><Seg items={[[40, '40'], [60, '60'], [80, '80'], [0, '자유']]} value={st.observationSpeed} on={v => set({ observationSpeed: v as typeof st.observationSpeed })} /></div>
+        <div className="small">관찰 속도의 단위는 km/h입니다. 가속·제동은 직접 조작하고, 자유 주행을 선택하면 관찰 상한을 해제해요.</div>
         <div className="row"><label>그래픽</label><Seg<Gfx> items={[['high', '높음'], ['low', '낮음']]} value={st.gfx} on={v => set({ gfx: v })} /></div>
         <button className="pbtn" onClick={() => getEngine()?.toMenu()}>코스 다시 고르기</button>
         <div className="small">팀 「눈치」 · iM Digital Banker Academy<br />데이터: OpenStreetMap · 한국도로공사 · 기상청 · GLARE (CC BY 4.0)</div>

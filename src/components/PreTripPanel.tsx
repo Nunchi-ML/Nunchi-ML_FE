@@ -28,12 +28,12 @@ export function PreTripPanel({ inPhone = false }: { inPhone?: boolean }) {
       <div className="pretrip-input-toggle" role="group" aria-label="예시 관측 조건">
         {([['attention', '주의 관측'], ['stale', '오래된 사진'], ['direction', '반대 방향'], ['missing', '카메라 없음']] as const).map(([v, text]) => <button key={v} aria-pressed={settings.exampleCondition === v} onClick={() => set({ exampleCondition: v })}>{text}</button>)}
       </div>
-      {!p.observedM && <button className="pretrip-example-reset" onClick={() => { const m = MISSIONS[0]; set({ startKm: m.a, endKm: m.b, date: missionDate(m, 2026), minutes: m.m, weather: 'clear', flow: 0, mission: 0, exampleCondition: 'attention' }); }}>추천 코스의 예시 관측 조건으로 보기</button>}
+      {!p.observedM && <button className="pretrip-example-reset" onClick={() => { const i = Math.max(0, MISSIONS.findIndex(m => m.photoExample)), m = MISSIONS[i]; set({ startKm: m.a, endKm: m.b, date: missionDate(m, 2026), minutes: m.m, weather: 'clear', flow: 0, mission: i, observationSpeed: m.observeKmh ?? 0, exampleCondition: 'attention' }); }}>사진 예시가 있는 추천 코스로 보기</button>}
     </div>}
     <details className="pretrip-details"><summary>시간·거리·소통 상태 비교</summary>
       <div className="pretrip-candidates">{preview.candidates.map(c => <div key={c.route.id}>
         <b>{c.route.name}</b><span>약 {Math.max(1,Math.ceil(c.route.durationSec/60))}분 · {metersLabel(c.route.distanceM)}</span>
-        <span>소통 {({smooth:'원활',slow:'서행',congested:'혼잡',unknown:'미확인'})[c.route.traffic]} · {c.route.timeSource === 'simulation' ? '체험 속도 50 km/h 가정' : '저장된 교통 정보 기준'}</span>
+        <span>소통 {({smooth:'원활',slow:'서행',congested:'혼잡',unknown:'미확인'})[c.route.traffic]} · {c.route.timeSource === 'simulation' ? `체험 속도 ${c.route.assumedKmh ?? 50} km/h 가정` : '저장된 교통 정보 기준'}</span>
         <span>주의 관측 {c.observedM ? metersLabel(c.cautionM) : '미확인'} · 미확인 {metersLabel(c.unknownM)}</span>
         <span>{c.route.closure === 'closed' ? '통제 확인 · 선택 제외' : c.route.closure === 'unknown' ? '도로 통제·교차로 조건 미확인' : '제공된 통행 조건 확인'}</span>
       </div>)}</div>

@@ -16,7 +16,7 @@ import { warningLeadMeters, type SegmentAssessment } from './preTrip';
 import { routeZones } from './navigator';
 import type { NavigationZone } from './navigationGuidance';
 import { drawMinimap, drawSpeedo } from './gauges';
-import { isTouch, useGame } from '../store';
+import { isTouch, useGame, type PassageRecord } from '../store';
 import { separateTraffic } from './trafficSpacing';
 import { lookupRouteAnalysis } from './routeAnalysis';
 import { ROAD_ID, IS_SINCHEON } from './roadSelection';
@@ -98,6 +98,8 @@ export function createEngine(canvas: HTMLCanvasElement) {
   };
   let glareDiagnostics = { intensity: 0, angle: 0, sunAltitude: 0, blockedByCar: false, blockedByWorld: false, onScreen: false };
   const adaptation = newAdaptation();
+  const passageRecords: PassageRecord[] = [];
+  let currentPassage: PassageRecord | null = null;
   let observerReference: { s: number; direction: number } | null = null;
   let drivingFeel = newDrivingFeel(), visualSteer = 0;
   const voice = createKoreanVoiceGuide();
@@ -134,6 +136,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
     navigationKey = ''; navT = 0; drivingFeel = newDrivingFeel(); visualSteer = 0;
     S.referenceFrame = false; observerReference = null;
     resetAdaptation(adaptation);
+    passageRecords.length = 0; currentPassage = null;
     S.dir = st.endKm >= st.startKm ? 1 : -1;
     S.s = kmToS(st.startKm); S.v = 0; S.lane = 1; S.laneX = S.targetX = laneOffset(1); S.laneV = 0; S.steerTouch = 0;
     S.score = 100; S.glareTime = 0; S.glareMax = 0; S.t0 = performance.now(); S.lastStation = ''; S.minutes = st.minutes;
@@ -151,7 +154,8 @@ export function createEngine(canvas: HTMLCanvasElement) {
     const end = nearestStation(G.getState().settings.endKm).name;
     G.setState({ screen: 'result', phoneOpen: false, result: {
       title: `${stationLabel(end)}${end === '대구은행' ? ' · iM뱅크 본점' : ''} 도착`, score: Math.round(S.score),
-      sec: (performance.now() - S.t0) / 1000, glareSec: S.glareTime, glareMax: S.glareMax } });
+      sec: (performance.now() - S.t0) / 1000, glareSec: S.glareTime, glareMax: S.glareMax,
+      passages: [...passageRecords, ...(currentPassage ? [{ ...currentPassage, completed: false }] : [])] } });
   }
   function toMenu() { voice.stop(); S.running = false; G.setState({ screen: 'menu', phoneOpen: false }); }
   const changeLane = (d: number) => { S.targetX = laneOffset(Math.max(0, Math.min(LANE_COUNT - 1, Math.round((S.targetX - laneOffset(0)) / LANE_WIDTH) + d))); };
@@ -163,7 +167,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
   const toggleSport = () => {
     const sport = G.getState().settings.mode !== 'sport';
     G.getState().set({ mode: sport ? 'sport' : 'normal' });
-    if (S.running) banner(sport ? '🏎️ 스포츠 모드' : '🚗 일반 모드', sport ? '지붕이 열려요' : '지붕을 닫아요', sport ? '가속 · 최고 속도가 올라가요' : '편안한 주행으로');
+    if (S.running) banner(sport ? '🏎️ 스포츠 모드' : '🚗 일반 모드', sport ? '지붕이 열려요' : '지붕을 닫아요', G.getState().settings.observationSpeed ? `관찰 상한 ${G.getState().settings.observationSpeed} km/h 유지 · 설정에서 해제` : sport ? '가속 · 최고 속도가 올라가요' : '편안한 주행으로');
   };
 
   /* ---------- 입력 ---------- */
@@ -231,7 +235,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
     updateDrivingFeel(drivingFeel, rawThrottle, rawBrake, S.v, S.laneV, dt, running);
     if (running) {
       const thr = drivingFeel.throttle, brk = drivingFeel.brake;
-      S.v = stepDriveSpeed(S.v, thr, brk, dt, st.mode);
+      S.v = stepDriveSpeed(S.v, thr, brk, dt, st.mode, st.observationSpeed);
       // 앞차에 가까워지면 미리 부드럽게 감속 (갑자기 속도가 꺾이지 않게)
       let cap = Infinity;
       W.traffic.forEach(t => {
@@ -378,11 +382,19 @@ export function createEngine(canvas: HTMLCanvasElement) {
     const outsideL = cached?.adaptation?.outsideLuminance ?? sceneLuminance(sp.alt, st.weather);
     const sceneL = section?.covered ? 9 + outsideL * section.sky : outsideL;
     const vision = stepAdaptation(adaptation, sceneL, running ? dt : 0, S.running && !S.referenceFrame, { covered: !!section?.covered, outsideLuminance: outsideL });
+    if (running) {
+      if (section?.covered) {
+        currentPassage ??= { name: section.name, roofM: section.s1 - section.s0, seconds: 0, completed: false };
+        currentPassage.seconds += dt;
+      } else if (currentPassage) {
+        passageRecords.push({ ...currentPassage, completed: true }); currentPassage = null;
+      }
+    }
     const aScore = cached?.adaptation ?? adaptationScores(outsideL);
     const adapted = section && S.running ? { name: section.name,
       phase: section.phase === 'approach' ? '진입 전 · 밝기 전환 준비' : section.covered ? (vision.dark > .1 ? '어두워진 시야에 적응 중' : '지하차도 내부') : vision.white > .08 ? '밝아진 시야에 적응 중' : '출구 통과 · 시야 회복',
       burden: vision.burden, score: section.phase === 'approach' || (section.covered && vision.dark > .1) ? aScore.entry : aScore.exit, entryScore: aScore.entry, exitScore: aScore.exit, pupil: vision.pupil,
-      distance: Math.max(0, section.phase === 'approach' ? section.toEntry : section.toExit) } : undefined;
+      distance: Math.max(0, section.phase === 'approach' ? section.toEntry : section.toExit), coveredSeconds: adaptation.coveredSeconds } : undefined;
     u.turbidity.value = st.weather === 'over' ? 14 : st.weather === 'cloud' ? 5.5 : 2.2;
     W.sun.position.set(cx + sv.x * 400, Math.max(5, sv.y * 400), cz + sv.z * 400); W.sun.target.position.set(cx, 0, cz);
     const dayK = Math.max(0, Math.min(1, (sp.alt + 4) / 14));
@@ -464,7 +476,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
     navT -= dt;
     if (navT <= 0) {
       navT = .1;
-      const key = `${st.date}|${Math.floor(S.minutes)}|${st.weather}|${st.startKm}|${st.endKm}|${st.observationMode}|${st.exampleCondition}`;
+      const key = `${st.date}|${Math.floor(S.minutes)}|${st.weather}|${st.startKm}|${st.endKm}|${st.observationMode}|${st.exampleCondition}|${st.observationSpeed}`;
       if (key !== navigationKey) {
         navigationKey = key; roadsideObservations = getRoutePreview({ ...st, minutes: S.minutes }).primary.segments;
         navigationZones = routeZones(st.startKm, st.endKm, sp, st.weather, roadsideObservations, { date: st.date, minutes: S.minutes });

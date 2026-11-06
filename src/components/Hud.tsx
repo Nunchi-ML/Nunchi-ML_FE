@@ -41,12 +41,12 @@ export function Hud({ visible, bind }: { visible: boolean; bind: <K extends keyo
     {adaptation && <aside className="drive-adaptation" aria-label="밝기 적응 체험 상태">
       <div className="drive-eye"><i style={{ transform: `scale(${.22 + adaptation.pupil * .65})` }} /></div>
       <div className="drive-adaptation-copy"><small>밝기 변화 안내 <span>체험</span></small><b>{adaptation.phase}</b>
-        <p>{entering ? '지하차도 진입 전 속도를 줄이세요' : inTunnel ? '전방 차선과 앞차 간격을 확인하세요' : '시야가 회복될 때까지 천천히 주행하세요'}</p>
+        <p>{entering ? '지하차도 진입 전 속도를 줄이세요' : inTunnel ? `지붕 아래 ${adaptation.coveredSeconds.toFixed(1)}초 · 앞차 간격을 유지하세요` : '시야가 회복될 때까지 천천히 주행하세요'}</p>
       </div>
       <div className="drive-adaptation-meter"><i style={{ width: `${Math.min(100, adaptation.burden * 100)}%` }} /></div>
     </aside>}
     {!compact && <div className={`drive-speed${h.warn ? ' caution' : ''}`} aria-label={`현재 속도 ${Math.round(h.kmh)}킬로미터 매시`}>
-      <span className="drive-gear">{sport ? 'S' : 'D'}</span><strong>{Math.round(h.kmh)}</strong><div><span>km/h</span><small>{h.warn ? '시야 주의' : sport ? 'SPORT' : 'DRIVE'}</small></div>
+      <span className="drive-gear">{sport ? 'S' : 'D'}</span><strong>{Math.round(h.kmh)}</strong><div><span>km/h</span><small>{st.observationSpeed ? `관찰 상한 ${st.observationSpeed}` : h.warn ? '시야 주의' : sport ? 'SPORT' : 'DRIVE'}</small></div>
     </div>}
     {!inCab && <aside className="drive-chase-navigation"><div><span>경로 안내</span><strong>{h.navigation?.text}</strong></div><canvas ref={bind('minimap')} width={420} height={420} /></aside>}
     {!compact && <>
