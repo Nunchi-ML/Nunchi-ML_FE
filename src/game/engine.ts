@@ -361,6 +361,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
     u.sunPosition.value.copy(sv);
     const wx = wxK[st.weather];
     const section = underpassAt(S.s, S.dir);
+    W.tunnelLighting.update(S.s);
     const cached = S.referenceFrame ? null : lookupRouteAnalysis(ROAD_ID, { ...st, minutes: S.minutes }, sToKm(S.s));
     const outsideL = cached?.adaptation?.outsideLuminance ?? sceneLuminance(sp.alt, st.weather);
     const sceneL = section?.covered ? 9 + outsideL * section.sky : outsideL;
@@ -417,27 +418,32 @@ export function createEngine(canvas: HTMLCanvasElement) {
     sunMat.color.setRGB(1, 0.95, 0.8).multiplyScalar(occluded ? 0.7 : 1.25 + 1.6 * Math.min(1, Is * 1.6));
     const shadeOn = S.running && st.glass && S.glareLv >= 1 && onScreen && !blocked && S.cam === 'cockpit';
     const eff = shadeOn ? Is * 0.35 : Is;
-    if (els.wash) els.wash.style.opacity = (Math.pow(eff, 1.4) * .36).toFixed(3);
+    const sunlightWash = Math.pow(Math.max(0, (eff - .04) / .96), 1.15) * .62;
+    if (els.wash) els.wash.style.opacity = sunlightWash.toFixed(3);
     if (els.glare) els.glare.style.background = onScreen
-      ? `radial-gradient(circle at ${sxp}px ${syp}px, rgba(255,250,232,${(eff * 0.7).toFixed(2)}) 0, rgba(255,236,190,${(eff * 0.34).toFixed(2)}) 2.6vh, rgba(255,214,150,${(eff * 0.12).toFixed(2)}) 11vh, rgba(255,210,140,0) 30vh)`
+      ? `radial-gradient(circle at ${sxp}px ${syp}px, rgba(255,250,232,${(eff * .95).toFixed(2)}) 0, rgba(255,236,190,${(eff * .58).toFixed(2)}) 4vh, rgba(255,214,150,${(eff * .28).toFixed(2)}) 14vh, rgba(255,210,140,0) 35vh)`
       : 'none';
     if (els.shade) { els.shade.style.opacity = shadeOn ? '1' : '0'; els.shade.style.left = sxp + 'px'; els.shade.style.top = syp + 'px'; }
-    bloom.strength = (st.gfx === 'high' ? 0.06 : 0.04) + eff * 0.35;
+    bloom.strength = (st.gfx === 'high' ? 0.06 : 0.04) + eff * .8;
 
     // Temporal contrast loss recovers from illumination history, independent of the sun disk.
     const white = S.running ? Math.max(vision.white, vision.exitPulse) : 0, dark = S.running ? vision.dark : 0;
     if (els.adaptationVeil) {
       els.adaptationVeil.style.backgroundColor = white >= dark ? '#fff9e8' : '#080a10';
-      els.adaptationVeil.style.opacity = String(Math.max(white * (vision.exitPulse > .05 ? .58 : .36), dark * .55));
+      els.adaptationVeil.style.opacity = String(Math.max(white * (vision.exitPulse > .05 ? .82 : .4), dark * .62));
     }
     // Keep map text crisp; illustrative contrast loss belongs to the road view.
     if (els.adaptationVeil) {
       const compactView = isTouch || (innerWidth <= 900 && innerWidth > innerHeight);
       const cut = S.cam === 'cockpit' ? compactView ? 57 : 65 : 100;
+      if (els.wash) {
+        els.wash.style.clipPath = `inset(0 0 ${100 - cut}% 0)`;
+        els.wash.style.maskImage = `linear-gradient(to bottom,#000 0%,#000 ${cut - 10}%,transparent ${cut}%)`;
+      }
       els.adaptationVeil.style.clipPath = `inset(0 0 ${100 - cut}% 0)`;
       els.adaptationVeil.style.maskImage = `linear-gradient(to bottom,#000 0%,#000 ${cut - 10}%,transparent ${cut}%)`;
       els.adaptationVeil.style.backdropFilter = S.running && Math.max(white, dark) > .02
-        ? `contrast(${1 - white * (vision.exitPulse > .05 ? .32 : .18) - dark * .08}) blur(${(Math.max(0, white - .12) * (vision.exitPulse > .05 ? 1.1 : .5)).toFixed(2)}px)` : '';
+        ? `contrast(${1 - white * (vision.exitPulse > .05 ? .5 : .2) - dark * .08}) blur(${(Math.max(0, white - .12) * (vision.exitPulse > .05 ? 1.6 : .5)).toFixed(2)}px)` : '';
     }
     canvas.style.filter = '';
 
@@ -448,6 +454,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
       navT = .1;
       const key = `${st.date}|${Math.floor(S.minutes)}|${st.weather}|${st.startKm}|${st.endKm}|${st.observationMode}|${st.exampleCondition}`;
       if (key !== navigationKey) { navigationKey = key; navigationZones = routeZones(st.startKm, st.endKm, sp, st.weather, getRoutePreview({ ...st, minutes: S.minutes }).primary.segments); }
+      W.roadsideSigns.update(S.s, S.dir, st.startKm, st.endKm, navigationZones, S.running);
       navCue = CP.navigation.draw(S.s, S.running ? S.dir : Math.sign(st.endKm - st.startKm), st.startKm, st.endKm, kmh, navigationZones, st.guidance, st.voice, voice.available, S.running, S.minutes, sp.alt < 0, warningLeadMeters(kmh, st.sensitivity));
       if (running && st.guidance && navCue && (navCue.active || navCue.meters <= warningLeadMeters(kmh, st.sensitivity))) {
         voice.announce(navCue.kind === 'unverified' ? 'unverified-route' : `${navCue.id}-${navCue.active ? 'active' : 'ahead'}`, navCue.spoken, now);

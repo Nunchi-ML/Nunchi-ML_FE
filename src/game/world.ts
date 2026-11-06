@@ -7,6 +7,8 @@ import { buildIntersections, nearCrossing } from './intersections';
 import { buildOsmMarkers } from './osm';
 import { buildUnderpasses, groundGeometry, underpassAt } from './underpasses';
 import { createWeatherLayer } from './weather';
+import { createTunnelLighting } from './tunnelLighting';
+import { createRoadsideSigns } from './roadsideSigns';
 import { createTreeAssets } from './trees';
 
 /** 결정적 난수 (매번 같은 도시) */
@@ -16,6 +18,8 @@ export interface World {
   scene: THREE.Scene; sky: Sky; sun: THREE.DirectionalLight; hemi: THREE.HemisphereLight; sunDisc: THREE.Mesh;
   occluders: THREE.Object3D[]; buildings: THREE.Mesh[]; bankGlow: THREE.MeshStandardMaterial | null; me: Vehicle; softTop: { set: (k: number) => void }; traffic: Vehicle[];
   weather: ReturnType<typeof createWeatherLayer>;
+  tunnelLighting: ReturnType<typeof createTunnelLighting>;
+  roadsideSigns: ReturnType<typeof createRoadsideSigns>;
   lampHeads: THREE.MeshStandardMaterial; dispose: () => void;
 }
 
@@ -175,11 +179,13 @@ export function createWorld(): World {
 
   /* ---------- 차 ---------- */
   const { me, softTop, traffic, dispose: disposeCars } = createVehicles(scene, rand);
+  const tunnelLighting = createTunnelLighting(scene);
+  const roadsideSigns = createRoadsideSigns(scene);
 
   return {
-    scene, sky, sun, hemi, sunDisc, weather, occluders: [...city.meshes, ...tunnelOccluders, ...(city.bank ? [city.bank.group] : [])], buildings: [...city.meshes, ...tunnelOccluders], bankGlow: city.bank?.glow ?? null, me, softTop, traffic, lampHeads,
+    scene, sky, sun, hemi, sunDisc, weather, tunnelLighting, roadsideSigns, occluders: [...city.meshes, ...tunnelOccluders, ...(city.bank ? [city.bank.group] : [])], buildings: [...city.meshes, ...tunnelOccluders], bankGlow: city.bank?.glow ?? null, me, softTop, traffic, lampHeads,
     dispose: () => {
-      disposeCars(); weather.dispose();
+      disposeCars(); weather.dispose(); roadsideSigns.dispose();
       scene.traverse(o => {
         const m = o as THREE.Mesh;
         if (m.geometry) m.geometry.dispose();

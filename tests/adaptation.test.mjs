@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
+import { loadRoad } from './helpers/road.mjs';
 
 const source = await readFile(new URL('../src/game/adaptation.ts', import.meta.url), 'utf8');
 const code = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText;
@@ -52,7 +53,7 @@ test('Daylight exit accent requires a sustained dark approach and recovers witho
   const exit=stepAdaptation(s,4000,.05,true,{covered:false,outsideLuminance:4000});
   assert.ok(exit.exitPulse>.4);
   const paused=s.exitAge;stepAdaptation(s,4000,0,true,{covered:false,outsideLuminance:4000});assert.equal(s.exitAge,paused);
-  let last;for(let i=0;i<100;i++)last=stepAdaptation(s,4000,.05,true,{covered:false,outsideLuminance:4000});
+  let last;for(let i=0;i<120;i++)last=stepAdaptation(s,4000,.05,true,{covered:false,outsideLuminance:4000});
   assert.ok(last.exitPulse<.002);assert.ok(last.white<.03);
   resetAdaptation(s);assert.equal(stepAdaptation(s,4000,.05,true,{covered:false,outsideLuminance:4000}).exitPulse,0);
   for(let i=0;i<10;i++)stepAdaptation(s,9,.05,true,{covered:true,outsideLuminance:4000});
@@ -60,4 +61,22 @@ test('Daylight exit accent requires a sustained dark approach and recovers witho
   resetAdaptation(s);stepAdaptation(s,.15,0,true,{covered:false,outsideLuminance:.15});
   for(let i=0;i<100;i++)stepAdaptation(s,9,.05,true,{covered:true,outsideLuminance:.15});
   assert.equal(stepAdaptation(s,.15,.05,true,{covered:false,outsideLuminance:.15}).exitPulse,0);
+});
+
+test('Continuous traversal of the actual short underpass produces an exit accent in both directions and at different speeds', async () => {
+  const { road } = await loadRoad(true), u = road.UNDERPASSES[0], outside = sceneLuminance(40, 'clear');
+  for (const dir of [-1, 1]) for (const speed of [14, 28, 45]) {
+    const state = newAdaptation(), entry = dir > 0 ? u.s0 : u.s1, exit = dir > 0 ? u.s1 : u.s0;
+    let peak = 0;
+    for (let s = entry - dir * 30; (exit + dir * 90 - s) * dir > 0; s += dir * speed / 60) {
+      const covered = s >= u.s0 && s <= u.s1;
+      const penetration = covered ? Math.min(s - u.s0, u.s1 - s) : 0;
+      const light = covered ? 9 + outside * Math.exp(-penetration / 10) * .45 : outside;
+      const v = stepAdaptation(state, light, 1 / 60, true, { covered, outsideLuminance: outside });
+      peak = Math.max(peak, v.exitPulse);
+    }
+    assert.ok(peak > .35, `No perceptible exit transition at ${speed} m/s, direction ${dir}`);
+    let recovered; for (let i = 0; i < 420; i++) recovered = stepAdaptation(state, outside, 1 / 60, true, { covered: false, outsideLuminance: outside });
+    assert.ok(recovered.exitPulse < .002); assert.ok(recovered.white < .01);
+  }
 });

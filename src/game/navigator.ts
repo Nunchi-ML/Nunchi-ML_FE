@@ -29,7 +29,7 @@ export function routeZones(startKm: number, endKm: number, sun: { alt: number; a
 
 export function createNavigator() {
   const group = new THREE.Group(); group.name = 'dashboard-navigation';
-  group.position.set(.36, -.28, -.87); group.rotation.x = -.1; group.scale.setScalar(.72);
+  group.position.set(.36, -.28, -.87); group.scale.setScalar(.72);
   function panelShape(w: number, h: number, r: number) {
     const s = new THREE.Shape(), x = -w/2, y = -h/2;
     s.moveTo(x+r,y); s.lineTo(x+w-r,y); s.quadraticCurveTo(x+w,y,x+w,y+r); s.lineTo(x+w,y+h-r); s.quadraticCurveTo(x+w,y+h,x+w-r,y+h); s.lineTo(x+r,y+h); s.quadraticCurveTo(x,y+h,x,y+h-r); s.lineTo(x,y+r); s.quadraticCurveTo(x,y,x+r,y); return s;
@@ -42,7 +42,6 @@ export function createNavigator() {
   const pos=geo.getAttribute('position'),uv=geo.getAttribute('uv');
   for(let i=0;i<pos.count;i++)uv.setXY(i,(pos.getX(i)+.33)/.66,(pos.getY(i)+.14)/.28);
   const face=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({map:texture,toneMapped:false})); face.position.z=.007; face.name='navigation-screen'; group.add(face);
-  const lowerTrim=new THREE.Mesh(new THREE.BoxGeometry(.66,.012,.024),new THREE.MeshStandardMaterial({color:0x697e8a,metalness:.7,roughness:.35})); lowerTrim.position.set(0,-.166,-.008); group.add(lowerTrim);
   return { group, canvas, draw: (...args: Parameters<typeof drawNavigationDisplay> extends [HTMLCanvasElement, ...infer T] ? T : never) => {
     const compact = isCompactNavigation();
     const compactX = Math.min(.65, (innerWidth / 2 - 18) * .8 / (innerHeight * .866) - .2772);

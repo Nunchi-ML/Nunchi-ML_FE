@@ -29,16 +29,19 @@ export function stepAdaptation(state: AdaptationState, targetLuminance: number, 
   if (active && scene) {
     if (scene.covered) {
       if (!state.wasCovered) { state.coveredSeconds = 0; state.darkestLogL = state.logL; }
-      state.coveredSeconds += elapsed; state.darkestLogL = Math.min(state.darkestLogL, state.logL);
+      state.coveredSeconds += elapsed; state.darkestLogL = Math.min(state.darkestLogL, target);
     } else if (state.wasCovered) {
       const ratio = scene.outsideLuminance / Math.max(.05, 10 ** state.darkestLogL);
-      state.exitStrength = state.coveredSeconds >= 1.5 && scene.outsideLuminance >= 150 && ratio >= 6 ? clamp(Math.log10(ratio) / 2.2, .25, .9) : 0;
+      // Short urban underpasses still produce a visible authored transition.
+      // Scale by actual covered time and scene contrast, not full dark adaptation.
+      const history = 1 - Math.exp(-state.coveredSeconds / 1.8);
+      state.exitStrength = state.coveredSeconds >= .75 && scene.outsideLuminance >= 150 && ratio >= 4 ? clamp(Math.log10(ratio) / 1.7 * history, 0, .95) : 0;
       state.exitAge = 0; state.coveredSeconds = 0;
     }
     state.wasCovered = scene.covered;
   }
   // An authored, short exit accent makes the transition perceptible without hazing normal driving.
-  const exitPulse = active && !scene?.covered ? state.exitStrength * Math.exp(-Math.max(0, state.exitAge - .16) / .65) : 0;
+  const exitPulse = active && !scene?.covered ? state.exitStrength * Math.exp(-Math.max(0, state.exitAge - .22) / .85) : 0;
   state.exitAge += active ? elapsed : 0;
   const mismatch = target - state.logL;
   // Visual timing is authored for the simulator. No physiological time claim.
