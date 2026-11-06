@@ -16,16 +16,7 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
 #glare{position:fixed;inset:0;pointer-events:none;mix-blend-mode:screen}
 #wash{position:fixed;inset:0;pointer-events:none;background:#fff6dc;opacity:0}
 #adaptationVeil{position:fixed;inset:0;pointer-events:none;opacity:0}
-#roadAssistant{position:fixed;left:50%;top:112px;transform:translateX(-50%);padding:10px 18px;max-width:60vw;border:1px solid #ffd45e66;background:#181b20e8;border-radius:10px;text-align:center;font-size:13px;color:#fff8e7}
-#roadAssistant small{display:block;margin-top:4px;font-size:10px;color:#c9bdab}
-#navigationControls{position:fixed;left:22px;bottom:90px;display:flex;flex-direction:column;gap:6px;z-index:6;pointer-events:auto}
-#navigationControls button{padding:7px 12px;background:#142331e8;color:#e7f7ff;border:1px solid #70c1e466;border-radius:8px;font:inherit;font-size:12px;cursor:pointer}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-#adaptationHud{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:12px 18px;border:1px solid #79cbd988;border-radius:14px;background:#101b24e8;color:#fff8e7;font-size:14px;max-width:88vw}
-#adaptationHud small{color:#b9d2d7;font-size:11px;line-height:1.6}
-.eye-diagram{width:48px;height:48px;flex:0 0 48px;border-radius:50%;background:#a5c5c8;border:6px solid #f0eee3;display:grid;place-items:center;overflow:hidden}
-.eye-diagram i{display:block;width:44px;height:44px;border-radius:50%;background:#10131b}
-@media(max-height:500px){#adaptationHud{bottom:48px;padding:6px 12px;font-size:12px}.eye-diagram{width:36px;height:36px;flex-basis:36px}}
 #shade{position:fixed;pointer-events:none;border-radius:50%;width:22vh;height:22vh;margin:-11vh 0 0 -11vh;
   background:radial-gradient(circle,rgba(60,32,14,.78) 0 48%,rgba(60,32,14,.5) 66%,rgba(60,32,14,0) 100%);
   box-shadow:inset 0 0 0 2px rgba(255,170,60,.35);opacity:0;transition:opacity .4s,left .15s,top .15s}
@@ -34,80 +25,57 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
 #cockpit{position:fixed;inset:0;pointer-events:none}
 #cockpit svg{width:100%;height:100%}
 
-/* ---------- HUD 공통 ---------- */
-.hud{position:fixed;pointer-events:none;z-index:5}
+/* ---------- Driving overlay: route above, controls below, road unobstructed ---------- */
 .slab{background:var(--panel);border:1px solid var(--panel-line);transform:skewX(var(--skew));border-radius:6px;backdrop-filter:blur(6px)}
 .slab>.in{transform:skewX(calc(var(--skew) * -1))}
-.hud .slab{transform:none;border-radius:13px;background:rgba(12,25,36,.85);border-color:#97bed32e;box-shadow:0 8px 24px #06111b20}
-.hud .slab>.in{transform:none}
-.hud .stat .v{font-family:"Noto Sans KR",sans-serif;font-size:21px;font-weight:800;line-height:1.25}
-
-/* 왼쪽 위: 상태 */
-#status{top:18px;left:22px;display:flex;flex-direction:column;gap:8px}
-.stat{display:flex;align-items:center;gap:10px;padding:7px 16px 7px 12px;min-width:200px}
-.stat .ico{font-size:20px;width:24px;text-align:center}
-.stat .k{font-size:11px;color:#d9c7ad;letter-spacing:.5px}
-.stat .v{font-family:"Black Han Sans";font-size:24px;line-height:1}
-.stat .tag{margin-left:auto;font-size:10px;padding:2px 7px;border-radius:99px;border:1px solid rgba(255,248,231,.35);color:#f3e2c7}
 .lv0{color:var(--green)} .lv1{color:var(--orange)} .lv2{color:var(--red)}
-.stat.flash{animation:flash .6s ease-in-out infinite alternate}
-@keyframes flash{to{background:rgba(242,82,46,.55)}}
-
-/* 위 가운데: 코스 진행 */
-#route{top:16px;left:50%;transform:translateX(-50%);width:min(560px,52vw)}
-#route .names{display:flex;justify-content:space-between;font-size:12px;color:#f3e2c7;margin-bottom:5px}
-#route .names b{font-family:"Black Han Sans";font-size:15px;color:var(--cream);font-weight:400}
-#route .bar{position:relative;height:8px;border-radius:4px;background:rgba(255,248,231,.18);overflow:visible}
-#route .fill{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--sun)}
-#route .tick{position:absolute;top:-3px;width:2px;height:14px;background:rgba(255,248,231,.55)}
-#route .car{position:absolute;top:-7px;width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:12px solid var(--red);margin-left:-8px}
-
-/* 오른쪽 위: 시계·점수 */
-#clock{top:16px;right:22px;text-align:right}
-#clock .slab{padding:6px 16px}
-#clock .t{font-family:"Black Han Sans";font-size:28px;line-height:1}
-#clock .d{font-size:11px;color:#d9c7ad}
-#score{margin-top:8px;padding:6px 16px;display:inline-block}
-#score .v{font-family:"Black Han Sans";font-size:20px;color:var(--sun)}
-
-/* 가운데: 알림 배너 */
-#banner{top:16%;left:50%;transform:translateX(-50%) translateY(-20px);opacity:0;transition:all .35s;text-align:center}
-#banner.show{opacity:1;transform:translateX(-50%) translateY(0)}
-#banner .slab{padding:10px 30px}
-#banner .k{font-size:12px;color:var(--sun);letter-spacing:2px}
-#banner .v{font-family:"Black Han Sans";font-size:clamp(22px,3vw,36px);line-height:1.15}
-#banner .s{font-size:13px;color:#f3e2c7;margin-top:2px}
-#warn{top:30%;left:50%;transform:translateX(-50%);opacity:0;transition:opacity .25s}
-#warn.show{opacity:1}
-#warn .slab{background:rgba(242,82,46,.88);border-color:#fff3;padding:8px 26px}
-#warn .v{font-family:"Black Han Sans";font-size:22px}
-
-/* 왼쪽 아래: 미니맵 */
-#minimap{left:22px;bottom:22px;width:210px;height:210px;border-radius:50%;overflow:hidden;
-  border:3px solid rgba(255,212,94,.6);background:rgba(18,13,10,.78);box-shadow:0 0 0 6px rgba(18,13,10,.35)}
-#minimap canvas{width:100%;height:100%}
-#mmlabel{left:22px;bottom:240px;font-size:11px;color:#f3e2c7}
-#mmlabel .slab{padding:3px 12px}
-
-/* 오른쪽 아래: 속도계 */
-#speedo{right:18px;bottom:10px;width:250px;height:250px}
-#speedo canvas{width:100%;height:100%}
-
-/* 스마트 유리 */
-#glass{left:250px;bottom:26px}
-#glass .slab{padding:6px 14px;font-size:13px}
-#glass b{color:var(--sun)}
-
-/* 폰 버튼·조작 안내 */
-#phoneBtn{position:fixed;right:280px;bottom:30px;z-index:6;width:62px;height:62px;border-radius:16px;border:2px solid var(--sun);
-  background:var(--panel);color:var(--cream);font-size:26px;cursor:pointer;pointer-events:auto}
-#phoneBtn small{display:block;font-size:10px;margin-top:-4px;color:#d9c7ad}
-#sportBtn{position:fixed;right:352px;bottom:30px;z-index:6;width:62px;height:62px;border-radius:16px;border:2px solid rgba(255,248,231,.4);
-  background:var(--panel);color:var(--cream);font-size:24px;cursor:pointer;pointer-events:auto}
-#sportBtn small{display:block;font-size:9px;margin-top:-2px;color:#d9c7ad;white-space:nowrap}
-#sportBtn.on{border-color:var(--red);background:rgba(242,82,46,.35)}
-#keys{bottom:6px;left:50%;transform:translateX(-50%);font-size:11px;color:#e9d8bd;opacity:.85;white-space:nowrap}
-#keys kbd{display:inline-block;border:1px solid #e9d8bd88;border-radius:4px;padding:0 5px;margin:0 2px;font-family:inherit}
+.drive-hud{position:fixed;inset:0;z-index:5;pointer-events:none;color:#edf5f8;font-family:"Noto Sans KR",sans-serif;transition:opacity .2s;background:linear-gradient(180deg,#06111d8c,transparent) top/100% 130px no-repeat}
+.drive-hud::before{content:"";position:absolute;inset:auto 0 0;height:145px;background:linear-gradient(transparent,#06111d55);pointer-events:none}
+.drive-hud.phone-open{opacity:.15}
+.drive-hud.phone-open .drive-toolbar{pointer-events:none}
+.drive-header{position:absolute;top:24px;left:28px;right:28px;display:grid;grid-template-columns:minmax(140px,1fr) minmax(240px,440px) minmax(110px,1fr);gap:28px;align-items:start}
+.drive-identity{display:flex;align-items:center;gap:11px;text-shadow:0 1px 8px #07172655}
+.drive-mark{position:relative;display:grid;place-items:center;width:34px;height:36px;border:1px solid #c1dae74a;border-radius:11px;background:#1123339c;color:#edf8ff;font:700 21px/1 system-ui;font-style:italic;overflow:hidden}
+.drive-mark span{position:absolute;left:8px;right:8px;bottom:4px;height:2px;background:#84cee7;border-radius:2px}
+.drive-identity b{display:block;font-size:11px;font-weight:800;letter-spacing:2px;line-height:1.6}
+.drive-identity em{font-weight:400;font-style:normal;opacity:.65;letter-spacing:1.5px}
+.drive-identity small{display:flex;align-items:center;gap:7px;font-size:11px;color:#ccdae2;line-height:1.8}
+.drive-identity small i,.drive-time i{width:2px;height:2px;border-radius:50%;background:currentColor;opacity:.7}
+.drive-route-summary{padding:12px 16px 13px;background:#0d2030b8;border:1px solid #d1e7f01f;border-radius:14px;box-shadow:0 5px 18px #07131d15;backdrop-filter:blur(14px);min-width:0}
+.drive-route-top{display:flex;align-items:center;gap:9px;font-size:11px;line-height:1.6;white-space:nowrap}
+.drive-route-top strong,.drive-route-origin{overflow:hidden;text-overflow:ellipsis;min-width:0;max-width:160px}
+.drive-route-top strong{font-weight:600}.drive-route-origin{color:#b2c4d0}.drive-route-arrow{color:#83a7bc;font-size:13px}.drive-route-distance{margin-left:auto;flex-shrink:0;color:#e1f5ff;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.drive-progress{position:relative;margin-top:9px;height:2px;background:#ffffff1c;border-radius:3px}
+.drive-progress>i{display:block;height:100%;background:linear-gradient(90deg,#62a8d4,#b6ecff);border-radius:3px;transition:width .1s linear}
+.drive-progress>span{position:absolute;top:-2px;width:6px;height:6px;border-radius:50%;background:#c7f3ff;box-shadow:0 0 9px #8bdfff66;transform:translateX(-3px);transition:left .1s linear}
+.drive-time{text-align:right;text-shadow:0 1px 8px #07172666}
+.drive-time b{display:block;font-size:23px;font-weight:500;letter-spacing:1px;line-height:1.2;font-variant-numeric:tabular-nums}
+.drive-time>span{display:flex;align-items:center;justify-content:flex-end;gap:7px;margin-top:6px;font-size:10px;color:#c4d5df}
+.drive-toast{position:absolute;top:103px;left:50%;transform:translate(-50%,-6px);opacity:0;display:flex;align-items:center;gap:12px;padding:10px 16px;border-radius:12px;background:#0c1c28d4;border:1px solid #b4d9ec21;box-shadow:0 8px 20px #0a142620;transition:opacity .3s,transform .3s;max-width:min(480px,65vw);backdrop-filter:blur(12px)}
+.drive-toast.show{opacity:1;transform:translate(-50%,0)}
+.drive-toast-dot{width:5px;height:5px;background:#93cfe6;border-radius:50%;flex-shrink:0}
+.drive-toast div{min-width:0}.drive-toast small{display:block;font-size:9px;letter-spacing:.5px;color:#9eb8c9;line-height:1.5}.drive-toast strong{display:block;font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.7}
+.drive-speed{position:absolute;left:30px;bottom:29px;display:flex;align-items:center;gap:13px;text-shadow:0 2px 12px #08142255;font-variant-numeric:tabular-nums}
+.drive-gear{display:grid;place-items:center;width:27px;height:31px;border:1px solid #a8cde143;border-radius:8px;font-size:14px;color:#c4e9fa;background:#12263575}
+.drive-speed>strong{font:500 58px/1 system-ui,sans-serif;letter-spacing:-2px;min-width:36px}
+.drive-speed>div{align-self:flex-end;padding-bottom:4px;display:flex;flex-direction:column;gap:6px}.drive-speed>div span{font-size:10px;color:#c8dce7}.drive-speed>div small{font-size:8px;letter-spacing:1.5px;color:#9ec2d6}.drive-speed.caution>strong{color:#ffa9a5}
+.drive-toolbar{position:absolute;right:28px;bottom:26px;display:flex;align-items:center;gap:3px;padding:6px;border-radius:16px;background:#0c1d2bd4;border:1px solid #c5dfea22;box-shadow:0 6px 25px #07131e2a;backdrop-filter:blur(12px);pointer-events:auto}
+.drive-action{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;width:43px;height:45px;border:0;border-radius:11px;background:transparent;color:#9db4c3;font:inherit;cursor:pointer;transition:background .15s,color .15s}
+.drive-action svg{width:19px;height:16px}.drive-action span{font-size:8px;letter-spacing:.4px;line-height:1.1}.drive-action.active{color:#c4ecfd;background:#69bbdf0d}.drive-action:hover{background:#9bd8f01c;color:#effaff}.drive-action:focus-visible{outline:2px solid #a6d9ee;outline-offset:1px}
+.drive-tool-separator{width:1px;height:24px;margin:0 3px;background:#a7cadb20}
+.drive-key-hints{position:absolute;bottom:29px;left:50%;transform:translateX(-50%);display:flex;gap:18px;color:#c3d1dba6;font-size:9px;white-space:nowrap;text-shadow:0 1px 6px #0d172255}
+.drive-key-hints>span{display:flex;align-items:center;gap:3px}.drive-key-hints kbd{font:9px system-ui;border:1px solid #c2d9e437;border-radius:4px;min-width:15px;padding:2px 3px;text-align:center;background:#13273627}
+.drive-adaptation{position:absolute;left:29px;bottom:122px;display:flex;gap:11px;align-items:center;width:210px;padding:12px 13px 15px;border-radius:13px;background:#102330bb;border:1px solid #c1dce81f;box-shadow:0 5px 20px #06111b15;backdrop-filter:blur(12px)}
+.drive-eye{width:26px;height:26px;flex-shrink:0;border-radius:50%;background:#99c6d4;border:4px solid #dfebed;display:grid;place-items:center;overflow:hidden}.drive-eye i{width:26px;height:26px;border-radius:50%;background:#0d1d2a}
+.drive-adaptation>div:nth-child(2){min-width:0}.drive-adaptation small{display:flex;gap:6px;font-size:9px;color:#99bbc9;line-height:1.7}.drive-adaptation small span{opacity:.55}.drive-adaptation b{display:block;font-size:11px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.8}
+.drive-adaptation-meter{position:absolute;bottom:0;left:14px;right:14px;height:2px;background:#a3d5e214;overflow:hidden;border-radius:2px}.drive-adaptation-meter i{display:block;height:2px;background:#91cddd;transition:width .15s}
+.drive-chase-navigation{position:absolute;right:28px;bottom:104px;width:204px;overflow:hidden;border-radius:16px;background:#0d2030c9;border:1px solid #a5cde22b;box-shadow:0 8px 24px #08152230}
+.drive-chase-navigation>div{padding:11px 13px;border-bottom:1px solid #ffffff12}.drive-chase-navigation span{display:block;color:#9cb6c7;font-size:9px}.drive-chase-navigation strong{display:block;font-size:11px;font-weight:500;margin-top:4px}.drive-chase-navigation canvas{display:block;width:100%;height:178px;object-fit:cover}
+@media(max-width:1100px){.drive-key-hints{display:none}.drive-header{gap:18px;left:22px;right:22px;grid-template-columns:minmax(120px,1fr) minmax(200px,400px) minmax(90px,1fr)}.drive-toolbar{right:22px}.drive-identity b{font-size:10px;letter-spacing:1px}}
+@media(max-height:520px){.drive-header{top:14px;left:18px;right:18px;gap:16px}.drive-route-summary{padding:8px 12px 9px;border-radius:11px}.drive-route-top{font-size:10px;gap:6px}.drive-progress{margin-top:7px}.drive-mark{width:28px;height:31px;border-radius:9px;font-size:17px}.drive-identity{gap:8px}.drive-identity small{font-size:9px}.drive-time b{font-size:19px}.drive-time>span{font-size:9px;margin-top:4px}.drive-toast{top:71px;padding:7px 12px}.drive-toast strong{font-size:11px}.drive-adaptation{left:18px;top:78px;bottom:auto;width:190px;padding:8px 10px 10px;gap:9px}.drive-eye{width:22px;height:22px;border-width:3px}.drive-adaptation b{font-size:10px}.drive-chase-navigation{width:144px;bottom:85px;right:16px}.drive-chase-navigation canvas{height:117px}.drive-chase-navigation>div{padding:8px 10px}}
+.drive-hud.compact-controls .drive-identity small{display:none}.drive-hud.compact-controls .drive-toast{max-width:45vw}.drive-hud.compact-controls .drive-header{grid-template-columns:minmax(100px,1fr) minmax(190px,350px) minmax(75px,1fr)}
+.drive-hud.compact-controls .drive-chase-navigation{top:78px;bottom:auto;right:18px;width:144px}
+.drive-hud.compact-controls .drive-chase-navigation canvas{height:clamp(50px,calc(100dvh - 270px),117px)}
 
 /* 터치 조작: 왼손 조향 · 오른손 페달 · 가운데 작은 보조 도구 */
 #touch{position:fixed;inset:0;z-index:6;pointer-events:none;--control-bottom:max(16px,env(safe-area-inset-bottom));--control-side:max(18px,env(safe-area-inset-left),env(safe-area-inset-right))}
@@ -115,28 +83,24 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
 .steering-pad{left:var(--control-side)}
 .pedal-pad{right:var(--control-side)}
 .drive-hold{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;touch-action:none;user-select:none;-webkit-touch-callout:none;cursor:pointer;
-  width:66px;height:66px;border-radius:22px;border:1px solid rgba(255,236,202,.28);background:linear-gradient(145deg,rgba(58,46,35,.8),rgba(19,17,17,.76));color:#fff2d5;
+  width:66px;height:66px;border-radius:22px;border:1px solid rgba(255,236,202,.28);background:linear-gradient(145deg,#1c3346d9,#0d1a27d9);color:#e9f5fb;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 4px 14px #0005;backdrop-filter:blur(8px);transition:background .12s,border-color .12s,transform .12s}
 .drive-hold>span{font-size:38px;font-family:system-ui;line-height:.8}
 .drive-hold small{font:500 11px "Noto Sans KR",sans-serif;letter-spacing:.02em}
 .drive-hold.brake{width:76px;height:64px;border-color:#dd9b8055;color:#ffd5c6}
 .drive-hold.throttle{width:70px;height:92px;border-color:#ffd45e70;color:#ffe49b}
 .drive-hold .pedal-bars{font-size:24px;line-height:1.25;opacity:.8}
-.drive-hold.pressed{transform:translateY(2px);border-color:#ffd45e;background:linear-gradient(145deg,#b9772b,#68431c);box-shadow:inset 0 2px 10px #0005}
+.drive-hold.pressed{transform:translateY(2px);border-color:#ffd45e;background:linear-gradient(145deg,#356d8f,#1b3b53);box-shadow:inset 0 2px 10px #0005}
 .drive-hold.brake.pressed{border-color:#ffb79a;background:linear-gradient(145deg,#a95037,#5c2e25)}
 .touch-speed{position:absolute;left:50%;bottom:calc(var(--control-bottom) + 53px);transform:translateX(-50%);display:flex;align-items:baseline;gap:5px;text-shadow:0 2px 8px #000;color:var(--cream)}
 .touch-speed b{font-size:32px;line-height:1;font-family:"Black Han Sans",sans-serif;font-weight:400;font-variant-numeric:tabular-nums}
 .touch-speed span{font-size:10px;color:#f3dfbf}
-.drive-tools{position:absolute;left:50%;bottom:var(--control-bottom);transform:translateX(-50%);display:flex;gap:4px;padding:4px;border-radius:17px;background:rgba(17,15,15,.72);border:1px solid #ffe2b52b;backdrop-filter:blur(8px);pointer-events:auto}
-.drive-tools button{width:42px;height:39px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border:0;border-radius:12px;background:transparent;color:#f4dfc0;font:inherit;cursor:pointer;touch-action:manipulation}
-.drive-tools button>span{font:20px/1 system-ui}
+.drive-tools{position:absolute;left:50%;bottom:var(--control-bottom);transform:translateX(-50%);display:flex;gap:4px;padding:4px;border-radius:17px;background:#0d2030ce;border:1px solid #c2def02b;backdrop-filter:blur(8px);pointer-events:auto}
+.drive-tools button{width:42px;height:39px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border:0;border-radius:12px;background:transparent;color:#b6cad7;font:inherit;cursor:pointer;touch-action:manipulation}
+.drive-tools button svg{width:20px;height:18px}
 .drive-tools button small{font-size:9px}
-.drive-tools button.active{color:var(--sun);background:#ffd45e20}
-.drive-tools button:active{background:#ffd45e35}
-#hud.compact-controls #speedo,#hud.compact-controls #glass,#hud.compact-controls #keys{display:none}
-#hud.compact-controls #minimap{width:94px;height:94px;left:auto;right:16px;top:66px;bottom:auto;opacity:.85}
-#hud.compact-controls #mmlabel{display:none}
-
+.drive-tools button.active{color:#c4ecfd;background:#8bcdec18}
+.drive-tools button:active{background:#8bcdec30}
 /* ---------- 시작 화면 ---------- */
 #menu{position:fixed;inset:0;z-index:20;display:grid;grid-template-columns:minmax(360px,36%) 1fr;
   background:linear-gradient(90deg,rgba(12,11,16,.96) 0%,rgba(12,11,16,.92) 34%,rgba(12,11,16,.25) 60%,rgba(12,11,16,.05) 100%)}
@@ -300,19 +264,7 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
   #sumbar .slab{min-width:130px}
   #menu .right{padding:0 16px 16px}
   #menu h1{font-size:34px}
-  #speedo{width:170px;height:170px;right:8px;bottom:4px}
-  #minimap{width:120px;height:120px;left:auto;right:14px;top:64px;bottom:auto}
-  #mmlabel,#keys,#glass,#score{display:none}
-  #status .stat{min-width:0;padding:4px 10px}
-  #status{left:14px;top:10px;max-width:31vw}
-  #status .stat .in{gap:5px!important;flex-wrap:wrap}
-  #status .stat .k{display:none}
-  #status .stat .ico{display:none}
-  #status .stat .tag{display:block;font-size:9px;padding:1px 4px;margin-left:0;white-space:normal}
-  #status .stat .v{font-size:16px}
-  #route{width:46vw}
-  #phoneBtn{right:auto;left:50%;transform:translateX(-50%);bottom:12px;width:52px;height:52px}
-  #sportBtn{right:auto;left:calc(50% + 36px);bottom:12px;width:52px;height:52px;font-size:20px}
+
 }
 
 /* 작은 가로 화면에서도 설정 전체를 스크롤하고 지도를 선택할 수 있게 한다. */

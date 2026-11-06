@@ -5,7 +5,8 @@ import { createHash } from 'node:crypto';
 const audit=JSON.parse(await readFile(new URL('../src/data/course_audit.json',import.meta.url),'utf8'));
 const inputs=JSON.parse(await readFile(new URL('../src/data/route_inputs.json',import.meta.url),'utf8'));
 test('Recommended courses are audited and include a short iM bank drive',async()=>{
-  const hash=createHash('sha256').update(await readFile(new URL('../src/game/missions.ts',import.meta.url))).digest('hex');
+  const source=(await readFile(new URL('../src/game/missions.ts',import.meta.url),'utf8')).replace(/\r\n/g,'\n');
+  const hash=createHash('sha256').update(source).digest('hex');
   assert.equal(audit.missionSha256,hash,'rerun npm run prepare:routes after course changes');
   assert.equal(audit.courses.length,6); assert.ok(audit.courses.every(c=>c.passed));
   const bank=audit.courses.find(c=>c.id==='im-bank-sunset');assert.ok(bank.bankIncluded);assert.ok(bank.distanceKm<=1.5);assert.ok(bank.frontFraction>.85);

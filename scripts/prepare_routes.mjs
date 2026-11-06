@@ -14,7 +14,8 @@ const sincheon = await readFile(new URL('src/data/sincheon.json', root), 'utf8')
 const { ROAD_MISSIONS, missionDate } = await load('src/game/missions.ts', { "import sincheon from '../data/sincheon.json';": `const sincheon = ${sincheon};` });
 const { sunPos, simDate } = await load('src/game/sun.ts');
 const year = Number(new Intl.DateTimeFormat('en', { year: 'numeric', timeZone: 'Asia/Seoul' }).format(new Date()));
-const missionSha256 = createHash('sha256').update(await readFile(new URL('src/game/missions.ts', root))).digest('hex');
+const missionSource = (await readFile(new URL('src/game/missions.ts', root), 'utf8')).replace(/\r\n/g, '\n');
+const missionSha256 = createHash('sha256').update(missionSource).digest('hex');
 const cases = [], courses = [];
 for (const road of ['dalgu', 'sincheon']) {
   const { road: r } = await loadRoad(road === 'sincheon');
