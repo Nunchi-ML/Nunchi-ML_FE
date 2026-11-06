@@ -252,6 +252,7 @@ export function Menu() {
         </div>
 
         <div className="row"><label>음성 안내</label><div className="seg"><button className={st.voice ? 'on' : ''} onClick={() => set({ voice: true })}>켜기</button><button className={!st.voice ? 'on' : ''} onClick={() => set({ voice: false })}>끄기</button></div></div>
+        <div className="row"><label>차 소리</label><div className="seg"><button className={st.carSound ? 'on' : ''} onClick={() => set({ carSound: true })}>켜기</button><button className={!st.carSound ? 'on' : ''} onClick={() => set({ carSound: false })}>끄기</button></div></div>
           <p className="note">추천 코스는 출발 시각을 고정해 같은 햇빛 조건으로 체험해요.</p>
           </div>
         </details>

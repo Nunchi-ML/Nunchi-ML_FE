@@ -16,6 +16,7 @@ export function SettingsApp() {
       <h3>설정</h3>
       <div className="set">
         <div className="row"><label>음성 안내</label><Seg items={[[true, '켜기'], [false, '끄기']]} value={st.voice} on={v => set({ voice: v })} /></div>
+        <div className="row"><label>차 소리</label><Seg items={[[true, '켜기'], [false, '끄기']]} value={st.carSound} on={v => set({ carSound: v })} /></div>
         <div className="row"><label>시야 안내</label><Seg items={[[true, '켜기'], [false, '끄기']]} value={st.guidance} on={v => set({ guidance: v })} /></div>
         <div className="row"><label>체감 민감도</label><Seg items={[['standard', '보통'], ['sensitive', '민감 · 일찍 안내']]} value={st.sensitivity} on={v => set({ sensitivity: v as typeof st.sensitivity })} /></div>
         <div className="row"><label>경로 선호</label><Seg items={[['arrival', '빠른 도착'], ['exposure', '노출 회피']]} value={st.preference} on={v => set({ preference: v as typeof st.preference })} /></div>

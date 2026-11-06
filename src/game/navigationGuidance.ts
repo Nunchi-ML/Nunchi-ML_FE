@@ -12,9 +12,9 @@ export function navigationCue(s: number, direction: number, end: number, zones: 
     const active = ahead <= 0, meters = Math.max(0, Math.round(ahead / 10) * 10);
     const text = z.kind === 'unverified' ? '도로변 관측 미확인' : z.kind === 'exit' ? active ? '출구 밝기 변화 구간' : '밝기가 달라지는 출구'
       : z.level === 2 ? '눈부심 강함' : '눈부심 주의';
-    const spoken = z.kind === 'unverified' ? '앞 구간의 도로변 사진을 확인하지 못했습니다. 전방을 살펴주세요.' : z.kind === 'exit'
-      ? active ? '출구 밝기 변화 구간입니다.' : `${meters}미터 앞, 지하차도 출구에서 밝기가 크게 달라집니다.`
-      : `${active ? '지금' : `${meters}미터 앞`}, ${z.level === 2 ? '눈부심이 강합니다. 속도를 줄이고 앞차와의 간격을 유지하세요.' : '눈부심 주의 구간입니다. 전방을 확인하세요.'}`;
+    const spoken = z.kind === 'unverified' ? '앞 구간은 아직 확인 전이에요. 앞을 잘 살펴 주세요.' : z.kind === 'exit'
+      ? active ? '출구라 밝기가 달라져요.' : `${meters}미터 앞 지하차도 출구에서 밝기가 많이 달라져요.`
+      : `${active ? '지금' : `${meters}미터 앞`} ${z.level === 2 ? '햇빛 눈부심이 강해요. 속도를 조금 줄이고 앞차와 거리를 넉넉히 두세요.' : '햇빛 눈부심이 있어요. 앞을 잘 봐 주세요.'}`;
     return { id: z.id, text, spoken, meters, kind: z.kind, source: z.source, active, level: z.level, distance: Math.max(0, ahead) };
   }).filter((c): c is NonNullable<typeof c> => c !== null);
   // Immediate known warnings precede future ones and missing observations.
