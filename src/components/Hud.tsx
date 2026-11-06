@@ -1,76 +1,63 @@
 import { useEffect, useState } from 'react';
 import { getEngine, type Els } from '../game/engine';
-import { riskLv } from '../game/road';
+import { ROAD_NAME } from '../game/roadSelection';
 import { hm } from '../game/sun';
 import { useGame } from '../store';
 import { useTouchControls } from './useTouchControls';
+import { DriveIcon, type DriveIconName } from './DriveIcon';
 
-const GLARE = ['정상', '눈부심', '많이 눈부심'];
-const WX = { clear: '맑음', cloud: '구름', over: '흐림' };
-
-function Stat({ id, ico, k, v, cls, tag, flash }: { id: string; ico: string; k: string; v: string; cls: string; tag: string; flash?: boolean }) {
-  return (
-    <div className={`stat slab${flash ? ' flash' : ''}`} id={id}>
-      <div className="in" style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%' }}>
-        <div className="ico">{ico}</div><div><div className="k">{k}</div><div className={`v num ${cls}`}>{v}</div></div><div className="tag">{tag}</div>
-      </div>
-    </div>
-  );
+const WEATHER = { clear: '맑음', cloud: '구름', over: '흐림' };
+function DriveButton({ icon, label, hint, active, pressed, onClick }: { icon: DriveIconName; label: string; hint: string; active?: boolean; pressed?: boolean; onClick: () => void }) {
+  return <button type="button" className={`drive-action${active ? ' active' : ''}`} aria-label={label} aria-pressed={pressed} title={`${label} · ${hint}`} onClick={onClick}>
+    <DriveIcon name={icon} /><span>{hint}</span>
+  </button>;
 }
-
-function Banner() {
-  const b = useGame(s => s.banner);
-  const [show, setShow] = useState(false);
-  useEffect(() => { if (!b) return; setShow(true); const t = setTimeout(() => setShow(false), 3200); return () => clearTimeout(t); }, [b]);
-  return (
-    <div id="banner" className={`hud${show ? ' show' : ''}`}>
-      <div className="slab"><div className="in"><div className="k">{b?.k}</div><div className="v">{b?.v}</div><div className="s">{b?.s}</div></div></div>
-    </div>
-  );
+function DriveToast() {
+  const banner = useGame(s => s.banner), [show, setShow] = useState(false);
+  useEffect(() => { if (!banner) return; setShow(true); const timer = setTimeout(() => setShow(false), 2600); return () => clearTimeout(timer); }, [banner]);
+  return <div className={`drive-toast${show ? ' show' : ''}`} role="status" title={banner?.s}>
+    <span className="drive-toast-dot" /><div><small>{banner?.k}</small><strong>{banner?.v}</strong></div>
+  </div>;
 }
 
 export function Hud({ visible, bind }: { visible: boolean; bind: <K extends keyof Els>(k: K) => (n: Els[K] | null) => void }) {
-  const h = useGame(s => s.hud);
-  const compact = useTouchControls();
-  const { minutes, date, weather } = useGame(s => s.settings);
-  const running = useGame(s => s.screen === 'driving');
-  const sport = useGame(s => s.settings.mode === 'sport');
-  const togglePhone = () => running && useGame.setState(s => ({ phoneOpen: !s.phoneOpen, app: 'home' }));
-
-  return (
-    <>
-      <div id="hud" className={compact ? 'compact-controls' : ''} style={{ display: visible ? 'block' : 'none' }}>
-        <div id="status" className="hud">
-          <Stat id="sRisk" ico="🛣️" k="구간 위험" v={`${h.riskRatio.toFixed(1)}배`} cls={`lv${riskLv(h.riskRatio)}`} tag="체험용 예시" />
-          <Stat id="sGlare" ico="🕶️" k="눈부심" v={GLARE[h.glareLv]} cls={`lv${h.glareLv}`} tag="시뮬레이션 계산" flash={h.glareLv === 2} />
-        </div>
-
-        <div id="route" className="hud"><div className="slab" style={{ padding: '8px 18px 10px' }}><div className="in">
-          <div className="names"><b>{h.from}</b><span>{h.remainKm.toFixed(1)} km 남음</span><b>{h.to}</b></div>
-          <div className="bar">
-            <div className="fill" style={{ width: `${h.prog * 100}%` }} />
-            {h.ticks.map((t, i) => <div key={i} className="tick" style={{ left: `${t * 100}%` }} />)}
-            <div className="car" style={{ left: `${h.prog * 100}%` }} />
-          </div>
-        </div></div></div>
-
-        <div id="clock" className="hud">
-          <div className="slab"><div className="in"><div className="t num">{hm(minutes % 1440)}</div><div className="d">{date.slice(5).replace('-', '/')} · {WX[weather]}</div></div></div>
-          <div className="slab" id="score"><div className="in"><span style={{ fontSize: 11, color: '#d9c7ad' }}>안전 점수 </span><span className="v num">{h.score}</span><span style={{ fontSize: 10, color: '#bfa98c', marginLeft: 8 }}>{h.fps} fps</span></div></div>
-        </div>
-
-        <Banner />
-        <div id="warn" className={`hud${h.warn ? ' show' : ''}`}><div className="slab"><div className="in"><div className="v">☀ 눈부심 구간 — 속도를 줄이세요</div></div></div></div>
-
-        <div id="mmlabel" className="hud"><div className="slab"><div className="in">달구벌대로 · {h.from} → {h.to}</div></div></div>
-        <div id="minimap" className="hud"><canvas ref={bind('minimap')} width={420} height={420} /></div>
-        <div id="speedo" className="hud"><canvas ref={bind('speedo')} width={500} height={500} /></div>
-        <div id="glass" className="hud"><div className="slab"><div className="in">🕶️ 스마트 유리 <b>{h.glassText}</b> <span style={{ fontSize: 11, color: '#d9c7ad' }}>(G)</span></div></div></div>
-        <div id="keys" className="hud"><kbd>W</kbd><kbd>↑</kbd> 가속 · <kbd>S</kbd><kbd>↓</kbd> 브레이크 · <kbd>A</kbd><kbd>D</kbd> 차선 · <kbd>C</kbd> 시점 · 화면 끌기 고개 돌리기 · <kbd>V</kbd> 정면 · <kbd>M</kbd> 스포츠 · <kbd>G</kbd> 스마트 유리 · <kbd>P</kbd> 휴대폰 · <kbd>Esc</kbd> 코스</div>
+  const h = useGame(s => s.hud), st = useGame(s => s.settings), phoneOpen = useGame(s => s.phoneOpen), set = useGame(s => s.set);
+  const compact = useTouchControls(), inCab = h.navigation?.inCab ?? true;
+  const sport = st.mode === 'sport', progress = Math.max(0, Math.min(1, h.prog));
+  const openSettings = () => useGame.setState({ phoneOpen: true, app: 'set' });
+  const adaptation = st.guidance && h.adaptation && (h.adaptation.distance < 150 || h.adaptation.burden > .1) ? h.adaptation : null;
+  return <div id="hud" className={`drive-hud${compact ? ' compact-controls' : ''}${phoneOpen ? ' phone-open' : ''}`} style={{ display: visible ? 'block' : 'none' }}>
+    <header className="drive-header">
+      <div className="drive-identity"><span className="drive-mark">N<span /></span><div><b>NUNCHI <em>DRIVE</em></b><small>{ROAD_NAME}<i />주행 체험</small></div></div>
+      <div className="drive-route-summary" aria-label={`목적지까지 ${h.remainKm.toFixed(1)}킬로미터`}>
+        <div className="drive-route-top"><span className="drive-route-origin">{h.from}</span><span className="drive-route-arrow">→</span><strong>{h.to}</strong><span className="drive-route-distance">{h.remainKm < 1 ? `${Math.round(h.remainKm * 1000)} m` : `${h.remainKm.toFixed(1)} km`}</span></div>
+        <div className="drive-progress"><i style={{ width: `${progress * 100}%` }} /><span style={{ left: `${progress * 100}%` }} /></div>
       </div>
-      <button id="sportBtn" className={sport ? 'on' : ''} aria-label="스포츠 모드" style={{ display: visible && !compact ? 'block' : 'none' }}
-        onClick={() => getEngine()?.toggleSport()}>🏎️<small>{sport ? '스포츠' : '일반'} · M</small></button>
-      <button id="phoneBtn" aria-label="휴대폰 열기" style={{ display: visible && !compact ? 'block' : 'none' }} onClick={togglePhone}>📱<small>P</small></button>
-    </>
-  );
+      <div className="drive-time"><b>{hm(st.minutes % 1440)}</b><span>{st.date.slice(5).replace('-', '.')}<i />{WEATHER[st.weather]}</span></div>
+    </header>
+    <DriveToast />
+    {adaptation && <aside className="drive-adaptation" aria-label="밝기 적응 체험 상태">
+      <div className="drive-eye"><i style={{ transform: `scale(${.22 + adaptation.pupil * .65})` }} /></div>
+      <div><small>밝기 적응 <span>체험</span></small><b title={adaptation.phase}>{adaptation.phase}</b></div>
+      <div className="drive-adaptation-meter"><i style={{ width: `${Math.min(100, adaptation.burden * 100)}%` }} /></div>
+    </aside>}
+    {!compact && <div className={`drive-speed${h.warn ? ' caution' : ''}`} aria-label={`현재 속도 ${Math.round(h.kmh)}킬로미터 매시`}>
+      <span className="drive-gear">{sport ? 'S' : 'D'}</span><strong>{Math.round(h.kmh)}</strong><div><span>km/h</span><small>{h.warn ? '시야 주의' : sport ? 'SPORT' : 'DRIVE'}</small></div>
+    </div>}
+    {!inCab && <aside className="drive-chase-navigation"><div><span>경로 안내</span><strong>{h.navigation?.text}</strong></div><canvas ref={bind('minimap')} width={420} height={420} /></aside>}
+    {!compact && <>
+      <div className="drive-key-hints"><span><kbd>W</kbd><kbd>S</kbd> 가속 · 제동</span><span><kbd>A</kbd><kbd>D</kbd> 조향</span><span><kbd>C</kbd> 시점</span></div>
+      <nav className="drive-toolbar" aria-label="주행 도구">
+        <DriveButton icon="view" label="시점 전환" hint="시점" onClick={() => getEngine()?.toggleCam()} />
+        <DriveButton icon={st.voice ? 'voice' : 'muted'} label="내비게이션 음성 안내" hint="음성" active={st.voice} pressed={st.voice} onClick={() => set({ voice: !st.voice })} />
+        <DriveButton icon="glass" label="스마트 유리" hint="차광" active={st.glass} pressed={st.glass} onClick={() => getEngine()?.toggleGlass()} />
+        <DriveButton icon="guide" label="내비게이션 시야 안내" hint="안내" active={st.guidance} pressed={st.guidance} onClick={() => set({ guidance: !st.guidance })} />
+        <span className="drive-tool-separator" />
+        <DriveButton icon="mode" label="스포츠 모드" hint={sport ? '스포츠' : '일반'} active={sport} pressed={sport} onClick={() => getEngine()?.toggleSport()} />
+        <DriveButton icon="settings" label="주행 설정" hint="설정" onClick={openSettings} />
+        <DriveButton icon="menu" label="코스 메뉴" hint="코스" onClick={() => getEngine()?.toMenu()} />
+      </nav>
+    </>}
+    <span className="sr-only" role="status" aria-label="차량 내비게이션 안내">{h.navigation?.text} {h.navigation?.meters ? `${h.navigation.meters}미터 앞` : ''}</span>
+  </div>;
 }

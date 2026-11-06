@@ -31,6 +31,7 @@ export default function App() {
       <canvas id="gl" ref={canvas} />
       <div id="wash" ref={bind('wash')} />
       <div id="glare" ref={bind('glare')} />
+      <div id="adaptationVeil" ref={bind('adaptationVeil')} />
       <div id="shade" ref={bind('shade')} />
       {ready && (
         <>

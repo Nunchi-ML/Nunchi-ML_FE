@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import cityDataUrl from '../data/dalgu_buildings.json?url';
+import sincheonCityUrl from '../data/sincheon_buildings.json?url';
+import { IS_SINCHEON } from './roadSelection';
 import { P as ROAD_PTS, ROAD_W } from './road';
 import { OSM } from './osm';
 
@@ -8,15 +10,30 @@ import { OSM } from './osm';
 interface Bldg { p: number[]; h: number; k: number; f?: number; d?: number; n?: string }   // n: 실제 건물 이름 (브이월드)
 interface CityData { b: Bldg[]; bank: { pts: number[][]; levels: number } | null }
 let C: CityData;
+const navigationGrid = new Map<string, Bldg[]>();
+/** Reuse surveyed footprints for the dashboard map, indexed in 150 m cells. */
+export function nearbyMapBuildings(x: number, z: number, radius = 500) {
+  const out: Bldg[] = [];
+  for (let gx = Math.floor((x - radius) / 150); gx <= Math.floor((x + radius) / 150); gx++)
+    for (let gz = Math.floor((z - radius) / 150); gz <= Math.floor((z + radius) / 150); gz++) out.push(...(navigationGrid.get(`${gx},${gz}`) ?? []));
+  return out;
+}
 export let BANK_POS: { x: number; z: number } | null = null;
 let cityLoad: Promise<void> | null = null;
 /** 건물 좌표는 JS 번들에 넣지 않고 별도 JSON으로 읽고 캐시한다. */
 export function loadCityData(): Promise<void> {
-  if (!cityLoad) cityLoad = fetch(cityDataUrl).then(async response => {
+  if (!cityLoad) cityLoad = fetch(IS_SINCHEON ? sincheonCityUrl : cityDataUrl).then(async response => {
     if (!response.ok) throw new Error('건물 데이터를 불러오지 못했어요.');
     const data = await response.json() as CityData;
     if (!Array.isArray(data.b)) throw new Error('건물 데이터 형식이 올바르지 않아요.');
     C = data;
+    navigationGrid.clear();
+    for (const b of C.b) {
+      const n = b.p.length / 2; let x = 0, z = 0;
+      for (let i = 0; i < b.p.length; i += 2) { x += b.p[i] / n; z += b.p[i + 1] / n; }
+      const key = `${Math.floor(x / 150)},${Math.floor(z / 150)}`;
+      if (!navigationGrid.has(key)) navigationGrid.set(key, []); navigationGrid.get(key)!.push(b);
+    }
     BANK_POS = C.bank ? {
       x: C.bank.pts.reduce((sum, p) => sum + p[0], 0) / C.bank.pts.length,
       z: C.bank.pts.reduce((sum, p) => sum + p[1], 0) / C.bank.pts.length,

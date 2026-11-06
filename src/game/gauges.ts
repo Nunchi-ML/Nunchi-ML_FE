@@ -49,7 +49,7 @@ export function drawMinimap(c: HTMLCanvasElement, p: { x: number; z: number }, h
   });
   mark(startKm, '출', '#3BA55C'); mark(endKm, '도', '#F2522E');
   const bk = BANK_POS ?? at(kmToS(BANK_KM));
-  if (Math.hypot(bk.x - p.x, bk.z - p.z) < 700) upright((bk.x - p.x) * sc, (bk.z - p.z) * sc - 26, () => { g.font = '30px sans-serif'; g.textAlign = 'center'; g.fillText('🏦', 0, 0); });
+  if (BANK_POS && Math.hypot(bk.x - p.x, bk.z - p.z) < 700) upright((bk.x - p.x) * sc, (bk.z - p.z) * sc - 26, () => { g.font = '30px sans-serif'; g.textAlign = 'center'; g.fillText('🏦', 0, 0); });
   g.restore();
   g.fillStyle = '#F2522E'; g.beginPath(); g.moveTo(W / 2, W / 2 + 14); g.lineTo(W / 2 - 16, W / 2 + 62); g.lineTo(W / 2, W / 2 + 50); g.lineTo(W / 2 + 16, W / 2 + 62); g.closePath(); g.fill();
   g.strokeStyle = '#fff'; g.lineWidth = 3; g.stroke();

@@ -5,6 +5,7 @@ import { createVehicles, type Vehicle } from './vehicles';
 import { buildCity } from './city';
 import { buildIntersections, nearCrossing } from './intersections';
 import { buildOsmMarkers } from './osm';
+import { buildUnderpasses, groundGeometry, underpassAt } from './underpasses';
 
 /** 결정적 난수 (매번 같은 도시) */
 export function makeRand(seed = 7) { let r = seed; return () => (r = (r * 16807) % 2147483647) / 2147483647; }
@@ -22,10 +23,10 @@ function canvasTex(w: number, h: number, draw: (g: CanvasRenderingContext2D) => 
 
 function roadTexture() {
   const t = canvasTex(512, 256, g => {
-    g.fillStyle = '#56504b'; g.fillRect(0, 0, 512, 256);
+    g.fillStyle = '#41474b'; g.fillRect(0, 0, 512, 256);
     for (let i = 0; i < 2600; i++) { g.fillStyle = `rgba(${Math.random() < .5 ? '255,255,255' : '0,0,0'},${Math.random() * .05})`; g.fillRect(Math.random() * 512, Math.random() * 256, 2, 2); }
     const pixel = (offset: number) => (offset / ROAD_W + .5) * 512;
-    const paintWidth = .12 / ROAD_W * 512;
+    const paintWidth = .15 / ROAD_W * 512;
     g.fillStyle = '#e8dfc8';
     for (const offset of LANE_BOUNDARIES) for (const side of [-1, 1]) {
       const x = pixel(side * offset) - paintWidth / 2;
@@ -52,8 +53,8 @@ function ribbon(scene: THREE.Scene, width: number, y: number, mat: THREE.Materia
   let n = 0;
   for (let s = -ROAD_EXTENSION; s <= TOTAL + ROAD_EXTENSION + step; s += step) {
     const p = at(s), rx = -p.dz, rz = p.dx;
-    pos.push(p.x - rx * width / 2, y, p.z - rz * width / 2, p.x + rx * width / 2, y, p.z + rz * width / 2);
-    uv.push(0, s / 60, 1, s / 60);
+    pos.push(p.x - rx * width / 2, p.y + y, p.z - rz * width / 2, p.x + rx * width / 2, p.y + y, p.z + rz * width / 2);
+    uv.push(0, s / 32, 1, s / 32);
     if (n) { const a = (n - 1) * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
     n++;
   }
@@ -83,8 +84,21 @@ export function createWorld(): World {
   const sunDisc = new THREE.Mesh(new THREE.SphereGeometry(26, 24, 16), new THREE.MeshBasicMaterial({ color: 0xfff3c4, fog: false }));
   scene.add(sunDisc);
 
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(60000, 60000), new THREE.MeshLambertMaterial({ color: 0x86765f, polygonOffset: true, polygonOffsetFactor: 8, polygonOffsetUnits: 16 }));
-  ground.rotation.x = -Math.PI / 2; ground.position.y = -0.05; ground.receiveShadow = true; scene.add(ground);
+  const ground = new THREE.Mesh(groundGeometry(), new THREE.MeshLambertMaterial({ color: 0x86765f, polygonOffset: true, polygonOffsetFactor: 8, polygonOffsetUnits: 16 }));
+  ground.position.y = -0.05; ground.receiveShadow = true; scene.add(ground);
+  // Actual OSM river centerlines; water width is a visual approximation.
+  for (const river of D.rivers ?? []) {
+    const pos: number[] = [], idx: number[] = [];
+    const pts = river.poly.map(([lon, lat]) => ({ x: (lon - 128.59) * 111320 * Math.cos(35.866 * Math.PI / 180), z: -(lat - 35.866) * 110940 }));
+    pts.forEach((p, i) => {
+      const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)], len = Math.hypot(b.x - a.x, b.z - a.z) || 1;
+      const rx = -(b.z - a.z) / len * river.width / 2, rz = (b.x - a.x) / len * river.width / 2;
+      pos.push(p.x - rx, -.025, p.z - rz, p.x + rx, -.025, p.z + rz);
+      if (i) { const k = (i - 1) * 2; idx.push(k, k + 2, k + 1, k + 1, k + 2, k + 3); }
+    });
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setIndex(idx); geo.computeVertexNormals();
+    scene.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0x497c86, roughness: .3, metalness: .3, side: THREE.DoubleSide })));
+  }
 
   // 보도 · 연석 · 차도가 몇 cm 차이로 겹쳐 있어 멀리서 서로 번갈아 비침(깜빡임) → 아래 층을 깊이 쪽으로 밀어 차도가 늘 위에 그려지게
   ribbon(scene, ROAD_W + 14, 0.01, new THREE.MeshLambertMaterial({ color: 0xb8a990, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 4, polygonOffsetUnits: 8 }));   // 보도
@@ -93,6 +107,7 @@ export function createWorld(): World {
 
   /* ---------- 건물: OpenStreetMap 실제 건물 윤곽 · 층수 (없으면 용도별 추정) ---------- */
   const city = buildCity(scene);
+  const tunnelOccluders = buildUnderpasses(scene);
   const q = new THREE.Quaternion(), m4 = new THREE.Matrix4(), col = new THREE.Color(), up = new THREE.Vector3(0, 1, 0);
 
   /* ---------- 가로수 · 가로등 ---------- */
@@ -105,7 +120,7 @@ export function createWorld(): World {
   const leaf = [0x5f7d3f, 0x6f8a45, 0x7d8b3c, 0x8e8a3a, 0xa0782f];                // 가을 느낌 섞기
   let nt = 0;
   for (let s = 8; s < TOTAL && nt < NT - 120; s += Math.max(17, TOTAL * 2 / (NT - 120))) for (const side of [-1, 1]) {
-    if (nt >= NT || rand() < 0.18 || nearCrossing(s)) continue;           // 사거리 · 횡단보도 자리는 비움
+    if (nt >= NT || rand() < 0.18 || nearCrossing(s) || underpassAt(s)?.covered || at(s).y < -.1) continue;           // 사거리 · 횡단보도 자리는 비움
     const p = at(s), off = side * (ROAD_W / 2 + 3.6), x = p.x - p.dz * off, z = p.z + p.dx * off, k = 0.8 + rand() * 0.45;
     q.identity(); m4.compose(new THREE.Vector3(x, 0, z), q, new THREE.Vector3(k, k, k));
     trunks.setMatrixAt(nt, m4); crowns.setMatrixAt(nt, m4); crowns.setColorAt(nt, col.setHex(leaf[(rand() * leaf.length) | 0])); nt++;
@@ -128,7 +143,7 @@ export function createWorld(): World {
   const poles = new THREE.InstancedMesh(poleGeo, poleMat, NL), arms = new THREE.InstancedMesh(armGeo, poleMat, NL), heads = new THREE.InstancedMesh(headGeo, lampHeads, NL);
   let np = 0;
   for (let s = 20; s < TOTAL && np < NL; s += 45) {
-    if (nearCrossing(s, 4)) continue;
+    if (nearCrossing(s, 4) || underpassAt(s)?.covered || at(s).y < -.1) continue;
     const side = (np % 2) ? 1 : -1, p = at(s), off = side * (ROAD_W / 2 + 1.2);
     q.setFromAxisAngle(up, Math.atan2(-side * p.dz, side * p.dx));      // 팔이 차도 쪽을 향하게
     m4.compose(new THREE.Vector3(p.x - p.dz * off, 0, p.z + p.dx * off), q, new THREE.Vector3(1, 1, 1));
@@ -158,7 +173,7 @@ export function createWorld(): World {
   const { me, softTop, traffic, dispose: disposeCars } = createVehicles(scene, rand);
 
   return {
-    scene, sky, sun, hemi, sunDisc, occluders: [...city.meshes, ...(city.bank ? [city.bank.group] : [])], buildings: city.meshes, bankGlow: city.bank?.glow ?? null, me, softTop, traffic, lampHeads,
+    scene, sky, sun, hemi, sunDisc, occluders: [...city.meshes, ...tunnelOccluders, ...(city.bank ? [city.bank.group] : [])], buildings: [...city.meshes, ...tunnelOccluders], bankGlow: city.bank?.glow ?? null, me, softTop, traffic, lampHeads,
     dispose: () => {
       disposeCars();
       scene.traverse(o => {

@@ -26,6 +26,9 @@ dist/
 build/
 .next/
 npm-debug.log*
+output/
+.playwright-cli/
+.playwright/
 
 # TypeScript
 *.tsbuildinfo
@@ -36,4 +39,6 @@ npm-debug.log*
 # OSM 응답 저장본 (scripts/fetch_osm.py)
 scripts/.osm_cache*.json
 scripts/.vworld_cache.json
+scripts/.vworld_cache_*.json
+scripts/.sincheon_*
 scripts/.vworld_addr_cache.json

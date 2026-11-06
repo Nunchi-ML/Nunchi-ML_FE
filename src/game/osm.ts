@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import raw from '../data/dalgu_osm.json';
+import sincheon from '../data/sincheon_osm.json';
+import { IS_SINCHEON } from './roadSelection';
 import { at, rawToS } from './road';
 
 /** OpenStreetMap에서 뽑은 달구벌대로 주변 시설물 (scripts/fetch_osm.py 로 만듦) */
@@ -11,7 +13,7 @@ export interface OsmJunction {
   to?: string[];                                                               // 팔마다 그쪽 700 m 앞 동네 (브이월드 주소 찾기)
 }
 export type OsmKind = 'signal' | 'crossing' | 'bus_stop' | 'subway' | 'lamp' | 'tree' | 'artwork';
-export const OSM = raw as unknown as Record<OsmKind, OsmPoint[]> & { junction: OsmJunction[] };
+export const OSM = (IS_SINCHEON ? sincheon : raw) as unknown as Record<OsmKind, OsmPoint[]> & { junction: OsmJunction[] };
 
 /** 시설물 자리를 게임 도로 기준으로: 도로 거리 s · 중심선에서 왼(+)/오른(−) 거리 off */
 export function placeOnRoad(p: { s: number; off?: number }) {
