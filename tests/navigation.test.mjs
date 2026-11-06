@@ -28,6 +28,18 @@ test('Voice does not repeat each frame, speak stale queued distances, or speak w
   assert.deepEqual(spoken,['first','current distance','new run']);
 });
 
+test('A continuing glare stretch is announced once, unless it gets worse', () => {
+  const spoken=[], voice=createVoiceGuide({cancel(){},speak(text){spoken.push(text);}}), g=r=>({name:'glare',rank:r});
+  assert.equal(voice.announce('z1-ahead','glare ahead',0,false,g(1)),true);
+  assert.equal(voice.announce('z1-active','glare now',7000,false,g(1)),false);
+  assert.equal(voice.announce('z2-active','glare again',14000,false,g(1)),false);
+  assert.equal(voice.announce('z3-active','stronger',21000,false,g(2)),true);
+  assert.equal(voice.announce('z4-active','still strong',28000,false,g(2)),false);
+  assert.equal(voice.announce('exit','exit',35000),true);
+  assert.equal(voice.announce('z5-ahead','much later',60000,false,g(2)),true);
+  assert.deepEqual(spoken,['glare ahead','stronger','exit','much later']);
+});
+
 test('Unsupported speech stays silent without breaking navigation', () => {
   const voice=createVoiceGuide(null); assert.equal(voice.available,false);
   assert.equal(voice.announce('a','hello',0),false); voice.reset(); voice.stop();

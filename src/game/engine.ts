@@ -509,7 +509,8 @@ export function createEngine(canvas: HTMLCanvasElement) {
         ? [{ id: `current-glare-${S.glareLv}`, start: S.s - S.dir * 2, end: S.s + S.dir * 30, kind: 'glare', name: '현재 3D 시야', source: 'simulation', level: S.glareLv as 1 | 2 }] : [];
       navCue = CP.navigation.draw(S.s, S.running ? S.dir : Math.sign(st.endKm - st.startKm), st.startKm, st.endKm, kmh, [...currentGlare, ...navigationZones], st.guidance, st.voice, voice.available, S.running, S.minutes, sp.alt < 0, warningLeadMeters(kmh, st.sensitivity));
       if (running && st.guidance && navCue && (navCue.active || navCue.meters <= warningLeadMeters(kmh, st.sensitivity))) {
-        voice.announce(navCue.kind === 'unverified' ? 'unverified-route' : `${navCue.id}-${navCue.active ? 'active' : 'ahead'}`, navCue.spoken, now);
+        voice.announce(navCue.kind === 'unverified' ? 'unverified-route' : `${navCue.id}-${navCue.active ? 'active' : 'ahead'}`, navCue.spoken, now, false,
+          navCue.kind === 'glare' ? { name: 'glare', rank: navCue.level ?? 1 } : undefined);
       }
     }
 
