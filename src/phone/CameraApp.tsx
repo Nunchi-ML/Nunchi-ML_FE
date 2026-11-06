@@ -104,7 +104,8 @@ export function CameraApp() {
       {src === 'real' && <div className="srcs" role="group" aria-label="지금 날씨">
         {WEATHER_CHOICES.map(([id, name]) => <button key={id} className={realWeather === id ? 'on' : ''} onClick={() => { weatherRef.current = id; setRealWeather(id); }}>지금 {name}</button>)}
       </div>}
-      <div className="cam" style={{ aspectRatio: aspect }}>
+      {/* 세로 사진(휴대폰 카메라)은 높이를 줄여 판정 결과가 스크롤 없이 보이게 한다. */}
+      <div className="cam" style={aspect < 1 ? { aspectRatio: aspect, height: 'min(34vh, 250px)', width: 'auto', alignSelf: 'center', margin: '0 auto' } : { aspectRatio: aspect }}>
         <video ref={video} playsInline muted style={{ display: 'none' }} /><canvas ref={canvas} />
         <div className="lv" style={{ background: reading ? COLS[reading.level] : '#655d55' }}>
           {reading ? NAMES[reading.level] : state === 'loading' ? '분석 대기 중' : state === 'error' ? '판정 불가' : '분석 전'}
