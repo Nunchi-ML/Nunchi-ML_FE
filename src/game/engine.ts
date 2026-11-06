@@ -132,6 +132,9 @@ export function createEngine(canvas: HTMLCanvasElement) {
   function startRun() {
     const st = G.getState().settings;
     if (!Number.isFinite(st.startKm) || !Number.isFinite(st.endKm) || Math.abs(st.endKm - st.startKm) < 0.1) return;
+    // Close a mobile input's keyboard/focus before changing to the driving view.
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    resize();
     voice.reset(); voice.setEnabled(st.voice && st.guidance);
     voice.announce('navigation-start', '경로 안내를 시작합니다.', performance.now(), true);
     navigationKey = ''; navT = 0; drivingFeel = newDrivingFeel(); visualSteer = 0;
@@ -490,7 +493,10 @@ export function createEngine(canvas: HTMLCanvasElement) {
         navigationZones = routeZones(st.startKm, st.endKm, sp, st.weather, roadsideObservations, { date: st.date, minutes: S.minutes });
       }
       W.roadsideSigns.update(S.s, S.dir, st.startKm, st.endKm, navigationZones, S.running, roadsideObservations);
-      navCue = CP.navigation.draw(S.s, S.running ? S.dir : Math.sign(st.endKm - st.startKm), st.startKm, st.endKm, kmh, navigationZones, st.guidance, st.voice, voice.available, S.running, S.minutes, sp.alt < 0, warningLeadMeters(kmh, st.sensitivity));
+      // Present the current rendered view separately from cached model predictions.
+      const currentGlare: NavigationZone[] = S.running && onScreen && !blocked && !occluded && !section?.covered && S.glareLv >= 1
+        ? [{ id: `current-glare-${S.glareLv}`, start: S.s - S.dir * 2, end: S.s + S.dir * 30, kind: 'glare', name: '현재 3D 시야', source: 'simulation', level: S.glareLv as 1 | 2 }] : [];
+      navCue = CP.navigation.draw(S.s, S.running ? S.dir : Math.sign(st.endKm - st.startKm), st.startKm, st.endKm, kmh, [...currentGlare, ...navigationZones], st.guidance, st.voice, voice.available, S.running, S.minutes, sp.alt < 0, warningLeadMeters(kmh, st.sensitivity));
       if (running && st.guidance && navCue && (navCue.active || navCue.meters <= warningLeadMeters(kmh, st.sensitivity))) {
         voice.announce(navCue.kind === 'unverified' ? 'unverified-route' : `${navCue.id}-${navCue.active ? 'active' : 'ahead'}`, navCue.spoken, now);
       }

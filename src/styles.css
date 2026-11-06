@@ -259,7 +259,7 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
 /* 세로 안내 */
 #rotate{position:fixed;inset:0;z-index:40;background:#120d0a;display:none;align-items:center;justify-content:center;text-align:center;padding:30px}
 #rotate .title{font-size:28px;color:var(--sun)}
-@media (orientation:portrait) and (max-width:820px){#rotate{display:flex}}
+@media (orientation:portrait) and (max-width:900px){#rotate{display:flex}}
 @media (max-width:900px){
   #menu{grid-template-columns:1fr;grid-template-rows:auto auto;overflow-y:auto;align-content:start}
   #menu .left{overflow:visible;padding:22px 24px;gap:10px}
@@ -338,7 +338,7 @@ button:focus-visible,select:focus-visible{outline:3px solid var(--sun);outline-o
 }
 
 /* Route map keeps selected short courses readable on phones; no browser zoom needed. */
-#mapcv{touch-action:none;cursor:grab}
+#mapcv{position:absolute;inset:0;touch-action:none;cursor:grab}
 #mapcv:active{cursor:grabbing}
 #mapwrap.route-map-expanded{position:fixed;inset:12px;z-index:35;min-height:0;background:#17120ffa;box-shadow:0 0 0 24px #120d0ad9}
 .map-expand,.map-zoom button{border:1px solid #ffd45e66;background:#251b13ef;color:var(--cream);font:600 12px "Noto Sans KR",sans-serif;border-radius:9px;cursor:pointer;touch-action:manipulation}
@@ -379,24 +379,51 @@ button:focus-visible,select:focus-visible{outline:3px solid var(--sun);outline-o
 
 /* Start screen: one clear course choice, optional detail, persistent departure. */
 #menu{background:linear-gradient(90deg,#181511 0%,#181511f5 36%,#15191ce6 100%)}
-#menu .left{padding:0;gap:0;overflow:hidden;height:100%;background:#181511f5;border-right:1px solid #e5c48e21}
+#menu .left{padding:0;gap:0;overflow:hidden;height:100%;background:radial-gradient(ellipse at 0 0,#71401e28,transparent 55%),#181511f5;border-right:1px solid #e5c48e21}
 .menu-scroll{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:27px 25px 20px 31px;scrollbar-width:thin;scrollbar-color:#ad8c5b77 transparent;overscroll-behavior:contain}
 .menu-scroll>*{flex-shrink:0}
+.menu-course-choice,.menu-selected,.menu-options{display:flex;flex-direction:column;gap:12px;min-width:0}
 #menu .logo{gap:11px;margin-bottom:5px}#menu .logo img{width:48px;height:48px}#menu h1{font-size:32px}
 #menu .sub{font-size:12px;line-height:1.55;color:#c9c2b8;word-break:keep-all}
-#menu .sect{font:700 13px/1.5 "Noto Sans KR",sans-serif;letter-spacing:0;color:#d8c9af;margin-top:3px}
-#menu .road{border-width:1px;padding:12px;border-color:#e7d6ba30;background:#ffffff04;border-radius:12px}
+.menu-brand{position:relative;isolation:isolate;overflow:hidden;padding-bottom:8px}
+.menu-lead{position:relative;z-index:1;margin:15px 0 0;font-size:23px;font-weight:500;line-height:1.45;letter-spacing:-.8px;color:#e6d9c3;word-break:keep-all}
+.menu-lead strong{font-weight:700;color:#ffda89}
+.menu-horizon{position:absolute;right:-20px;bottom:-5px;width:190px;height:125px;z-index:-1;color:#ffbc5b;pointer-events:none}
+#menu .sect{display:flex;align-items:center;gap:10px;font:700 12px/1.5 "Noto Sans KR",sans-serif;letter-spacing:.1px;color:#ddcbb0;margin-top:3px}
+#menu .sect::after{content:"";height:1px;flex:1;background:linear-gradient(90deg,#d6b67f35,transparent)}
+#menu .roads{gap:10px}
+#menu .road{min-width:0;overflow:hidden;border-width:1px;padding:12px;border-color:#e7d6ba30;background:#ffffff04;border-radius:14px;transition:border-color .15s,background .15s,box-shadow .15s}
+#menu .road-scene{display:block;width:calc(100% + 24px);height:55px;margin:-12px -12px 9px;opacity:.72;transition:opacity .15s}
+#menu .road.on .road-scene,#menu .road:hover .road-scene{opacity:1}
+.road-title{display:flex;align-items:center;justify-content:space-between;gap:4px}
+.road-check{display:grid;place-items:center;flex-shrink:0;width:19px;height:19px;border:1px solid #e2c28935;border-radius:50%;font-size:11px;line-height:1;color:#bcb09d}
+#menu .road.on .road-check{background:#ffd078;border-color:#ffd078;color:#392816}
 #menu .road b{font:700 18px/1.5 "Noto Sans KR",sans-serif;color:#fff5e6}
 #menu .road-purpose{font-size:12px;color:#d7c8b2;margin:3px 0 6px;font-weight:500;word-break:keep-all}
 #menu .road small{display:block;font-size:11px;line-height:1.6;color:#aca69c;word-break:keep-all}
-#menu .road.on{border-color:#ffc559;background:#ffbc4710;box-shadow:inset 0 0 0 1px #ffbc4726}
+#menu .road.on{border-color:#ffc559;background:linear-gradient(140deg,#ffbc4728,#ffbc470a);box-shadow:0 5px 18px #0002,inset 0 0 0 1px #ffbc4726}
+#menu .road:hover{border-color:#eec57b99;background-color:#ffbc4709}
 #menu .road.on .road-purpose{color:#ffda89}
-.selected-course{border:1px solid #edc88450;border-left:3px solid #ffbd51;border-radius:12px;padding:14px 16px;background:linear-gradient(120deg,#ffbe4911,#ffffff03);word-break:keep-all}
-.selected-course>span{font-size:10px;color:#ffda91;font-weight:600;letter-spacing:.3px}
-.selected-course h2{font:700 18px/1.5 "Noto Sans KR",sans-serif;margin:5px 0 7px;color:#fff7e8}
-.selected-course p{display:flex;align-items:center;gap:9px;margin:0;font-size:12px;color:#cfc7ba}.selected-course i{width:3px;height:3px;border-radius:50%;background:#867c6e}
+.selected-course{position:relative;border:1px solid #ffe8b0;border-radius:14px;padding:14px 16px;background:linear-gradient(125deg,#fff0cd,#ecd6aa);box-shadow:0 8px 25px #08050026;word-break:keep-all;color:#382c1e}
+.course-kicker{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.course-kicker>span:first-child{font-size:10px;line-height:1.5;color:#77532a;font-weight:700;letter-spacing:.2px}
+.course-distance{display:flex;align-items:baseline;gap:3px;font-size:22px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.8px}
+.course-distance small{font-size:11px;font-weight:500;letter-spacing:0;color:#77634c}
+.selected-course h2{font:700 17px/1.55 "Noto Sans KR",sans-serif;margin:8px 0 12px;color:#302417;letter-spacing:-.35px}
+.course-stops{display:grid;grid-template-columns:minmax(0,1fr) 32px minmax(0,1fr);align-items:center;gap:10px;padding-bottom:12px;margin-bottom:10px;border-bottom:1px dashed #7c592c40}
+.course-stops>span:last-child{text-align:right}
+.course-stops small{display:block;font-size:9px;line-height:1.5;color:#806b50;margin-bottom:3px}
+.course-stops b{display:block;font-size:12px;font-weight:600;line-height:1.5;color:#46351f;overflow-wrap:anywhere}
+.course-connector{display:flex;align-items:center;justify-content:space-between;position:relative;height:10px}
+.course-connector::before{content:"";position:absolute;inset:4px 0 auto;border-top:1px dashed #9e875f}
+.course-connector i{position:relative;width:6px;height:6px;border:1px solid #5b7e51;border-radius:50%;background:#f8e7c3}
+.course-connector i:last-child{border-color:#bd5732;background:#bd5732}
+.selected-course p{display:flex;align-items:center;gap:9px;margin:0;font-size:11px;color:#6d583e}
+.selected-course p i{width:3px;height:3px;border-radius:50%;background:#9c825d}
 .menu-map-shortcut{display:none}
-.menu-fold{border:1px solid #e5d6bd24;border-radius:11px;background:#ffffff03;overflow:hidden}
+.map-mobile-hint{display:none}
+.menu-fold{border:0;border-bottom:1px solid #e5d6bd24;border-radius:0;background:transparent;overflow:hidden}
+.menu-fold.course-picker{border:1px solid #e5c48e30;border-radius:11px;background:#ffdc8507}
 .menu-fold>summary{display:flex;align-items:center;gap:9px;list-style:none;cursor:pointer;padding:12px 14px;font:600 13px/1.5 "Noto Sans KR",sans-serif;color:#eee8dd}
 .menu-fold>summary::-webkit-details-marker{display:none}.menu-fold>summary>span{min-width:0;flex:1}.menu-fold>summary small{display:block;font-weight:400;font-size:11px;line-height:1.7;color:#aaa69f;margin-top:2px}
 .menu-fold>summary em{font-style:normal;font-size:10px;color:#b6a68d;flex-shrink:0}.menu-fold>summary::after{content:'⌄';font-size:15px;color:#d8bd8d;transition:transform .15s}.menu-fold[open]>summary::after{transform:rotate(180deg)}
@@ -416,17 +443,30 @@ button:focus-visible,select:focus-visible{outline:3px solid var(--sun);outline-o
 #menu .right{padding:24px 24px 20px 20px}#menu #mapwrap{background:#171c20ee;backdrop-filter:none;border-color:#d6c5a32b}
 #menu #sumbar .slab{transform:none;background:#211e19;border:1px solid #d6c5a329;border-radius:10px;padding:10px 12px}#menu #sumbar .in{transform:none}
 #menu #sumbar .v{font:600 14px/1.65 "Noto Sans KR",sans-serif;word-break:keep-all}#menu #sumbar .k{font-size:10px;color:#a9a39a;margin-bottom:2px}
+#menu button:focus-visible,#menu summary:focus-visible{outline:2px solid #ffd078;outline-offset:3px}
+button,summary{touch-action:manipulation}
+@media(any-pointer:coarse){#menu input,#menu select,#phone input,#phone select{font-size:16px!important;min-width:0}}
 @media(max-height:520px) and (orientation:landscape){
  .menu-scroll{padding:13px 16px 14px 22px;gap:8px}#menu .logo{margin:0;gap:8px}#menu .logo img{width:30px;height:30px}#menu h1{font-size:24px}#menu .sub{display:none}
  #menu .sect{font-size:11px;margin:2px 0}#menu .road{padding:8px 9px}#menu .road b{font-size:15px}#menu .road-purpose{font-size:10px;margin:2px 0 0}#menu .road small{display:none}
- .selected-course{padding:9px 11px}.selected-course h2{font-size:14px;margin:3px 0 5px}.selected-course>span{font-size:9px}.selected-course p{font-size:10px}
+ .menu-brand{padding-bottom:0}.menu-lead,.menu-horizon{display:none}#menu .road-scene{display:none}.road-check{width:16px;height:16px;font-size:10px}
+ .menu-course-choice,.menu-selected,.menu-options{gap:8px}
+ .selected-course{padding:9px 11px}.selected-course h2{font-size:14px;margin:4px 0 5px}.course-kicker>span:first-child{font-size:9px}.course-distance{font-size:17px}.course-distance small{font-size:9px}.selected-course p{font-size:10px}.course-stops{display:none}
  .menu-fold>summary{padding:9px 11px;font-size:12px}.menu-fold>summary small{font-size:10px}.menu-fold-body{padding:12px;gap:10px}#menu .mission .badge{display:none}
  .menu-start{padding:9px 16px 11px 22px}.menu-start-status{margin-bottom:6px;font-size:11px}.menu-start-status small{font-size:9px}#menu #go{padding:9px;font-size:15px}
  #menu .right{padding:12px 12px 12px 0}#menu #sumbar .slab{padding:6px 8px}#menu #sumbar .v{font-size:11px}#menu #maptip{font-size:10px;padding:5px 8px}
 }
 @media(max-width:900px) and (orientation:portrait){
- #menu{display:block;padding-bottom:100px;overflow-y:auto}#menu .left{display:block;height:auto;overflow:visible;border:0}.menu-scroll{flex:none;overflow:visible;padding:22px 20px}
- .menu-start{position:fixed;left:0;right:0;bottom:0;padding:12px 20px;z-index:23}#menu .right{padding:0 20px 20px;min-height:350px}
- .menu-map-shortcut{display:block;width:100%;margin-top:11px;padding:8px;border:1px solid #ddbd7b44;border-radius:7px;background:#ffcb5508;color:#e6cca0;font:600 12px "Noto Sans KR",sans-serif}
+ #menu{display:flex;flex-direction:column;gap:16px;padding:20px 20px calc(120px + env(safe-area-inset-bottom));overflow-y:auto;background:radial-gradient(ellipse at top left,#4d321e55,transparent 60%),#181511}
+ #menu .left,.menu-scroll{display:contents}
+ .menu-brand{order:0;flex-shrink:0}.menu-course-choice{order:1;flex-shrink:0}.menu-selected{order:2;flex-shrink:0}.menu-options{order:4;flex-shrink:0;gap:8px}
+ .menu-start{position:fixed;left:0;right:0;bottom:0;padding:12px max(20px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left));z-index:23}
+ #menu .right{order:3;flex-shrink:0;padding:0;min-height:0}
+ #menu #mapwrap:not(.route-map-expanded){height:clamp(260px,36svh,340px);min-height:0;flex:none}
+ #menu #sumbar{display:grid;grid-template-columns:1fr 1fr;margin-top:8px;gap:8px}#menu #sumbar .slab:first-child{display:none}#menu #sumbar .slab{min-width:0}#menu #sumbar .v{font-size:12px}
+ .menu-lead{font-size:16px;line-height:1.5;margin-top:10px;letter-spacing:-.4px}.menu-lead br{display:none}.menu-lead strong{margin-left:4px}.menu-horizon{width:115px;height:80px;right:-12px;opacity:.5}
+ #menu .logo img{width:40px;height:40px}#menu h1{font-size:28px}#menu .sub{font-size:11px}
+ #menu .road-scene{height:42px}#menu .road b{font-size:16px}#menu .road-purpose{font-size:11px}#menu .road small{font-size:10px}.course-stops{gap:6px;grid-template-columns:minmax(0,1fr) 22px minmax(0,1fr)}
+ #menu #maptip{display:none}.map-mobile-hint{display:block;font-size:10px;line-height:1.6;color:#bdb09b;margin:7px 2px 0}#menu #legend{left:10px;right:auto;bottom:56px;max-width:calc(100% - 20px);font-size:9px}
  #menu ~ #rotate{display:none}
 }

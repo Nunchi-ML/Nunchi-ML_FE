@@ -32,3 +32,18 @@ test('Unsupported speech stays silent without breaking navigation', () => {
   const voice=createVoiceGuide(null); assert.equal(voice.available,false);
   assert.equal(voice.announce('a','hello',0),false); voice.reset(); voice.stop();
 });
+
+test('Severe current glare is visible over unknown observations and future warnings in both directions',()=>{
+ for(const dir of [-1,1]){
+  const zones=[
+   {id:'unknown',start:1000-dir*10,end:1000+dir*200,kind:'unverified',source:'unknown'},
+   {id:'future',start:1000+dir*100,end:1000+dir*180,kind:'glare',source:'model',level:1},
+   {id:'current',start:1000-dir*2,end:1000+dir*30,kind:'glare',source:'simulation',level:2},
+  ];
+  const cue=navigationCue(1000,dir,1000+dir*400,zones);
+  assert.equal(cue.id,'current');assert.equal(cue.level,2);assert.equal(cue.active,true);assert.match(cue.text,/눈부심 강함/);assert.match(cue.spoken,/속도를 줄이고/);
+  const ahead=navigationCue(1000,dir,1000+dir*400,zones.slice(0,2));
+  assert.equal(ahead.source,'model');assert.equal(ahead.meters,100);assert.equal(ahead.level,1);
+  assert.equal(navigationCue(1000,dir,1000+dir*400,zones.slice(0,1)).kind,'unverified');
+ }
+});

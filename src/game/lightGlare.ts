@@ -22,6 +22,12 @@ export function createLightGlare() {
         float corona=exp(-r*18.);
         float rays=pow(abs(cos(angle*3.+.18)),32.)*exp(-r*22.);
         float scatter=sunlight*(core*11.+corona*1.5+rays*1.1)*exp(-r*r/.09)*roadMask;
+        // Strong direct sunlight veils the forward detail near the light source.
+        // Keep the peripheral road and cockpit intact; this is authored glare,
+        // independent of the cached photo classifier's grade.
+        float severe=smoothstep(.26,.72,sunlight);
+        float veil=severe*exp(-dot(d/vec2(.25,.20),d/vec2(.25,.20))*1.4)*roadMask;
+        scene.rgb=mix(scene.rgb,vec3(1.55,1.37,1.02),veil*.8);
         // Bright outdoor surfaces overexpose first at an exit. Dark objects
         // and the dashboard retain their contrast instead of turning milky.
         float luminance=dot(scene.rgb,vec3(.2126,.7152,.0722));

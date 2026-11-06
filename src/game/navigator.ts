@@ -4,12 +4,15 @@ import { UNDERPASSES, kmToS, sToKm } from './road';
 import type { SegmentAssessment } from './preTrip';
 import { type NavigationZone } from './navigationGuidance';
 import { adaptationScores, sceneLuminance } from './adaptation';
-import { lookupRouteAnalysis } from './routeAnalysis';
+import { lookupRouteAnalysis, routeAnalysisWarnings } from './routeAnalysis';
 import { ROAD_ID } from './roadSelection';
 
 export function routeZones(startKm: number, endKm: number, sun: { alt: number; az: number }, weather: 'clear' | 'cloud' | 'over', assessments?: SegmentAssessment[], context?: { date: string; minutes: number }): NavigationZone[] {
   const dir = Math.sign(endKm - startKm), start = kmToS(startKm), end = kmToS(endKm), lo = Math.min(start, end), hi = Math.max(start, end);
   const zones: NavigationZone[] = [];
+  if (context) for (const a of routeAnalysisWarnings(ROAD_ID, { ...context, weather, startKm, endKm })) {
+    zones.push({ id: `model-${a.id}`, start: kmToS(dir > 0 ? a.km0 : a.km1), end: kmToS(dir > 0 ? a.km1 : a.km0), kind: 'glare', name: '저장된 사진 모델 판정', source: 'model', level: a.level });
+  }
   if (assessments) {
     for (const a of assessments) {
       if (a.state === 'normal') continue;
@@ -17,7 +20,7 @@ export function routeZones(startKm: number, endKm: number, sun: { alt: number; a
       const kind = a.state === 'unknown' ? 'unverified' : 'glare';
       const id = a.state === 'unknown' ? 'unverified' : a.observation?.id ?? a.segment.id;
       const level = a.level === 1 || a.level === 2 ? a.level : undefined;
-      const start = kmToS(a.segment.km0), end = kmToS(a.segment.km1), previous = zones[zones.length - 1];
+      const start = kmToS(dir > 0 ? a.segment.km0 : a.segment.km1), end = kmToS(dir > 0 ? a.segment.km1 : a.segment.km0), previous = zones[zones.length - 1];
       if (previous && previous.kind === kind && previous.level === level && previous.source === source && previous.id.startsWith(id) && Math.abs(previous.end - start) < 1) previous.end = end;
       else zones.push({ id: `${id}-${Math.round(start)}`, start, end, kind, source, level, name: a.state === 'unknown' ? '도로변 관측 미확인' : '도로변 사진 관측 주의 구간' });
     }
@@ -56,7 +59,7 @@ export function createNavigator() {
     const normalX = Math.min(.65, (innerWidth / 2 - 18) * .87 / (innerHeight * .866) - .2376);
     group.position.set(compact ? compactX : normalX, compact ? -.21 : -.28, compact ? -.8 : -.87); group.scale.setScalar(compact ? .84 : .72);
     const cue=drawNavigationDisplay(canvas,...args);
-    const attention=cue && cue.kind !== 'unverified' && (cue.active || cue.meters<=100);
+    const attention=cue && cue.kind !== 'unverified' && (cue.level===2 || cue.active || cue.meters<=100);
     chassis.material.emissive.setHex(attention ? 0x922d2d : 0x000000);
     chassis.material.emissiveIntensity=attention ? .24 : 0;
     texture.needsUpdate=true;return cue;
