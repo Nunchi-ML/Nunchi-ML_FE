@@ -67,3 +67,22 @@ test('Building footprints contain surveyed floors and no copied bank landmark', 
   assert.equal(data.road, 'sincheon'); assert.equal(data.bank, null); assert.ok(data.b.length > 9000);
   for (const b of data.b) { assert.ok(b.p.length >= 6); assert.ok(b.f >= 1); assert.ok(Number.isFinite(b.h) && b.h > 0); }
 });
+
+test('Terrain meets the outside of retaining walls instead of leaving empty strips',()=>{
+ const ground=new THREE.Mesh(groundGeometry(),new THREE.MeshBasicMaterial({side:THREE.DoubleSide}));ground.updateMatrixWorld(true);
+ for(const u of road.UNDERPASSES)for(let s=u.s0-u.ramp+8;s<u.s1+u.ramp-8;s+=8)for(const side of [-1,1]){
+  const p=road.at(s),offset=side*(road.ROAD_W/2+1.6);
+  const ray=new THREE.Raycaster(new THREE.Vector3(p.x-p.dz*offset,15,p.z+p.dx*offset),new THREE.Vector3(0,-1,0));
+  assert.ok(ray.intersectObject(ground).length,`${u.name}: missing ground outside wall at ${s}`);
+ }
+});
+
+test('Portal skylight joins daylight continuously in both directions',()=>{
+ for(const u of road.UNDERPASSES)for(const dir of [-1,1]){
+  const entry=dir>0?u.s0:u.s1,exit=dir>0?u.s1:u.s0;
+  for(const s of [entry,exit]){
+   const before=underpassAt(s-.001,dir),after=underpassAt(s+.001,dir);
+   assert.ok(Math.abs(before.sky-after.sky)<.001,`${u.name}: portal illumination pop`);
+  }
+ }
+});
