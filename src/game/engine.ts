@@ -69,7 +69,8 @@ export function createEngine(canvas: HTMLCanvasElement) {
   }
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(W.scene, camera));
-  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.3, 0.22, 0.92);
+  // Bloom belongs to bright light sources, not the whole daylight street.
+  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.06, 0.12, 1.6);
   composer.addPass(bloom); composer.addPass(new OutputPass());
 
   /* ---------- 주행 상태 ---------- */
@@ -358,21 +359,21 @@ export function createEngine(canvas: HTMLCanvasElement) {
       phase: section.phase === 'approach' ? '진입 전 · 밝기 전환 준비' : section.covered ? (vision.dark > .1 ? '어두워진 시야에 적응 중' : '지하차도 내부') : vision.white > .08 ? '밝아진 시야에 적응 중' : '출구 통과 · 시야 회복',
       burden: vision.burden, score: section.phase === 'approach' || (section.covered && vision.dark > .1) ? aScore.entry : aScore.exit, entryScore: aScore.entry, exitScore: aScore.exit, pupil: vision.pupil,
       distance: Math.max(0, section.phase === 'approach' ? section.toEntry : section.toExit) } : undefined;
-    u.turbidity.value = st.weather === 'over' ? 18 : st.weather === 'cloud' ? 8 : 3.5;
+    u.turbidity.value = st.weather === 'over' ? 14 : st.weather === 'cloud' ? 5.5 : 2.2;
     W.sun.position.set(cx + sv.x * 400, Math.max(5, sv.y * 400), cz + sv.z * 400); W.sun.target.position.set(cx, 0, cz);
     const dayK = Math.max(0, Math.min(1, (sp.alt + 4) / 14));
-    // 그늘·흐린 날에도 너무 어둡지 않게 하늘빛(반사광)을 넉넉히
-    W.sun.intensity = 3.0 * dayK * wx; W.hemi.intensity = .45 + .65 * dayK + (1 - wx) * .65;
+    // Preserve daylight contrast instead of lifting every shaded surface to grey.
+    W.sun.intensity = 2.6 * dayK * wx; W.hemi.intensity = .4 + .55 * dayK + (1 - wx) * .5;
     W.sunDisc.visible = sp.alt > -1 && st.weather !== 'over' && !section?.covered;
     W.sunDisc.position.copy(camera.position).addScaledVector(sv, SUN_DIST);
     const lowSun = Math.max(0, Math.min(1, (20 - sp.alt) / 20)) * dayK;
     horizon.setHSL(0.07 + 0.04 * (1 - lowSun), 0.5 + 0.3 * lowSun, 0.22 + 0.28 * dayK);
     (W.scene.fog as THREE.Fog).color.copy(horizon);
-    (W.scene.fog as THREE.Fog).near = st.weather === 'over' ? 600 : 1100;
-    (W.scene.fog as THREE.Fog).far = st.weather === 'over' ? 3500 : 6500;
-    W.sun.color.setHSL(0.09, 0.4 + 0.55 * lowSun, 0.62);
+    (W.scene.fog as THREE.Fog).near = st.weather === 'over' ? 650 : st.weather === 'cloud' ? 1300 : 1800;
+    (W.scene.fog as THREE.Fog).far = st.weather === 'over' ? 3500 : st.weather === 'cloud' ? 6000 : 8000;
+    W.sun.color.setHSL(0.09, 0.18 + 0.65 * lowSun, 0.84);
     W.hemi.color.setHSL(0.08, 0.5 * lowSun, 0.75); W.hemi.groundColor.setHSL(0.06, 0.45, 0.22);
-    renderer.toneMappingExposure = (.50 + .23 * dayK) * (S.running ? vision.exposure : 1);
+    renderer.toneMappingExposure = (.46 + .20 * dayK) * (S.running ? vision.exposure : 1);
     updateEnv(sp.alt, sp.az, st.weather);
     W.lampHeads.emissiveIntensity = (1 - dayK) * 2.5;
     if (W.bankGlow) W.bankGlow.emissiveIntensity = 0.5 + (1 - dayK) * 2.5;   // 본점 왕관은 해 질 녘에 더 밝게
@@ -401,20 +402,21 @@ export function createEngine(canvas: HTMLCanvasElement) {
     sunMat.color.setRGB(1, 0.95, 0.8).multiplyScalar(occluded ? 0.7 : 1.25 + 1.6 * Math.min(1, Is * 1.6));
     const shadeOn = S.running && st.glass && S.glareLv >= 1 && onScreen && !blocked && S.cam === 'cockpit';
     const eff = shadeOn ? Is * 0.35 : Is;
-    if (els.wash) els.wash.style.opacity = (eff * 0.32).toFixed(3);
+    if (els.wash) els.wash.style.opacity = (eff * 0.14).toFixed(3);
     if (els.glare) els.glare.style.background = onScreen
       ? `radial-gradient(circle at ${sxp}px ${syp}px, rgba(255,250,232,${(eff * 0.7).toFixed(2)}) 0, rgba(255,236,190,${(eff * 0.34).toFixed(2)}) 2.6vh, rgba(255,214,150,${(eff * 0.12).toFixed(2)}) 11vh, rgba(255,210,140,0) 30vh)`
       : 'none';
     if (els.shade) { els.shade.style.opacity = shadeOn ? '1' : '0'; els.shade.style.left = sxp + 'px'; els.shade.style.top = syp + 'px'; }
-    bloom.strength = (st.gfx === 'high' ? 0.26 : 0.2) + eff * 0.4;
+    bloom.strength = (st.gfx === 'high' ? 0.06 : 0.04) + eff * 0.22;
 
     // Temporal contrast loss recovers from illumination history, independent of the sun disk.
     const white = S.running ? vision.white : 0, dark = S.running ? vision.dark : 0;
     if (els.adaptationVeil) {
       els.adaptationVeil.style.backgroundColor = white >= dark ? '#fff9e8' : '#080a10';
-      els.adaptationVeil.style.opacity = String(Math.max(white * .56, dark * .65));
+      els.adaptationVeil.style.opacity = String(Math.max(white * .36, dark * .55));
     }
-    canvas.style.filter = S.running ? `contrast(${1 - white * .28 - dark * .12}) blur(${(white * 1.3).toFixed(2)}px)` : '';
+    canvas.style.filter = S.running && Math.max(white, dark) > .02
+      ? `contrast(${1 - white * .18 - dark * .08}) blur(${(Math.max(0, white - .12) * .5).toFixed(2)}px)` : '';
 
     // The dashboard unit follows the same route and position as the vehicle.
     const kmh = S.v * 3.6;

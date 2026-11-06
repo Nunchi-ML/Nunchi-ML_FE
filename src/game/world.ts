@@ -6,6 +6,7 @@ import { buildCity } from './city';
 import { buildIntersections, nearCrossing } from './intersections';
 import { buildOsmMarkers } from './osm';
 import { buildUnderpasses, groundGeometry, underpassAt } from './underpasses';
+import { createTreeAssets } from './trees';
 
 /** 결정적 난수 (매번 같은 도시) */
 export function makeRand(seed = 7) { let r = seed; return () => (r = (r * 16807) % 2147483647) / 2147483647; }
@@ -23,7 +24,7 @@ function canvasTex(w: number, h: number, draw: (g: CanvasRenderingContext2D) => 
 
 function roadTexture() {
   const t = canvasTex(512, 256, g => {
-    g.fillStyle = '#41474b'; g.fillRect(0, 0, 512, 256);
+    g.fillStyle = '#4b5053'; g.fillRect(0, 0, 512, 256);
     for (let i = 0; i < 2600; i++) { g.fillStyle = `rgba(${Math.random() < .5 ? '255,255,255' : '0,0,0'},${Math.random() * .05})`; g.fillRect(Math.random() * 512, Math.random() * 256, 2, 2); }
     const pixel = (offset: number) => (offset / ROAD_W + .5) * 512;
     const paintWidth = .15 / ROAD_W * 512;
@@ -34,7 +35,7 @@ function roadTexture() {
     }
     g.fillStyle = '#f0c040';
     for (const side of [-1, 1]) g.fillRect(pixel(side * .15) - paintWidth / 2, 0, paintWidth, 256);
-    g.fillStyle = '#ddd4c2';
+    g.fillStyle = ROAD_W === 16 ? '#e6bf58' : '#ddd4c2';
     for (const side of [-1, 1]) g.fillRect(pixel(side * LANE_WIDTH * LANE_COUNT) - paintWidth / 2, 0, paintWidth, 256);
   });
   t.wrapS = THREE.ClampToEdgeWrapping; t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t;
@@ -111,25 +112,25 @@ export function createWorld(): World {
   const q = new THREE.Quaternion(), m4 = new THREE.Matrix4(), col = new THREE.Color(), up = new THREE.Vector3(0, 1, 0);
 
   /* ---------- 가로수 · 가로등 ---------- */
-  const trunkGeo = new THREE.CylinderGeometry(0.18, 0.25, 3, 6); trunkGeo.translate(0, 1.5, 0);
-  const crownGeo = new THREE.IcosahedronGeometry(2.3, 1); crownGeo.translate(0, 4.6, 0);
+  const { trunkGeo, crownGeo, trunkMat, crownMat } = createTreeAssets();
   const NT = 1400;
-  const trunks = new THREE.InstancedMesh(trunkGeo, new THREE.MeshLambertMaterial({ color: 0x5b4636 }), NT);
-  const crowns = new THREE.InstancedMesh(crownGeo, new THREE.MeshLambertMaterial({ color: 0xffffff }), NT);
-  crowns.castShadow = true;
-  const leaf = [0x5f7d3f, 0x6f8a45, 0x7d8b3c, 0x8e8a3a, 0xa0782f];                // 가을 느낌 섞기
+  const trunks = new THREE.InstancedMesh(trunkGeo, trunkMat, NT);
+  const crowns = new THREE.InstancedMesh(crownGeo, crownMat, NT);
+  crowns.castShadow = true; trunks.castShadow = true;
+  trunks.name = 'avenue-trunks'; crowns.name = 'avenue-canopies';
+  const leaf = [0x729350, 0x809c59, 0x8a9e5e, 0x7d9552, 0x9c9a5c];                // 가을 느낌 섞기
   let nt = 0;
   for (let s = 8; s < TOTAL && nt < NT - 120; s += Math.max(17, TOTAL * 2 / (NT - 120))) for (const side of [-1, 1]) {
     if (nt >= NT || rand() < 0.18 || nearCrossing(s) || underpassAt(s)?.covered || at(s).y < -.1) continue;           // 사거리 · 횡단보도 자리는 비움
     const p = at(s), off = side * (ROAD_W / 2 + 3.6), x = p.x - p.dz * off, z = p.z + p.dx * off, k = 0.8 + rand() * 0.45;
-    q.identity(); m4.compose(new THREE.Vector3(x, 0, z), q, new THREE.Vector3(k, k, k));
+    q.setFromAxisAngle(up, rand() * Math.PI * 2); m4.compose(new THREE.Vector3(x, 0, z), q, new THREE.Vector3(k * (.85 + rand() * .25), k * (.85 + rand() * .3), k));
     trunks.setMatrixAt(nt, m4); crowns.setMatrixAt(nt, m4); crowns.setColorAt(nt, col.setHex(leaf[(rand() * leaf.length) | 0])); nt++;
   }
   // 종점 뒤쪽은 낮은 가로수로 이어 주고 먼 곳은 안개에 자연스럽게 섞는다.
   for (const end of [-1, 1]) for (let d = 40; d <= 1200 && nt < NT; d += 40) for (const side of [-1, 1]) {
     if (nt >= NT) break;
     const p = at(end < 0 ? -d : TOTAL + d), off = side * (ROAD_W / 2 + 4.5), k = .75 + rand() * .45;
-    q.identity(); m4.compose(new THREE.Vector3(p.x - p.dz * off, 0, p.z + p.dx * off), q, new THREE.Vector3(k, k, k));
+    q.setFromAxisAngle(up, rand() * Math.PI * 2); m4.compose(new THREE.Vector3(p.x - p.dz * off, 0, p.z + p.dx * off), q, new THREE.Vector3(k, k * (.85 + rand() * .3), k));
     trunks.setMatrixAt(nt, m4); crowns.setMatrixAt(nt, m4); crowns.setColorAt(nt, col.setHex(leaf[(rand() * leaf.length) | 0])); nt++;
   }
   trunks.count = crowns.count = nt; scene.add(trunks, crowns);

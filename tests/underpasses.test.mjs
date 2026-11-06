@@ -48,13 +48,17 @@ test('Both directions encounter approach, coverage, exit in the correct order', 
 test('Ground holes expose sunken road; actual roofs block sun rays', () => {
   const ground = new THREE.Mesh(groundGeometry(), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
   const scene = new THREE.Scene(); const blockers = buildUnderpasses(scene); scene.updateMatrixWorld(true);
-  assert.ok(scene.children.length <= 5, 'structural meshes should be batched');
+  assert.ok(scene.children.length <= 10, 'underpass details should share material batches');
   for (const u of road.UNDERPASSES) {
     const p = road.at((u.s0+u.s1)/2);
     const fromAbove = new THREE.Raycaster(new THREE.Vector3(p.x, 20, p.z), new THREE.Vector3(0,-1,0));
     assert.equal(fromAbove.intersectObject(ground).length, 0, 'ground must not seal the underpass');
     const fromDriver = new THREE.Raycaster(new THREE.Vector3(p.x, p.y+1.2, p.z), new THREE.Vector3(0,1,0));
     assert.ok(fromDriver.intersectObjects(blockers).length > 0, 'roof must block direct sunlight');
+    for (const offset of [-5.25, -1.75, 1.75, 5.25]) {
+      const clearance = new THREE.Raycaster(new THREE.Vector3(p.x-p.dz*offset, p.y+.2, p.z+p.dx*offset), new THREE.Vector3(0,1,0), 0, 2);
+      assert.equal(clearance.intersectObjects(scene.children).length, 0, 'median and furnishings must leave vehicle lanes clear');
+    }
   }
 });
 
