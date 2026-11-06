@@ -12,7 +12,7 @@ export function underpassAt(s: number, direction = 1) {
   const toEntry = (entry - s) * direction, toExit = (exit - s) * direction;
   const penetration = covered ? Math.max(0, Math.min(s - u.s0, u.s1 - s)) : 0;
   // Open portals admit skylight; deep inside the roof blocks direct sunlight.
-  const sky = covered ? Math.exp(-penetration / 10) * .45 : 1;
+  const sky = covered ? Math.exp(-penetration / 10) : 1;
   return { ...u, covered, toEntry, toExit, sky, phase: covered ? 'inside' : toEntry > 0 ? 'approach' : 'exit' };
 }
 
@@ -23,7 +23,9 @@ export function groundGeometry() {
   for (const u of UNDERPASSES) {
     const left: THREE.Vector2[] = [], right: THREE.Vector2[] = [];
     for (let s = u.s0 - u.ramp - 2; s <= u.s1 + u.ramp + 6; s += 4) {
-      const p = at(s), r = ROAD_W / 2 + 7.2;
+      // Close the cut inside the retaining wall thickness, so ground meets
+      // concrete instead of leaving a wide open trench behind both walls.
+      const p = at(s), r = ROAD_W / 2 + .8;
       left.push(new THREE.Vector2(p.x - p.dz * r, -(p.z + p.dx * r)));
       right.push(new THREE.Vector2(p.x + p.dz * r, -(p.z - p.dx * r)));
     }

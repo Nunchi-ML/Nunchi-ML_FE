@@ -71,7 +71,8 @@ test('Continuous traversal of the actual short underpass produces an exit accent
     for (let s = entry - dir * 30; (exit + dir * 90 - s) * dir > 0; s += dir * speed / 60) {
       const covered = s >= u.s0 && s <= u.s1;
       const penetration = covered ? Math.min(s - u.s0, u.s1 - s) : 0;
-      const light = covered ? 9 + outside * Math.exp(-penetration / 10) * .45 : outside;
+      const sky = covered ? Math.exp(-penetration / 10) : 1;
+      const light = outside * sky + 9 * (1 - sky);
       const v = stepAdaptation(state, light, 1 / 60, true, { covered, outsideLuminance: outside });
       peak = Math.max(peak, v.exitPulse);
     }

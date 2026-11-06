@@ -17,16 +17,26 @@ export function createLightGlare() {
         vec4 scene=texture2D(tDiffuse,vUv);
         float roadMask=smoothstep(1.-roadBottom,1.-roadBottom+.09,vUv.y);
         vec2 d=(vUv-sunUv)*vec2(aspect,1.);
-        float r=length(d), angle=atan(d.y,d.x);
-        float core=.000065/(r*r+.000065);
-        float corona=exp(-r*26.);
-        float rays=pow(abs(cos(angle*3.+.18)),42.)*exp(-r*32.);
-        float scatter=sunlight*(core*8.+corona*.8+rays*.55)*roadMask;
+        float r=length(d), angle=atan(d.y,d.x+.000001);
+        float core=.00016/(r*r+.00016);
+        float corona=exp(-r*18.);
+        float rays=pow(abs(cos(angle*3.+.18)),32.)*exp(-r*22.);
+        float scatter=sunlight*(core*11.+corona*1.5+rays*1.1)*exp(-r*r/.09)*roadMask;
         // Bright outdoor surfaces overexpose first at an exit. Dark objects
         // and the dashboard retain their contrast instead of turning milky.
         float luminance=dot(scene.rgb,vec3(.2126,.7152,.0722));
         float bright=smoothstep(.28,.95,luminance);
-        scene.rgb*=1.+exitLight*bright*2.8*roadMask;
+        scene.rgb*=1.+exitLight*bright*4.6*roadMask;
+        if(exitLight>.002 && roadMask>0.){
+          // Short-lived diffusion around bright portal edges, never a white
+          // screen overlay or a blur of the navigation display.
+          vec2 radius=vec2(.016/aspect,.016);
+          vec3 halo=max(texture2D(tDiffuse,vUv+vec2(radius.x,0.)).rgb-.5,vec3(0.));
+          halo+=max(texture2D(tDiffuse,vUv-vec2(radius.x,0.)).rgb-.5,vec3(0.));
+          halo+=max(texture2D(tDiffuse,vUv+vec2(0.,radius.y)).rgb-.5,vec3(0.));
+          halo+=max(texture2D(tDiffuse,vUv-vec2(0.,radius.y)).rgb-.5,vec3(0.));
+          scene.rgb+=min(halo*.25,vec3(2.))*exitLight*.9*roadMask;
+        }
         scene.rgb+=vec3(1.,.93,.78)*scatter;
         gl_FragColor=scene;
       }`,

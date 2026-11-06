@@ -98,6 +98,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
   };
   let glareDiagnostics = { intensity: 0, angle: 0, sunAltitude: 0, blockedByCar: false, blockedByWorld: false, onScreen: false };
   const adaptation = newAdaptation();
+  let exitGlare = 0;
   const passageRecords: PassageRecord[] = [];
   let currentPassage: PassageRecord | null = null;
   let observerReference: { s: number; direction: number } | null = null;
@@ -136,6 +137,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
     navigationKey = ''; navT = 0; drivingFeel = newDrivingFeel(); visualSteer = 0;
     S.referenceFrame = false; observerReference = null;
     resetAdaptation(adaptation);
+    exitGlare = 0;
     passageRecords.length = 0; currentPassage = null;
     S.dir = st.endKm >= st.startKm ? 1 : -1;
     S.s = kmToS(st.startKm); S.v = 0; S.lane = 1; S.laneX = S.targetX = laneOffset(1); S.laneV = 0; S.steerTouch = 0;
@@ -380,7 +382,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
     W.tunnelLighting.update(S.s);
     const cached = S.referenceFrame ? null : lookupRouteAnalysis(ROAD_ID, { ...st, minutes: S.minutes }, sToKm(S.s));
     const outsideL = cached?.adaptation?.outsideLuminance ?? sceneLuminance(sp.alt, st.weather);
-    const sceneL = section?.covered ? 9 + outsideL * section.sky : outsideL;
+    const sceneL = section?.covered ? outsideL * section.sky + 9 * (1 - section.sky) : outsideL;
     const vision = stepAdaptation(adaptation, sceneL, running ? dt : 0, S.running && !S.referenceFrame, { covered: !!section?.covered, outsideLuminance: outsideL });
     if (running) {
       if (section?.covered) {
@@ -448,9 +450,15 @@ export function createEngine(canvas: HTMLCanvasElement) {
     if (els.wash) els.wash.style.opacity = '0';
     if (els.glare) els.glare.style.background = 'none';
     if (els.shade) { els.shade.style.opacity = shadeOn ? '1' : '0'; els.shade.style.left = sxp + 'px'; els.shade.style.top = syp + 'px'; }
-    const exitLight = S.running ? Math.max(vision.exitPulse, vision.white * .35) : 0;
-    bloom.strength = (st.gfx === 'high' ? .06 : .04) + eff * .5 + exitLight * .65;
-    bloom.threshold = 1.6 - exitLight * .65;
+    const exitApproach = section?.covered ? THREE.MathUtils.smoothstep(1 - section.toExit / 30, 0, 1) : 0;
+    const contrastHistory = Math.min(1, Math.max(0, Math.log10(Math.max(1, outsideL / Math.max(1, 10 ** adaptation.darkestLogL))) / 2));
+    const portalGlare = section?.covered && outsideL >= 150 ? .7 * exitApproach * Math.min(1, adaptation.coveredSeconds / 2) * contrastHistory : 0;
+    const exitTarget = S.running && !S.referenceFrame ? Math.max(vision.exitPulse, portalGlare, vision.white * .4) : 0;
+    if (!S.running || S.referenceFrame) exitGlare = 0;
+    else exitGlare += (exitTarget - exitGlare) * (1 - Math.exp(-(running ? dt : 0) / (exitTarget > exitGlare ? .07 : .16)));
+    const exitLight = exitGlare;
+    bloom.strength = (st.gfx === 'high' ? .06 : .04) + eff * .65 + exitLight * .9;
+    bloom.threshold = 1.6 - exitLight * .8;
     const compactView = isTouch || (innerWidth <= 900 && innerWidth > innerHeight);
     const roadBottom = S.cam === 'cockpit' ? compactView ? .57 : .65 : 1;
     const directLight = W.sunDisc.visible && onScreen && !blocked && !occluded && !section?.covered ? Math.pow(eff, 1.25) : 0;
