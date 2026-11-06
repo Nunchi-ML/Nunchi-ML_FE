@@ -27,17 +27,24 @@ export interface SpeechPort {
   cancel(): void; speak(text: string): void;
 }
 /** Queue at most the newest relevant instruction; never accumulate old distances. */
+/** 같은 종류(예: 눈부심) 안내는 이 시간 안에 다시 말하지 않는다. 더 심해질 때만 예외. */
+export const TOPIC_QUIET_MS = 30000;
 export function createVoiceGuide(port: SpeechPort | null) {
-  const said = new Set<string>();
+  const said = new Set<string>(), topics = new Map<string, { at: number; rank: number }>();
   let enabled = true, lastAt = -Infinity;
   return {
     available: port !== null,
     setEnabled(value: boolean) { if (enabled && !value) port?.cancel(); enabled = value; },
-    reset() { port?.cancel(); said.clear(); lastAt = -Infinity; },
+    reset() { port?.cancel(); said.clear(); topics.clear(); lastAt = -Infinity; },
     stop() { port?.cancel(); },
-    announce(id: string, text: string, now: number, immediate = false) {
+    announce(id: string, text: string, now: number, immediate = false, topic?: { name: string; rank: number }) {
       if (!enabled || !port || said.has(id) || (!immediate && now - lastAt < 6500)) return false;
-      port.cancel(); port.speak(text); said.add(id); lastAt = now; return true;
+      // 눈부심 구간이 이어지는 동안 같은 말을 되풀이하지 않는다(100 m 판정 칸마다 말하던 문제).
+      const prev = topic && topics.get(topic.name);
+      if (topic && prev && now - prev.at < TOPIC_QUIET_MS && topic.rank <= prev.rank) { said.add(id); return false; }
+      port.cancel(); port.speak(text); said.add(id); lastAt = now;
+      if (topic) topics.set(topic.name, { at: now, rank: topic.rank });
+      return true;
     },
   };
 }

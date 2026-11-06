@@ -11,7 +11,9 @@ export function routeZones(startKm: number, endKm: number, sun: { alt: number; a
   const dir = Math.sign(endKm - startKm), start = kmToS(startKm), end = kmToS(endKm), lo = Math.min(start, end), hi = Math.max(start, end);
   const zones: NavigationZone[] = [];
   if (context) for (const a of routeAnalysisWarnings(ROAD_ID, { ...context, weather, startKm, endKm })) {
-    zones.push({ id: `model-${a.id}`, start: kmToS(dir > 0 ? a.km0 : a.km1), end: kmToS(dir > 0 ? a.km1 : a.km0), kind: 'glare', name: '저장된 사진 모델 판정', source: 'model', level: a.level });
+    const start = kmToS(dir > 0 ? a.km0 : a.km1), end = kmToS(dir > 0 ? a.km1 : a.km0), previous = zones[zones.length - 1];
+    if (previous && previous.source === 'model' && previous.level === a.level && Math.abs(previous.end - start) < 1) previous.end = end;
+    else zones.push({ id: `model-${a.id}`, start, end, kind: 'glare', name: '저장된 사진 모델 판정', source: 'model', level: a.level });
   }
   if (assessments) {
     for (const a of assessments) {
