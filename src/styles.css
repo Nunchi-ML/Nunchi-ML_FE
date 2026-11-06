@@ -477,3 +477,22 @@ button,summary{touch-action:manipulation}
 .pretrip-model span{font-size:10px;color:#d4c3aa;line-height:1.5}
 .pretrip-model-bar{display:flex;gap:2px;height:8px}.pretrip-model-bar i{flex:1;border-radius:2px}
 .pretrip-model-bar .lv0{background:#3BA55C}.pretrip-model-bar .lv1{background:#FF8A1F}.pretrip-model-bar .lv2{background:#F2522E}
+
+/* 메인 화면: 눈부심 카메라 바로 쓰기 (보조 입구) */
+.menu-camera{margin-top:8px;width:100%;padding:9px 12px;border:1px solid rgba(255,212,94,.45);border-radius:12px;background:rgba(255,212,94,.08);color:var(--cream);font:inherit;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:2px}
+.menu-camera b{font-size:15px}.menu-camera small{font-size:11.5px;color:#d9c6a8}
+.menu-camera:hover{background:rgba(255,212,94,.16)}
+@media (max-height:520px){.menu-camera{margin-top:6px;padding:7px 10px}.menu-camera small{display:none}.menu-camera b{font-size:13.5px}}
+/* 카메라 앱: 버튼 · 카메라 · 판정 결과 묶음 */
+.cam-layout{display:grid;grid-template-columns:minmax(0,1fr);grid-template-areas:"controls" "cam" "info";gap:10px}
+.cam-controls{grid-area:controls;display:flex;flex-direction:column;gap:6px;min-width:0}
+.cam-layout>.cam{grid-area:cam}
+.cam-info{grid-area:info;display:flex;flex-direction:column;gap:10px;min-width:0}
+.cam.portrait{height:305px}
+/* 낮고 넓은 화면(휴대폰 가로): 카메라 왼쪽 · 버튼과 결과 오른쪽, 설명 숨김 */
+@media (max-height:520px){
+  #phone .cam-desc{display:none}
+  #phone .cam-layout{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"cam controls" "cam info";grid-template-rows:auto 1fr;align-items:start;column-gap:12px}
+  #phone .cam-layout>.cam{max-width:none;width:min(46vw,300px);margin:0;align-self:start}
+  #phone .cam-layout>.cam.portrait{width:auto!important;height:calc(100dvh - 150px);min-height:150px}
+}
