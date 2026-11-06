@@ -16,7 +16,7 @@ export function roadsideMessage(s: number, dir: number, end: number, zones: Navi
   const burden = (score: number) => score >= .65 ? '큼' : score >= .35 ? '보통' : '작음';
   const distance = (target: number) => `전방 ${Math.max(10, Math.round((target - s) * dir / 10) * 10)} m`;
   const portal = transition && (transition.entryS - s) * dir > 0 ? transition.entryS : exit ? zones.find(z => z.id === exit.id)!.start : s;
-  const photoSource = (normal ? normal.assessment.example : photo?.source === 'example') ? '가상 사진 판정 예시' : caution || normal ? '전방 카메라 사진 + 태양·날씨 판정' : '전방 카메라 사진 미확인';
+  const photoSource = photo?.source === 'model' ? '시뮬레이션 사진 모델 판정 · 실제 도로 관측 아님' : (normal ? normal.assessment.example : photo?.source === 'example') ? '가상 사진 판정 예시' : caution || normal ? '전방 카메라 사진 + 태양·날씨 판정' : '전방 카메라 사진 미확인';
   return {
     state: caution ? 'caution' : normal ? 'observed' : photo?.kind === 'unverified' ? 'unknown' : 'information',
     title: caution ? `${photo.active ? '현재 구간' : `전방 ${photo.meters} m`} · ${photoZone?.level === 2 ? '눈부심 강함' : '눈부심 주의'}` : normal ? `${(normal.start - s) * dir > 0 ? distance(normal.start) : '현재 관측 구간'} · 눈부심 관측 없음` : photo?.kind === 'unverified' ? '전방 눈부심 · 관측 미확인' : '도로변 관측 안내',

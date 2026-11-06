@@ -5,7 +5,7 @@ import ts from 'typescript';
 let source=await readFile(new URL('../src/game/routeAnalysis.ts',import.meta.url),'utf8');
 source=source.replace("import raw from '../data/route_analysis.json';",'const raw={cases:[]};');
 const code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
-const {lookupRouteAnalysis}=await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
+const {lookupRouteAnalysis,routeAnalysisWarnings}=await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
 const settings={date:'2026-09-20',minutes:1070,weather:'clear',startKm:22.95,endKm:21.8};
 const sample={km0:22.7,km1:22.8,km:22.75,level:1,scores:{normal:.2,glare:.7,severe:.1},imageSha256:'fixture',geometricGlare:0};
 const entry={id:'fixture',road:'dalgu',status:'final',date:settings.date,minutes:1070,weather:'clear',direction:-1,modelVersion:'test-fixture-only',samples:[sample]};
@@ -29,4 +29,13 @@ test('An entrance-only candidate never becomes a validated exit prediction',()=>
  assert.equal(lookup({...adaptation,validatedZones:'entryexit'}).adaptation,undefined);
  assert.equal(lookup({...adaptation,validatedZones:['entry','exit'],modelVersion:' '}).adaptation,undefined);
  assert.equal(lookup({...adaptation,validatedZones:['entry']}).sample.level,1,'scope checks must not replace photo labels');
+});
+
+test('Route warnings retain severity, clip to the route and reject mismatched conditions',()=>{
+ const data={cases:[{...entry,samples:[sample,{...sample,km0:22.6,km1:22.7,km:22.65,level:2},{...sample,km0:22.5,km1:22.6,km:22.55,level:0}]}]};
+ const warnings=routeAnalysisWarnings('dalgu',{...settings,startKm:22.76,endKm:22.55},data);
+ assert.equal(warnings.length,2);assert.equal(warnings[0].km1,22.76);assert.deepEqual(warnings.map(w=>w.level),[1,2]);
+ for(const change of [{date:'2026-09-21'},{minutes:1071},{weather:'over'},{endKm:24},{startKm:NaN}])assert.deepEqual(routeAnalysisWarnings('dalgu',{...settings,...change},data),[]);
+ assert.deepEqual(routeAnalysisWarnings('sincheon',settings,data),[]);
+ assert.deepEqual(routeAnalysisWarnings('dalgu',{...settings,startKm:20,endKm:19},data),[]);
 });

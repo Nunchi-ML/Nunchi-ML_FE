@@ -3,7 +3,7 @@ export interface NavigationZone {
   level?: 1 | 2;
   adaptation?: { entryS: number; entry: number; exit: number; source: 'simulation' | 'model' };
 }
-export interface NavigationCue { id: string; text: string; spoken: string; meters: number; kind: NavigationZone['kind']; source: NavigationZone['source']; active: boolean }
+export interface NavigationCue { id: string; text: string; spoken: string; meters: number; kind: NavigationZone['kind']; source: NavigationZone['source']; active: boolean; level?: 1 | 2 }
 /** Distances are along the driven route, including reverse-direction trips. */
 export function navigationCue(s: number, direction: number, end: number, zones: NavigationZone[], leadMeters = 300): NavigationCue | null {
   const candidates = zones.map(z => {
@@ -11,15 +11,15 @@ export function navigationCue(s: number, direction: number, end: number, zones: 
     if (remaining < -15 || ahead > leadMeters || (z.start - end) * direction > 0) return null;
     const active = ahead <= 0, meters = Math.max(0, Math.round(ahead / 10) * 10);
     const text = z.kind === 'unverified' ? '도로변 관측 미확인' : z.kind === 'exit' ? active ? '출구 밝기 변화 구간' : '밝기가 달라지는 출구'
-      : active ? '전방 시야 주의 구간' : '전방 시야 주의';
+      : z.level === 2 ? '눈부심 강함' : '눈부심 주의';
     const spoken = z.kind === 'unverified' ? '앞 구간의 도로변 사진을 확인하지 못했습니다. 전방을 살펴주세요.' : z.kind === 'exit'
       ? active ? '출구 밝기 변화 구간입니다.' : `${meters}미터 앞, 지하차도 출구에서 밝기가 크게 달라집니다.`
-      : active ? '전방을 알아보기 어려울 수 있는 구간입니다.' : `${meters}미터 앞, 전방 시야 주의 구간입니다.`;
-    return { id: z.id, text, spoken, meters, kind: z.kind, source: z.source, active, distance: Math.max(0, ahead) };
+      : `${active ? '지금' : `${meters}미터 앞`}, ${z.level === 2 ? '눈부심이 강합니다. 속도를 줄이고 앞차와의 간격을 유지하세요.' : '눈부심 주의 구간입니다. 전방을 확인하세요.'}`;
+    return { id: z.id, text, spoken, meters, kind: z.kind, source: z.source, active, level: z.level, distance: Math.max(0, ahead) };
   }).filter((c): c is NonNullable<typeof c> => c !== null);
-  // The next exit takes precedence over sunlight alerts during a transition.
-  const priority = (kind: NavigationZone['kind']) => kind === 'exit' ? 0 : kind === 'glare' ? 1 : 2;
-  candidates.sort((a, b) => priority(a.kind) - priority(b.kind) || a.distance - b.distance);
+  // Immediate known warnings precede future ones and missing observations.
+  const priority = (c: typeof candidates[number]) => c.kind === 'unverified' ? 4 : c.active ? c.kind === 'exit' ? 0 : 1 : 2;
+  candidates.sort((a, b) => priority(a) - priority(b) || (a.active && b.active ? (b.level ?? 0) - (a.level ?? 0) : 0) || a.distance - b.distance);
   return candidates[0] ?? null;
 }
 

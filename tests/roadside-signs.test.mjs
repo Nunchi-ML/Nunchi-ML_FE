@@ -33,6 +33,7 @@ test('Example versus actual photo sources remain explicit and passed/beyond-dest
   const zone = { id: 'photo', start: 1100, end: 1200, kind: 'glare', name: '사진', source: 'example' };
   const example = roadsideMessage(1000, 1, 1500, [zone]); assert.equal(example.state, 'caution'); assert.match(example.source, /가상 사진 판정 예시/);
   const actual = roadsideMessage(1000, 1, 1500, [{ ...zone, source: 'roadside' }]); assert.match(actual.source, /전방 카메라 사진 \+ 태양·날씨 판정/);
+  const model = roadsideMessage(1000, 1, 1500, [{ ...zone, source: 'model', level: 2 }]); assert.match(model.source, /시뮬레이션 사진 모델 판정/); assert.match(model.source, /실제 도로 관측 아님/); assert.match(model.title, /눈부심 강함/);
   assert.notEqual(roadsideMessage(1300, 1, 1500, [zone]).state, 'caution');
   assert.notEqual(roadsideMessage(1000, 1, 1050, [zone]).state, 'caution');
 });

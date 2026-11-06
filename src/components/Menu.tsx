@@ -7,6 +7,7 @@ import { MISSIONS, missionDate, useGame, type Weather } from '../store';
 
 import { PreTripPanel } from './PreTripPanel';
 import { CourseObservation } from './CourseObservation';
+import { RoadScene } from './RoadScene';
 import { getRoutePreview } from '../game/routePreview';
 import type { SegmentAssessment } from '../game/preTrip';
 import { useTouchControls } from './useTouchControls';
@@ -23,7 +24,7 @@ function drawRouteMap(c: HTMLCanvasElement, startKm: number, endKm: number, view
   const xs = points.map(p => p.x), zs = points.map(p => p.z);
   const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cz = (Math.min(...zs) + Math.max(...zs)) / 2;
   const spanX = Math.max(400, Math.max(...xs) - Math.min(...xs)), spanZ = Math.max(400, Math.max(...zs) - Math.min(...zs));
-  const pad = (view.compact ? 52 : 70) * pr;
+  const pad = (view.compact ? 76 : 70) * pr;
   const sc = Math.max(.001, Math.min((c.width - pad * 2) / spanX, (c.height - pad * 2) / spanZ)) * view.zoom;
   const T: Tf = (x, z) => [c.width / 2 + (x - cx) * sc + view.pan.x * pr, c.height / 2 + (z - cz) * sc + view.pan.y * pr];
   g.clearRect(0, 0, c.width, c.height);
@@ -49,6 +50,12 @@ function drawRouteMap(c: HTMLCanvasElement, startKm: number, endKm: number, view
   g.setLineDash([]);
   g.font = `${12 * pr}px "Noto Sans KR"`; g.textAlign = 'center';
   const placed: number[][] = [];
+  const startPoint = at(kmToS(startKm)), endPoint = at(kmToS(endKm));
+  const startPin = T(startPoint.x, startPoint.z), endPin = T(endPoint.x, endPoint.z);
+  const separatePins = Math.hypot(startPin[0] - endPin[0], startPin[1] - endPin[1]) < 62 * pr;
+  for (const [point, side] of [[startPin, -1], [endPin, 1]] as const) {
+    placed.push([point[0] + (separatePins ? side * 26 * pr : 0) - 30 * pr, point[1] - 52 * pr, 60 * pr, 60 * pr]);
+  }
   // iM뱅크 본점: 실제 건물 자리에 점, 선으로 이은 초록 이름표 (역 이름보다 먼저 자리 잡아 겹치지 않게)
   const bpos = BANK_POS ?? at(kmToS(BANK_KM)), [bx, by] = T(bpos.x, bpos.z);
   const rp = at(kmToS(BANK_KM)), ry = T(rp.x, rp.z)[1], below = by >= ry;
@@ -61,15 +68,18 @@ function drawRouteMap(c: HTMLCanvasElement, startKm: number, endKm: number, view
   [...D.stations].sort((a, b) => +key(b) - +key(a)).forEach(st => {
     const p = at(kmToS(st.km)), [x, y] = T(p.x, p.z);
     g.fillStyle = key(st) ? '#FFD45E' : '#FFF8E7'; g.beginPath(); g.arc(x, y, (key(st) ? 6 : 4) * pr, 0, 7); g.fill();
-    const w = g.measureText(st.name).width + 6 * pr, h = 16 * pr;
+    const label = st.name.replace(/\s*\([^)]*\)/g, '');
+    const w = g.measureText(label).width + 6 * pr, h = 16 * pr;
     for (const dy of [-14, 24, -30, 40]) {                       // 겹치지 않는 자리 찾기
       const ly = y + dy * pr, box = [x - w / 2, ly - h + 4 * pr, w, h];
+      if (box[0] < 8 * pr || box[0] + w > c.width - 8 * pr || box[1] < 78 * pr || box[1] + h > c.height - (view.compact ? 94 : 64) * pr) continue;
       if (placed.some(b => box[0] < b[0] + b[2] && box[0] + box[2] > b[0] && box[1] < b[1] + b[3] && box[1] + box[3] > b[1])) continue;
-      placed.push(box); g.fillStyle = key(st) ? '#FFF8E7' : 'rgba(233,216,189,.75)'; g.fillText(st.name, x, ly); break;
+      placed.push(box); g.fillStyle = key(st) ? '#FFF8E7' : 'rgba(233,216,189,.75)'; g.fillText(label, x, ly); break;
     }
   });
-  const pin = (km: number, col: string, label: string) => {
-    const p = at(kmToS(km)), [x, y] = T(p.x, p.z), r = 13 * pr;
+  const pin = (km: number, col: string, label: string, side: number) => {
+    const p = at(kmToS(km)), [px, y] = T(p.x, p.z), r = 13 * pr, x = px + (separatePins ? side * 26 * pr : 0);
+    if (separatePins) { g.strokeStyle = col; g.lineWidth = 1.5 * pr; g.beginPath(); g.moveTo(px, y); g.lineTo(x, y); g.stroke(); }
     g.fillStyle = col; g.beginPath(); g.arc(x, y - r * 1.6, r, 0, 7); g.fill();
     g.beginPath(); g.moveTo(x - r * .6, y - r); g.lineTo(x + r * .6, y - r); g.lineTo(x, y); g.fill();
     g.fillStyle = '#fff'; g.font = `700 ${11 * pr}px "Noto Sans KR"`; g.fillText(label, x, y - r * 1.35);
@@ -87,7 +97,7 @@ function drawRouteMap(c: HTMLCanvasElement, startKm: number, endKm: number, view
       g.fillStyle = '#79cbd9'; g.fillRect(x - 4 * pr, y - 4 * pr, 8 * pr, 8 * pr);
     }
   }
-  pin(startKm, '#3BA55C', '출발'); pin(endKm, '#F2522E', '도착');
+  pin(startKm, '#3BA55C', '출발', -1); pin(endKm, '#F2522E', '도착', 1);
   return T;
 }
 
@@ -100,12 +110,12 @@ export function Menu() {
   const [picking, setPicking] = useState<0 | 1>(0);
   const [size, setSize] = useState(0);
   const compact = useTouchControls();
-  const [mapExpanded, setMapExpanded] = useState(false), [mapFocus, setMapFocus] = useState(true);
+  const [mapExpanded, setMapExpanded] = useState(false), [mapFocus, setMapFocus] = useState(false);
   const [showCourses, setShowCourses] = useState(false);
   const [mapZoom, setMapZoom] = useState(1), [mapPan, setMapPan] = useState({ x: 0, y: 0 });
   const pointers = useRef(new Map<number, { x: number; y: number }>()), mapDragged = useRef(false);
   const resetMap = () => { setMapZoom(1); setMapPan({ x: 0, y: 0 }); };
-  useEffect(() => { setMapFocus(true); resetMap(); }, [compact]);
+  useEffect(() => { setMapFocus(false); resetMap(); }, [compact]);
   useEffect(resetMap, [st.startKm, st.endKm]);
   useEffect(() => {
     const observer = new ResizeObserver(() => setSize(n => n + 1)); observer.observe(cv.current!);
@@ -168,31 +178,48 @@ export function Menu() {
     <div id="menu">
       <div className="left">
         <div className="menu-scroll">
+        <header className="menu-brand">
         <div className="logo">
           <img src="./logo.png" alt="" onError={e => { e.currentTarget.style.display = 'none'; }} />
-          <div><h1>눈치 <em>드라이브</em></h1><div className="sub">눈부심과 밝기 변화를 미리 살펴보는 주행 체험</div></div>
+          <div><h1>눈치 <em>드라이브</em></h1><div className="sub">빛을 읽는 주행 체험</div></div>
         </div>
+        <p className="menu-lead">빛이 바뀌는 길,<br /><strong>미리 만나보세요.</strong></p>
+        <svg className="menu-horizon" viewBox="0 0 200 130" fill="none" aria-hidden="true">
+          <circle cx="145" cy="45" r="28" fill="currentColor" fillOpacity=".12" />
+          <circle cx="145" cy="45" r="42" stroke="currentColor" strokeOpacity=".15" />
+          <path d="M-10 126c40-70 121-26 157-58M66 134c4-52 64-42 81-66M28 130c22-59 95-31 119-62" stroke="currentColor" strokeOpacity=".3" />
+          <path d="M28 130c22-59 95-31 119-62" stroke="currentColor" strokeDasharray="5 6" />
+        </svg>
+        </header>
 
+        <div className="menu-course-choice">
         <div className="sect">어디를 달릴까요?</div>
         <div className="roads" role="group" aria-label="도로와 체험 선택">
           <button className={`road${ROAD_ID === 'dalgu' ? ' on' : ''}`} aria-pressed={ROAD_ID === 'dalgu'} onClick={() => chooseRoad('dalgu')}>
-            <b>달구벌대로</b>
+            <RoadScene />
+            <span className="road-title"><b>달구벌대로</b><span className="road-check" aria-hidden="true">{ROAD_ID === 'dalgu' ? '✓' : '↗'}</span></span>
             <span className="road-purpose">햇빛과 전방 시야</span>
             <small>낮은 해의 눈부심을 체험해요</small>
           </button>
           <button className={`road${IS_SINCHEON ? ' on' : ''}`} aria-pressed={IS_SINCHEON} onClick={() => chooseRoad('sincheon')}>
-            <b>신천대로</b>
+            <RoadScene tunnel />
+            <span className="road-title"><b>신천대로</b><span className="road-check" aria-hidden="true">{IS_SINCHEON ? '✓' : '↗'}</span></span>
             <span className="road-purpose">지하차도와 밝기 전환</span>
             <small>어두운 안과 밝은 출구를 비교해요</small>
           </button>
         </div>
+        </div>
+        <div className="menu-selected">
         <div className="sect">선택한 코스</div>
         <div className="selected-course" aria-live="polite">
-          <span>{selectedMission?.badge ?? '직접 고른 코스'}</span>
+          <div className="course-kicker"><span>{selectedMission?.badge ?? '직접 고른 코스'}</span><span className="course-distance">{Math.abs(st.endKm - st.startKm).toFixed(1)}<small>km</small></span></div>
           <h2>{selectedMission?.t ?? `${a} → ${b}`}</h2>
-          <p>{Math.abs(st.endKm - st.startKm).toFixed(1)} km <i /> {hm(st.minutes)} <i /> {weatherLabel}</p>
+          <div className="course-stops"><span><small>출발</small><b>{a}</b></span><span className="course-connector" aria-hidden="true"><i /><i /></span><span><small>도착</small><b>{b}</b></span></div>
+          <p><span>{hm(st.minutes)} 출발</span><i />{weatherLabel}</p>
           <button className="menu-map-shortcut" onClick={() => { setMapExpanded(true); resetMap(); }}>지도 크게 보기</button>
         </div>
+        </div>
+        <div className="menu-options">
         <details className="menu-fold course-picker" open={showCourses} onToggle={e => setShowCourses(e.currentTarget.open)}>
           <summary><span>다른 추천 코스 보기<small>{MISSIONS.length}개 코스 중 선택</small></span><em>선택</em></summary>
         <div className="missions">
@@ -241,6 +268,7 @@ export function Menu() {
           </div>
         </details>
         </div>
+        </div>
         <div className="menu-start">
           <div className="menu-start-status"><span>{st.observationSpeed ? `관찰 상한 ${st.observationSpeed} km/h` : '자유 주행'}</span>{st.observationSpeed ? <button onClick={() => set({ observationSpeed: 0 })}>상한 해제</button> : <small>가속·제동은 직접 조작해요</small>}</div>
         <button id="go" disabled={!validCourse} onClick={() => validCourse && getEngine()?.startRun()}><span>{validCourse ? '출발하기 ▶' : '서로 다른 출발·도착 지점을 선택하세요'}</span></button>
@@ -264,6 +292,7 @@ export function Menu() {
               : <>출발 <b style={{ color: 'var(--green)' }}>{a}</b> · 이제 다른 <b style={{ color: 'var(--red)' }}>도착</b> 지점을 누르세요</>}</div>
           <div id="legend"><span><i style={{ background: 'var(--orange)' }} />주의 관측</span><span><i style={{ background: '#98938a' }} />미확인</span>{IS_SINCHEON && <span>· 파란 표시는 지하차도</span>}</div>
         </div>
+        <p className="map-mobile-hint">{picking ? '도착 지점을 선택하세요' : '지도 지점을 눌러 출발·도착을 바꿀 수 있어요'}</p>
         <div id="sumbar">
           <div className="slab"><div className="in"><div className="k">코스</div><div className="v">{selectedMission?.t ?? `${a} → ${b}`}</div></div></div>
           <div className="slab"><div className="in"><div className="k">거리 · 방향</div><div className="v">{Math.abs(st.endKm - st.startKm).toFixed(1)} km · {compass(head)}쪽</div></div></div>
