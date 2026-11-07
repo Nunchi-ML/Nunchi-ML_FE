@@ -5,7 +5,7 @@ import { hm } from '../game/sun';
 import { useGame } from '../store';
 import { useTouchControls } from './useTouchControls';
 import { DriveIcon, type DriveIconName } from './DriveIcon';
-import { MODEL3_SOURCE_LABEL } from '../game/model3';
+import { MODEL3_ALERT_NOTE, MODEL3_SOURCE_LABEL } from '../game/model3';
 
 const WEATHER = { clear: '맑음', cloud: '구름', over: '흐림' };
 function DriveButton({ icon, label, hint, active, pressed, onClick }: { icon: DriveIconName; label: string; hint: string; active?: boolean; pressed?: boolean; onClick: () => void }) {
@@ -47,7 +47,7 @@ export function Hud({ visible, bind }: { visible: boolean; bind: <K extends keyo
     </header>
     <DriveToast />
     {m3?.text && st.guidance && <div className="model3-alert" role="alert" style={{ borderColor: m3.color, color: m3.color }} title={`판정 근거: ${MODEL3_SOURCE_LABEL[m3.source]}`}>
-      <i style={{ background: m3.color }} /><b>{m3.text}</b>
+      <i style={{ background: m3.color }} /><div><b>{m3.text}</b><small>{MODEL3_ALERT_NOTE[m3.grade]}</small></div>
     </div>}
     {m3?.countdown != null && <div className="model3-countdown" aria-live="assertive"><b key={m3.countdown}>{m3.countdown}</b><span>시야 회복 중</span></div>}
     {mlGlare && <aside className="drive-adaptation" aria-label="태양광 눈부심 분류 모델 판정" style={{ borderColor: mlGlare.color }}>
