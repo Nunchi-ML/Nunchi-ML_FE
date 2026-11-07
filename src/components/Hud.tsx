@@ -66,7 +66,7 @@ export function Hud({ visible, bind }: { visible: boolean; bind: <K extends keyo
       <nav className="drive-toolbar" aria-label="주행 도구">
         <DriveButton icon="view" label="시점 전환" hint="시점" onClick={() => getEngine()?.toggleCam()} />
         <DriveButton icon={st.voice ? 'voice' : 'muted'} label="내비게이션 음성 안내" hint="음성" active={st.voice} pressed={st.voice} onClick={() => set({ voice: !st.voice })} />
-        <DriveButton icon="glass" label="스마트 유리" hint="차광" active={st.glass} pressed={st.glass} onClick={() => getEngine()?.toggleGlass()} />
+        <DriveButton icon="glass" label="LCD 차광판" hint="차광" active={st.glass} pressed={st.glass} onClick={() => getEngine()?.toggleGlass()} />
         <DriveButton icon="guide" label="내비게이션 시야 안내" hint="안내" active={st.guidance} pressed={st.guidance} onClick={() => set({ guidance: !st.guidance })} />
         <span className="drive-tool-separator" />
         <DriveButton icon="mode" label="스포츠 모드" hint={sport ? '스포츠' : '일반'} active={sport} pressed={sport} onClick={() => getEngine()?.toggleSport()} />

@@ -28,7 +28,7 @@ export function SettingsApp() {
           <span className="num" style={{ minWidth: 44 }}>{hm(st.minutes)}</span></div>
         <div className="row"><label>시간 흐름</label><Seg items={[[0, '고정'], [1, '1배'], [10, '10배'], [60, '60배']]} value={st.flow} on={v => set({ flow: v })} /></div>
         <div className="row"><label>날씨</label><Seg<Weather> items={[['clear', '맑음'], ['cloud', '구름'], ['over', '흐림']]} value={st.weather} on={v => set({ weather: v })} /></div>
-        <div className="row"><label>스마트 유리</label><Seg items={[[true, '켜기'], [false, '끄기']]} value={st.glass} on={v => set({ glass: v })} /></div>
+        <div className="row"><label>LCD 차광판</label><Seg items={[[true, '켜기'], [false, '끄기']]} value={st.glass} on={v => set({ glass: v })} /></div>
         <div className="row"><label>주행 모드</label><Seg<DriveMode> items={[['normal', '일반'], ['sport', '스포츠']]} value={st.mode} on={v => set({ mode: v })} /></div>
         <div className="row"><label>관찰 상한</label><Seg items={[[40, '40'], [60, '60'], [80, '80'], [0, '자유']]} value={st.observationSpeed} on={v => set({ observationSpeed: v as typeof st.observationSpeed })} /></div>
         <div className="small">관찰 속도의 단위는 km/h입니다. 가속·제동은 직접 조작하고, 자유 주행을 선택하면 관찰 상한을 해제해요.</div>

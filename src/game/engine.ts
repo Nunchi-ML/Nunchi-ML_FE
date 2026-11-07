@@ -10,6 +10,7 @@ import { compass, hm, simDate, sunDir, sunPos } from './sun';
 import { createWorld, makeRand } from './world';
 import type { Vehicle } from './vehicles';
 import { createCockpit } from './cockpit';
+import { createLcdVisor } from './lcdVisor';
 import { newDrivingFeel, updateDrivingFeel, stepDriveSpeed } from './drivingFeel';
 import { createKoreanVoiceGuide } from './voice';
 import { createCarAudio } from './carAudio';
@@ -43,6 +44,10 @@ export function createEngine(canvas: HTMLCanvasElement) {
   const W = createWorld();
   // 운전석은 차에 붙어 있고(rig), 카메라는 그 안에서 고개만 돌린다
   const CP = createCockpit(), rig = new THREE.Group(); rig.add(CP.group); W.scene.add(rig);
+  // LCD 차광판: 운전석에 붙어 있고, 해가 눈에 들어오는 육각형 칸만 어두워진다
+  const visor = createLcdVisor(); rig.add(visor.group);
+  const sunLocal = new THREE.Vector3(), rigInv = new THREE.Quaternion();
+  let visorDark = 0;
 
   // 백미러: 뒤쪽을 작은 화면에 그려 거울면에 붙임 (좌우 반전)
   const mirrorRT = new THREE.WebGLRenderTarget(256, 80);
@@ -180,10 +185,10 @@ export function createEngine(canvas: HTMLCanvasElement) {
   }
   function toMenu() { voice.stop(); S.running = false; G.setState({ screen: 'menu', phoneOpen: false }); }
   const changeLane = (d: number) => { S.targetX = laneOffset(Math.max(0, Math.min(LANE_COUNT - 1, Math.round((S.targetX - laneOffset(0)) / LANE_WIDTH) + d))); };
-  // 스마트 유리는 기본 꺼짐: 먼저 눈부심을 그대로 겪고, G로 켜서 비교
+  // LCD 차광판은 기본 꺼짐: 먼저 눈부심을 그대로 겪고, G로 켜서 비교
   const toggleGlass = () => {
     const on = !G.getState().settings.glass; G.getState().set({ glass: on });
-    if (S.running) banner(on ? '🕶️ 스마트 유리 켜짐' : '스마트 유리 꺼짐', on ? '해가 들어오는 부분만 어둡게' : '맨눈으로 보는 눈부심', on ? '켜고 끈 차이를 비교해 보세요' : '해를 정면으로 받으면 앞이 이렇게 안 보여요');
+    if (S.running) banner(on ? '🕶️ LCD 차광판 내림' : 'LCD 차광판 올림', on ? '해가 눈에 들어오는 칸만 어둡게' : '맨눈으로 보는 눈부심', on ? '나머지 칸은 투명해서 신호등·앞차가 보여요' : '해를 정면으로 받으면 앞이 이렇게 안 보여요');
   };
   const toggleSport = () => {
     const sport = G.getState().settings.mode !== 'sport';
@@ -464,11 +469,17 @@ export function createEngine(canvas: HTMLCanvasElement) {
     S.glareLv = Is > 0.5 ? 2 : Is > 0.22 ? 1 : 0;
     const sunMat = W.sunDisc.material as THREE.MeshBasicMaterial;
     sunMat.color.setRGB(1, 0.95, 0.8).multiplyScalar(occluded ? 0.7 : 1.25 + 1.6 * Math.min(1, Is * 1.6));
-    const shadeOn = S.running && st.glass && S.glareLv >= 1 && onScreen && !blocked && S.cam === 'cockpit';
-    const eff = shadeOn ? Is * 0.35 : Is;
+    // 차광판: 해 방향을 운전석 기준으로 바꿔, 눈과 해를 잇는 선이 판의 어느 칸을 지나는지 계산
+    rigInv.copy(rig.quaternion).invert(); sunLocal.copy(sv).applyQuaternion(rigInv);
+    const visorOn = st.glass && S.cam === 'cockpit' && rig.visible && gs.screen === 'driving';
+    const vs = visor.update(visorOn && sp.alt > -1, sunLocal, dt); visorDark = vs.darkCount;
+    // 해가 어두운 칸 뒤에 있으면 직사광이 눈에 들어오지 않는다 → 빛 번짐·번쩍임을 지붕에 가린 것처럼 줄인다
+    const shadeOn = S.running && visorOn && !blocked && vs.darkCount > 0 && Is > 0.02;
+    const eff = shadeOn ? Is * 0.15 : Is;
+    if (shadeOn) S.glareLv = eff > 0.5 ? 2 : eff > 0.22 ? 1 : 0;                // 차광판이 가린 만큼 실제 눈부심 등급도 낮춘다
     if (els.wash) els.wash.style.opacity = '0';
     if (els.glare) els.glare.style.background = 'none';
-    if (els.shade) { els.shade.style.opacity = shadeOn ? '1' : '0'; els.shade.style.left = sxp + 'px'; els.shade.style.top = syp + 'px'; }
+    if (els.shade) els.shade.style.opacity = '0';                              // 예전 화면 원형 차광은 쓰지 않음
     const exitApproach = section?.covered ? THREE.MathUtils.smoothstep(1 - section.toExit / 30, 0, 1) : 0;
     const contrastHistory = Math.min(1, Math.max(0, Math.log10(Math.max(1, outsideL / Math.max(1, 10 ** adaptation.darkestLogL))) / 2));
     const portalGlare = section?.covered && outsideL >= 150 ? .7 * exitApproach * Math.min(1, adaptation.coveredSeconds / 2) * contrastHistory : 0;
@@ -480,7 +491,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
     bloom.threshold = 1.6 - exitLight * .8;
     const compactView = isTouch || (innerWidth <= 900 && innerWidth > innerHeight);
     const roadBottom = S.cam === 'cockpit' ? compactView ? .57 : .65 : 1;
-    const directLight = W.sunDisc.visible && onScreen && !blocked && !occluded && !section?.covered ? Math.pow(eff, 1.25) : 0;
+    const directLight = W.sunDisc.visible && onScreen && !blocked && !shadeOn && !occluded && !section?.covered ? Math.pow(eff, 1.25) : 0;
     lightGlare.update(sxp, syp, innerWidth, innerHeight, directLight, exitLight, roadBottom);
 
     // Temporal contrast loss recovers from illumination history, independent of the sun disk.
@@ -542,7 +553,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
       hudT -= dt;
       if (hudT <= 0) {
         hudT = 0.1;
-        const glassText = !st.glass ? '꺼짐' : shadeOn ? `${sxp < innerWidth / 2 ? '왼쪽' : '오른쪽'} ${syp < innerHeight * 0.35 ? '위' : '가운데'} 부분 차광 중` : '대기';
+        const glassText = !st.glass ? '꺼짐' : shadeOn ? `${visorDark}칸 차광 중` : visorDark ? '해 가리는 중' : '대기';
         G.setState({ hud: { ...gs.hud, riskRatio: riskAt(kmNow, dirK).ratio, glareLv: S.glareLv, glassText, adaptation: adapted, navigation: { text: navCue?.text ?? '경로를 따라 주행하세요', meters: navCue?.meters ?? 0, source: navCue?.source ?? 'route', voiceAvailable: voice.available, inCab: S.cam === 'cockpit' }, analysis: cached ? { level: cached.sample.level, modelVersion: cached.modelVersion, aheadMeters: cached.ahead ? Math.round(Math.abs(cached.ahead.km - kmNow) * 1000) : null, aheadLevel: cached.ahead?.level ?? null } : undefined, score: Math.round(S.score), kmh,
           prog: Math.max(0, Math.min(1, (kmNow - st.startKm) / (st.endKm - st.startKm))), remainKm: Math.abs(st.endKm - kmNow),
           station: near.name, warn: running && S.glareLv === 2 && kmh > 60, fps: fpsV },
@@ -610,7 +621,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
       removeEventListener('resize', resize);
       canvas.removeEventListener('dblclick', onDbl); canvas.removeEventListener('pointerdown', onPDown); canvas.removeEventListener('pointermove', onPMove);
       canvas.removeEventListener('pointerup', onPUp); canvas.removeEventListener('pointercancel', onPUp);
-      W.dispose(); lightGlare.pass.dispose(); composer.dispose(); mirrorRT.dispose(); sideMirrors.forEach(m => m.rt.dispose()); envRT?.dispose(); pmrem.dispose(); renderer.dispose();
+      W.dispose(); visor.dispose(); lightGlare.pass.dispose(); composer.dispose(); mirrorRT.dispose(); sideMirrors.forEach(m => m.rt.dispose()); envRT?.dispose(); pmrem.dispose(); renderer.dispose();
     },
   };
   (window as unknown as { __nunchi: unknown }).__nunchi = api;            // 시험용
