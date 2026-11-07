@@ -8,7 +8,7 @@ function Seg<T extends string | number | boolean>({ items, value, on }: { items:
 }
 
 export function SettingsApp() {
-  const st = useGame(s => s.settings), set = useGame(s => s.set);
+  const st = useGame(s => s.settings), set = useGame(s => s.set), render = useGame(s => s.render), fps = useGame(s => s.hud.fps);
   const setMinutes = (m: number) => { set({ minutes: m }); const e = getEngine(); if (e) e.S.minutes = m; };
   return (
     <div className="pv">
@@ -33,6 +33,7 @@ export function SettingsApp() {
         <div className="row"><label>관찰 상한</label><Seg items={[[40, '40'], [60, '60'], [80, '80'], [0, '자유']]} value={st.observationSpeed} on={v => set({ observationSpeed: v as typeof st.observationSpeed })} /></div>
         <div className="small">관찰 속도의 단위는 km/h입니다. 가속·제동은 직접 조작하고, 자유 주행을 선택하면 관찰 상한을 해제해요.</div>
         <div className="row"><label>그래픽</label><Seg<Gfx> items={[['high', '높음'], ['low', '낮음']]} value={st.gfx} on={v => set({ gfx: v })} /></div>
+        <div className="small">화면 해상도 {render.pixelRatio}배 (기기 {render.deviceRatio}배) · 경계 다듬기 {render.smoothing} · {fps}fps</div>
         <button className="pbtn" onClick={() => getEngine()?.toMenu()}>코스 다시 고르기</button>
         <div className="small">팀 「눈치」 · iM Digital Banker Academy<br />데이터: OpenStreetMap · 한국도로공사 · 기상청 · GLARE (CC BY 4.0)</div>
       </div>
