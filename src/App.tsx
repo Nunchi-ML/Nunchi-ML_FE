@@ -32,6 +32,7 @@ export default function App() {
       <div id="wash" ref={bind('wash')} />
       <div id="glare" ref={bind('glare')} />
       <div id="adaptationVeil" ref={bind('adaptationVeil')} />
+      <div id="model3Veil" ref={bind('model3Veil')} />
       <div id="shade" ref={bind('shade')} />
       {ready && (
         <>

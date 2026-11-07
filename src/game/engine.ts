@@ -26,9 +26,11 @@ import { ROAD_ID, IS_SINCHEON } from './roadSelection';
 import { underpassAt } from './underpasses';
 import { adaptationScores, newAdaptation, resetAdaptation, sceneLuminance, stepAdaptation } from './adaptation';
 import { createLightGlare } from './lightGlare';
+import { MODEL3_CLOUD, MODEL3_COLOR, createModel3Scene, model3AlertText, model3Beep, requestModel3, type Model3Presets } from './model3';
+import model3Presets from '../data/model3_presets.json';
 
 /** 매 프레임 직접 고치는 화면 요소 (React 재렌더 없이) */
-export interface Els { wash?: HTMLElement; glare?: HTMLElement; shade?: HTMLElement; adaptationVeil?: HTMLElement; cockpit?: HTMLElement; speedo?: HTMLCanvasElement; minimap?: HTMLCanvasElement; phone?: HTMLElement; phoneDim?: HTMLElement }
+export interface Els { wash?: HTMLElement; glare?: HTMLElement; shade?: HTMLElement; adaptationVeil?: HTMLElement; model3Veil?: HTMLElement; cockpit?: HTMLElement; speedo?: HTMLCanvasElement; minimap?: HTMLCanvasElement; phone?: HTMLElement; phoneDim?: HTMLElement }
 
 const SUN_DIST = 6000;
 
@@ -108,6 +110,27 @@ export function createEngine(canvas: HTMLCanvasElement) {
   };
   let glareDiagnostics = { intensity: 0, effectiveIntensity: 0, visorTransmission: 1, visorProgress: 0, visorDark: 0, angle: 0, sunAltitude: 0, blockedByCar: false, blockedByWorld: false, onScreen: false };
   const adaptation = newAdaptation();
+  // 모델 ③: 지하차도 입구 205m 전에 지금 화면을 찍어 판정 → 155m 전 알림 → 입구에서 화면 어두워짐 → 3초 회복
+  const model3Canvas = typeof document !== 'undefined' ? document.createElement('canvas') : null;
+  function captureFrame(): Promise<Blob | null> {
+    const src = renderer.domElement;
+    if (!model3Canvas || !src.width || !src.height) return Promise.resolve(null);
+    const k = Math.min(1, 1280 / Math.max(src.width, src.height));
+    model3Canvas.width = Math.round(src.width * k); model3Canvas.height = Math.round(src.height * k);
+    model3Canvas.getContext('2d')?.drawImage(src, 0, 0, model3Canvas.width, model3Canvas.height);
+    return new Promise(resolve => model3Canvas.toBlob(resolve, 'image/jpeg', .9));
+  }
+  const model3 = createModel3Scene(async () => {
+    const st = G.getState().settings, image = await captureFrame();
+    const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 20_000);
+    try {
+      return await requestModel3(image, {
+        date: st.date, minutes: S.minutes, cloud: MODEL3_CLOUD[st.weather] ?? 0, sunAlt: sunPos(simDate(st.date, S.minutes)).alt, speedKmh: S.v * 3.6 || 60,
+        lat: 35.866 - camera.position.z / 110940, lon: 128.59 + camera.position.x / (111320 * Math.cos(35.866 * Math.PI / 180)),
+      }, model3Presets as Model3Presets, controller.signal);
+    } finally { clearTimeout(timer); }
+  });
+  let model3View = model3.update(null, 0, false);
   let exitGlare = 0;
   const passageRecords: PassageRecord[] = [];
   let currentPassage: PassageRecord | null = null;
@@ -160,7 +183,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
     carAudio.start();
     navigationKey = ''; navT = 0; drivingFeel = newDrivingFeel(); visualSteer = 0;
     S.referenceFrame = false; observerReference = null;
-    resetAdaptation(adaptation);
+    resetAdaptation(adaptation); model3.reset();
     exitGlare = 0;
     passageRecords.length = 0; currentPassage = null;
     S.dir = st.endKm >= st.startKm ? 1 : -1;
@@ -408,6 +431,10 @@ export function createEngine(canvas: HTMLCanvasElement) {
     const outsideL = cached?.adaptation?.outsideLuminance ?? sceneLuminance(sp.alt, st.weather);
     const sceneL = section?.covered ? outsideL * section.sky + 9 * (1 - section.sky) : outsideL;
     const vision = stepAdaptation(adaptation, sceneL, running ? dt : 0, S.running && !S.referenceFrame, { covered: !!section?.covered, outsideLuminance: outsideL });
+    model3View = model3.update(section, running ? dt : 0, S.running && !S.referenceFrame);
+    if (model3View.beep && model3View.alert && st.guidance) model3Beep(model3View.alert.grade);
+    // 모델 ③이 입구 연출을 맡은 지하차도에서는 기존 체험용 어두워짐·노출 변화를 겹치지 않는다 (3초 뒤 평소 밝기).
+    const model3Owns = S.running && model3View.active;
     if (running) {
       if (section?.covered) {
         currentPassage ??= { name: section.name, roofM: section.s1 - section.s0, seconds: 0, completed: false };
@@ -418,8 +445,8 @@ export function createEngine(canvas: HTMLCanvasElement) {
     }
     const aScore = cached?.adaptation ?? adaptationScores(outsideL);
     const adapted = section && S.running ? { name: section.name,
-      phase: section.phase === 'approach' ? '진입 전 · 밝기 전환 준비' : section.covered ? (vision.dark > .1 ? '어두워진 시야에 적응 중' : '지하차도 내부') : vision.white > .08 ? '밝아진 시야에 적응 중' : '출구 통과 · 시야 회복',
-      burden: vision.burden, score: section.phase === 'approach' || (section.covered && vision.dark > .1) ? aScore.entry : aScore.exit, entryScore: aScore.entry, exitScore: aScore.exit, pupil: vision.pupil,
+      phase: section.phase === 'approach' ? '진입 전 · 밝기 전환 준비' : section.covered ? (vision.dark > .1 && !model3Owns ? '어두워진 시야에 적응 중' : '지하차도 내부') : vision.white > .08 ? '밝아진 시야에 적응 중' : '출구 통과 · 시야 회복',
+      burden: model3Owns ? Math.max(vision.white, vision.exitPulse) : vision.burden, score: section.phase === 'approach' || (section.covered && vision.dark > .1 && !model3Owns) ? aScore.entry : aScore.exit, entryScore: aScore.entry, exitScore: aScore.exit, pupil: vision.pupil,
       distance: Math.max(0, section.phase === 'approach' ? section.toEntry : section.toExit), coveredSeconds: adaptation.coveredSeconds } : undefined;
     u.turbidity.value = st.weather === 'over' ? 14 : st.weather === 'cloud' ? 5.5 : 2.2;
     W.sun.position.set(cx + sv.x * 400, Math.max(5, sv.y * 400), cz + sv.z * 400); W.sun.target.position.set(cx, 0, cz);
@@ -438,7 +465,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
     (W.scene.fog as THREE.Fog).far = st.weather === 'over' ? 3500 : st.weather === 'cloud' ? 6000 : 8000;
     W.sun.color.setHSL(0.09, 0.18 + 0.65 * lowSun, 0.84);
     W.hemi.color.setHSL(st.weather === 'over' ? .57 : .08, st.weather === 'over' ? .06 : .5 * lowSun, .75); W.hemi.groundColor.setHSL(0.06, 0.45, 0.22);
-    renderer.toneMappingExposure = (.46 + .20 * dayK) * (S.running ? vision.exposure : 1);
+    renderer.toneMappingExposure = (.46 + .20 * dayK) * (S.running && !(model3Owns && vision.exposure < 1) ? vision.exposure : 1);
     updateEnv(sp.alt, sp.az, st.weather);
     W.lampHeads.emissiveIntensity = (1 - dayK) * 2.5;
     if (W.bankGlow) W.bankGlow.emissiveIntensity = 0.5 + (1 - dayK) * 2.5;   // 본점 왕관은 해 질 녘에 더 밝게
@@ -499,8 +526,9 @@ export function createEngine(canvas: HTMLCanvasElement) {
     const dark = S.running ? vision.dark : 0;
     if (els.adaptationVeil) {
       els.adaptationVeil.style.backgroundColor = '#080a10';
-      els.adaptationVeil.style.opacity = String(dark * .45);
+      els.adaptationVeil.style.opacity = String(model3Owns ? 0 : dark * .45);
     }
+    if (els.model3Veil) els.model3Veil.style.opacity = String(S.running ? model3View.dark : 0);
     // Keep map text crisp; illustrative contrast loss belongs to the road view.
     if (els.adaptationVeil) {
       const cut = roadBottom * 100;
@@ -555,7 +583,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
       if (hudT <= 0) {
         hudT = 0.1;
         const glassText = !st.glass ? '꺼짐' : !visorOn ? '운전석에서 작동' : vs.progress < .99 ? '펼치는 중' : shadeOn ? `${visorDark}칸 차광 중` : sunExposed ? '해가 판 범위 밖' : '대기 · 직사광 없음';
-        G.setState({ hud: { ...gs.hud, riskRatio: riskAt(kmNow, dirK).ratio, glareLv: S.glareLv, glassText, adaptation: adapted, navigation: { text: navCue?.text ?? '경로를 따라 주행하세요', meters: navCue?.meters ?? 0, source: navCue?.source ?? 'route', voiceAvailable: voice.available, inCab: S.cam === 'cockpit' }, analysis: cached ? { level: cached.sample.level, modelVersion: cached.modelVersion, aheadMeters: cached.ahead ? Math.round(Math.abs(cached.ahead.km - kmNow) * 1000) : null, aheadLevel: cached.ahead?.level ?? null } : undefined, score: Math.round(S.score), kmh,
+        G.setState({ hud: { ...gs.hud, riskRatio: riskAt(kmNow, dirK).ratio, glareLv: S.glareLv, glassText, adaptation: adapted, model3: model3View.alert || model3View.countdown ? { grade: (model3View.alert ?? model3.reading)!.grade, text: model3View.alert ? model3AlertText(model3View.alert.grade) : '', color: MODEL3_COLOR[(model3View.alert ?? model3.reading)!.grade], source: (model3View.alert ?? model3.reading)!.source, countdown: model3View.countdown } : undefined, navigation: { text: navCue?.text ?? '경로를 따라 주행하세요', meters: navCue?.meters ?? 0, source: navCue?.source ?? 'route', voiceAvailable: voice.available, inCab: S.cam === 'cockpit' }, analysis: cached ? { level: cached.sample.level, modelVersion: cached.modelVersion, aheadMeters: cached.ahead ? Math.round(Math.abs(cached.ahead.km - kmNow) * 1000) : null, aheadLevel: cached.ahead?.level ?? null } : undefined, score: Math.round(S.score), kmh,
           prog: Math.max(0, Math.min(1, (kmNow - st.startKm) / (st.endKm - st.startKm))), remainKm: Math.abs(st.endKm - kmNow),
           station: near.name, warn: running && S.glareLv === 2 && kmh > 60, fps: fpsV },
           settings: { ...st, minutes: S.minutes } });

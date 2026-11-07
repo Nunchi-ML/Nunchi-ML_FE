@@ -1,0 +1,138 @@
+{
+ "note": "모델 ③ API /predict/features 결과를 미리 받아 둔 표. 사진 없이 해 높이·구름만 넣음 (사진 숫자는 학습 중앙값). 서버·사진 판정이 안 될 때만 쓴다.",
+ "model": "추정 밝기(Ridge α10) + 2단계 로지스틱 C=0.01",
+ "sklearn": "1.9.1",
+ "created": "2026-11-07",
+ "alt0": -10,
+ "alt1": 90,
+ "clouds": [
+  0,
+  5,
+  9
+ ],
+ "grid": {
+  "0": "lllllllllllllllllllllllllllllllllllllmmmmmmmmmmmmmmmmmmmmmhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh",
+  "5": "llllllllllllllllllllllllllllllllllllllllllllllmmmmmmmmmmmmmmmmmmmmhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh",
+  "9": "llllllllllllllllllllllllllllllllllllllllllllllllllllllmmmmmmmmmmmmmmmmmmmhhhhhhhhhhhhhhhhhhhhhhhhhhhh"
+ },
+ "warn_distance_m": 155,
+ "screen_effect": {
+  "하": {
+   "start_dark_opacity": 0.3,
+   "recover_s": 3,
+   "countdown": [
+    3,
+    2,
+    1
+   ],
+   "curve": [
+    {
+     "t_s": 0,
+     "dark_opacity": 0.3
+    },
+    {
+     "t_s": 0.5,
+     "dark_opacity": 0.208
+    },
+    {
+     "t_s": 1,
+     "dark_opacity": 0.133
+    },
+    {
+     "t_s": 1.5,
+     "dark_opacity": 0.075
+    },
+    {
+     "t_s": 2,
+     "dark_opacity": 0.033
+    },
+    {
+     "t_s": 2.5,
+     "dark_opacity": 0.008
+    },
+    {
+     "t_s": 3,
+     "dark_opacity": 0
+    }
+   ]
+  },
+  "중": {
+   "start_dark_opacity": 0.6,
+   "recover_s": 3,
+   "countdown": [
+    3,
+    2,
+    1
+   ],
+   "curve": [
+    {
+     "t_s": 0,
+     "dark_opacity": 0.6
+    },
+    {
+     "t_s": 0.5,
+     "dark_opacity": 0.417
+    },
+    {
+     "t_s": 1,
+     "dark_opacity": 0.267
+    },
+    {
+     "t_s": 1.5,
+     "dark_opacity": 0.15
+    },
+    {
+     "t_s": 2,
+     "dark_opacity": 0.067
+    },
+    {
+     "t_s": 2.5,
+     "dark_opacity": 0.017
+    },
+    {
+     "t_s": 3,
+     "dark_opacity": 0
+    }
+   ]
+  },
+  "상": {
+   "start_dark_opacity": 0.85,
+   "recover_s": 3,
+   "countdown": [
+    3,
+    2,
+    1
+   ],
+   "curve": [
+    {
+     "t_s": 0,
+     "dark_opacity": 0.85
+    },
+    {
+     "t_s": 0.5,
+     "dark_opacity": 0.59
+    },
+    {
+     "t_s": 1,
+     "dark_opacity": 0.378
+    },
+    {
+     "t_s": 1.5,
+     "dark_opacity": 0.212
+    },
+    {
+     "t_s": 2,
+     "dark_opacity": 0.094
+    },
+    {
+     "t_s": 2.5,
+     "dark_opacity": 0.024
+    },
+    {
+     "t_s": 3,
+     "dark_opacity": 0
+    }
+   ]
+  }
+ }
+}
