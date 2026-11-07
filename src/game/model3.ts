@@ -19,7 +19,13 @@ export const MODEL3_CAPTURE_M = 205;
 export const MODEL3_CLOUD: Record<string, number> = { clear: 0, cloud: 5, over: 9 };
 
 const GRADES = ['하', '중', '상'];
-export const model3AlertText = (g: Model3Grade) => `모델 ③ · 전방 지하차도 입구 순응 위험 ${g}`;
+/** 운전자에게 보이는 문구: 모델 번호·전문 용어(순응) 없이. 사고 확률 표현은 쓰지 않는다. */
+export const model3AlertText = (g: Model3Grade) => `전방 지하차도 입구 · 어둠 적응 위험 ${g}`;
+export const MODEL3_ALERT_NOTE: Record<Model3Grade, string> = {
+  상: '들어가면 한동안 앞이 잘 안 보여요 · 미리 속도를 줄이세요',
+  중: '들어가면 잠깐 앞이 어두워요 · 속도를 줄이세요',
+  하: '밝기 차이가 크지 않아요 · 앞차 간격을 유지하세요',
+};
 
 function parseEffect(v: unknown): ScreenEffect {
   const e = v as Partial<ScreenEffect> | null;

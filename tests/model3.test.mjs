@@ -95,3 +95,11 @@ test('다음 지하차도는 새로 판정하고, 주행을 멈추면 초기화'
   assert.equal(scene.update({ s0: 2, covered: false, toEntry: 150, phase: 'approach' }, .1).alert.grade, '하');
   scene.update(null, 0, false); assert.equal(scene.reading, null);
 });
+
+test('운전자 문구에는 모델 번호 · "순응" · 사고 표현이 없다', () => {
+  for (const g of ['하', '중', '상']) {
+    const text = M.model3AlertText(g) + ' ' + M.MODEL3_ALERT_NOTE[g];
+    assert.ok(text.includes(`위험 ${g}`));
+    for (const bad of ['모델', '③', '순응', '사고', '%']) assert.ok(!text.includes(bad), `${g}: ${bad}`);
+  }
+});
