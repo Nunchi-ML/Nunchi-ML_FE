@@ -10,6 +10,7 @@ import { createWeatherLayer } from './weather';
 import { createTunnelLighting } from './tunnelLighting';
 import { createRoadsideSigns } from './roadsideSigns';
 import { createTreeAssets } from './trees';
+import { buildRiverside } from './riverside';
 
 /** 결정적 난수 (매번 같은 도시) */
 export function makeRand(seed = 7) { let r = seed; return () => (r = (r * 16807) % 2147483647) / 2147483647; }
@@ -94,19 +95,11 @@ export function createWorld(): World {
 
   const ground = new THREE.Mesh(groundGeometry(), new THREE.MeshLambertMaterial({ color: 0x86765f, polygonOffset: true, polygonOffsetFactor: 8, polygonOffsetUnits: 16 }));
   ground.position.y = -0.05; ground.receiveShadow = true; scene.add(ground);
-  // Actual OSM river centerlines; water width is a visual approximation.
-  for (const river of D.rivers ?? []) {
-    const pos: number[] = [], idx: number[] = [];
-    const pts = river.poly.map(([lon, lat]) => ({ x: (lon - 128.59) * 111320 * Math.cos(35.866 * Math.PI / 180), z: -(lat - 35.866) * 110940 }));
-    pts.forEach((p, i) => {
-      const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)], len = Math.hypot(b.x - a.x, b.z - a.z) || 1;
-      const rx = -(b.z - a.z) / len * river.width / 2, rz = (b.x - a.x) / len * river.width / 2;
-      pos.push(p.x - rx, -.025, p.z - rz, p.x + rx, -.025, p.z + rz);
-      if (i) { const k = (i - 1) * 2; idx.push(k, k + 2, k + 1, k + 1, k + 2, k + 3); }
-    });
-    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setIndex(idx); geo.computeVertexNormals();
-    scene.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0x497c86, roughness: .3, metalness: .3, side: THREE.DoubleSide })));
-  }
+  // 강: 실제 OSM 물길 중심선 + 둔치(잔디 · 산책로 · 호안 · 갈대 · 나무). 폭과 배치는 그림용 가정값 (riverside.ts).
+  const roadLine: { x: number; z: number }[] = [];
+  for (let s = 0; s <= TOTAL; s += 20) { const p = at(s); roadLine.push({ x: p.x, z: p.z }); }
+  buildRiverside(scene, D.rivers ?? [], roadLine,
+    ([lon, lat]) => ({ x: (lon - 128.59) * 111320 * Math.cos(35.866 * Math.PI / 180), z: -(lat - 35.866) * 110940 }), makeRand(31), createTreeAssets());
 
   // 보도 · 연석 · 차도가 몇 cm 차이로 겹쳐 있어 멀리서 서로 번갈아 비침(깜빡임) → 아래 층을 깊이 쪽으로 밀어 차도가 늘 위에 그려지게
   ribbon(scene, ROAD_W + 14, 0.01, new THREE.MeshLambertMaterial({ color: 0xb8a990, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 4, polygonOffsetUnits: 8 }));   // 보도
