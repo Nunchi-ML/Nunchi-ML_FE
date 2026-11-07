@@ -66,6 +66,7 @@ export function createCarAudio() {
   let nodes: null | {
     master: GainNode; engGain: GainNode; eng: OscillatorNode; engFilter: BiquadFilterNode;
     tireGain: GainNode; tireBand: BiquadFilterNode; windGain: GainNode;
+    sources: AudioScheduledSourceNode[]; connections: AudioNode[];
   } = null;
   function build(c: Ctx) {
     const master = c.createGain(); master.gain.value = 0;
@@ -92,7 +93,9 @@ export function createCarAudio() {
     lfo.connect(lfoDepth).connect(gust.gain);
     wind.connect(windBand).connect(windLp).connect(windGain).connect(gust).connect(master);
     eng.start(); tire.start(); wind.start(); lfo.start();
-    nodes = { master, engGain, eng, engFilter, tireGain, tireBand, windGain };
+    nodes = { master, engGain, eng, engFilter, tireGain, tireBand, windGain,
+      sources: [eng, tire, wind, lfo],
+      connections: [master, comp, eng, engFilter, engHp, engGain, tire, tireBand, tireLp, tireGain, wind, windBand, windLp, windGain, gust, lfo, lfoDepth] };
   }
   return {
     /** 출발 버튼 클릭 안에서 부른다. */
@@ -111,5 +114,12 @@ export function createCarAudio() {
       nodes.windGain.gain.setTargetAtTime(Math.max(0, v - .35) ** 2 * .35, t, k);
     },
     stop() { if (nodes && ctx) nodes.master.gain.setTargetAtTime(0, ctx.currentTime, .15); },
+    /** Engine teardown must stop looping sources, not only mute their output. */
+    dispose() {
+      if (!nodes) return;
+      nodes.sources.forEach(source => source.stop());
+      nodes.connections.forEach(node => node.disconnect());
+      nodes = null;
+    },
   };
 }

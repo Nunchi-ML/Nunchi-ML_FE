@@ -46,7 +46,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
   const CP = createCockpit(), rig = new THREE.Group(); rig.add(CP.group); W.scene.add(rig);
   // LCD 차광판: 운전석에 붙어 있고, 해가 눈에 들어오는 육각형 칸만 어두워진다
   const visor = createLcdVisor(); rig.add(visor.group);
-  const sunLocal = new THREE.Vector3(), rigInv = new THREE.Quaternion();
+  const sunLocal = new THREE.Vector3(), eyeLocal = new THREE.Vector3(), rigInv = new THREE.Quaternion();
   let visorDark = 0;
 
   // 백미러: 뒤쪽을 작은 화면에 그려 거울면에 붙임 (좌우 반전)
@@ -106,7 +106,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
     segFrom: '', segT0: 0, segS0: 0, segGlare: 0,                       // 지금 달리는 역 사이 구간 기록
     minutes: G.getState().settings.minutes,
   };
-  let glareDiagnostics = { intensity: 0, angle: 0, sunAltitude: 0, blockedByCar: false, blockedByWorld: false, onScreen: false };
+  let glareDiagnostics = { intensity: 0, effectiveIntensity: 0, visorTransmission: 1, visorProgress: 0, visorDark: 0, angle: 0, sunAltitude: 0, blockedByCar: false, blockedByWorld: false, onScreen: false };
   const adaptation = newAdaptation();
   let exitGlare = 0;
   const passageRecords: PassageRecord[] = [];
@@ -465,18 +465,19 @@ export function createEngine(canvas: HTMLCanvasElement) {
     if (S.referenceFrame) S.I = I;
     else S.I += (I - S.I) * Math.min(1, dt * 4);                                // 갑자기 번쩍이지 않게
     const Is = S.I;
-    glareDiagnostics = { intensity: Is, angle: ang, sunAltitude: sp.alt, blockedByCar: blocked, blockedByWorld: occluded, onScreen };
-    S.glareLv = Is > 0.5 ? 2 : Is > 0.22 ? 1 : 0;
     const sunMat = W.sunDisc.material as THREE.MeshBasicMaterial;
     sunMat.color.setRGB(1, 0.95, 0.8).multiplyScalar(occluded ? 0.7 : 1.25 + 1.6 * Math.min(1, Is * 1.6));
     // 차광판: 해 방향을 운전석 기준으로 바꿔, 눈과 해를 잇는 선이 판의 어느 칸을 지나는지 계산
     rigInv.copy(rig.quaternion).invert(); sunLocal.copy(sv).applyQuaternion(rigInv);
+    eyeLocal.copy(camera.position).sub(rig.position).applyQuaternion(rigInv);
     const visorOn = st.glass && S.cam === 'cockpit' && rig.visible && gs.screen === 'driving';
-    const vs = visor.update(visorOn && sp.alt > -1, sunLocal, dt); visorDark = vs.darkCount;
-    // 해가 어두운 칸 뒤에 있으면 직사광이 눈에 들어오지 않는다 → 빛 번짐·번쩍임을 지붕에 가린 것처럼 줄인다
-    const shadeOn = S.running && visorOn && !blocked && vs.darkCount > 0 && Is > 0.02;
-    const eff = shadeOn ? Is * 0.15 : Is;
-    if (shadeOn) S.glareLv = eff > 0.5 ? 2 : eff > 0.22 ? 1 : 0;                // 차광판이 가린 만큼 실제 눈부심 등급도 낮춘다
+    const sunExposed = W.sunDisc.visible && !blocked && !occluded && !section?.covered;
+    const vs = visor.update(visorOn, sunLocal, dt, { eye: eyeLocal, illuminated: rig.visible && sunExposed }); visorDark = vs.darkCount;
+    // Match optical attenuation to the visible panel, including deployment/retraction.
+    const shadeOn = S.running && rig.visible && vs.transmission < .99 && Is > .02;
+    const eff = Is * vs.transmission;
+    S.glareLv = eff > .5 ? 2 : eff > .22 ? 1 : 0;
+    glareDiagnostics = { intensity: Is, effectiveIntensity: eff, visorTransmission: vs.transmission, visorProgress: vs.progress, visorDark, angle: ang, sunAltitude: sp.alt, blockedByCar: blocked, blockedByWorld: occluded, onScreen };
     if (els.wash) els.wash.style.opacity = '0';
     if (els.glare) els.glare.style.background = 'none';
     if (els.shade) els.shade.style.opacity = '0';                              // 예전 화면 원형 차광은 쓰지 않음
@@ -491,7 +492,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
     bloom.threshold = 1.6 - exitLight * .8;
     const compactView = isTouch || (innerWidth <= 900 && innerWidth > innerHeight);
     const roadBottom = S.cam === 'cockpit' ? compactView ? .57 : .65 : 1;
-    const directLight = W.sunDisc.visible && onScreen && !blocked && !shadeOn && !occluded && !section?.covered ? Math.pow(eff, 1.25) : 0;
+    const directLight = sunExposed && onScreen ? Math.pow(eff, 1.25) : 0;
     lightGlare.update(sxp, syp, innerWidth, innerHeight, directLight, exitLight, roadBottom);
 
     // Temporal contrast loss recovers from illumination history, independent of the sun disk.
@@ -553,7 +554,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
       hudT -= dt;
       if (hudT <= 0) {
         hudT = 0.1;
-        const glassText = !st.glass ? '꺼짐' : shadeOn ? `${visorDark}칸 차광 중` : visorDark ? '해 가리는 중' : '대기';
+        const glassText = !st.glass ? '꺼짐' : !visorOn ? '운전석에서 작동' : vs.progress < .99 ? '펼치는 중' : shadeOn ? `${visorDark}칸 차광 중` : sunExposed ? '해가 판 범위 밖' : '대기 · 직사광 없음';
         G.setState({ hud: { ...gs.hud, riskRatio: riskAt(kmNow, dirK).ratio, glareLv: S.glareLv, glassText, adaptation: adapted, navigation: { text: navCue?.text ?? '경로를 따라 주행하세요', meters: navCue?.meters ?? 0, source: navCue?.source ?? 'route', voiceAvailable: voice.available, inCab: S.cam === 'cockpit' }, analysis: cached ? { level: cached.sample.level, modelVersion: cached.modelVersion, aheadMeters: cached.ahead ? Math.round(Math.abs(cached.ahead.km - kmNow) * 1000) : null, aheadLevel: cached.ahead?.level ?? null } : undefined, score: Math.round(S.score), kmh,
           prog: Math.max(0, Math.min(1, (kmNow - st.startKm) / (st.endKm - st.startKm))), remainKm: Math.abs(st.endKm - kmNow),
           station: near.name, warn: running && S.glareLv === 2 && kmh > 60, fps: fpsV },
@@ -575,14 +576,14 @@ export function createEngine(canvas: HTMLCanvasElement) {
         camera.updateMatrixWorld();
         const r = CP.phoneRect(camera, innerWidth, innerHeight);
         ps.left = `${r.cx}px`; ps.top = `${r.cy}px`; ps.setProperty('--k', String(r.hpx / 800));
-        ps.opacity = String(Math.max(0, Math.min(1, (phoneT - 0.82) / 0.18)));
+        ps.opacity = gs.phoneOpen ? String(Math.max(0, Math.min(1, (phoneT - 0.82) / 0.18))) : '0';
       } else {                                                             // 3인칭 · 손 모델 준비 전: 화면 가운데에 크게
         ps.left = '50%'; ps.top = '50%';
         ps.setProperty('--k', String(Math.min((innerHeight * 0.92) / 800, (innerWidth * 0.92) / 390, 1.35)));
         ps.opacity = gs.phoneOpen ? '1' : '0';
       }
     }
-    if (els.phoneDim) els.phoneDim.style.opacity = String(anim ? Math.min(1, phoneT * 1.2) : gs.phoneOpen ? 1 : 0);
+    if (els.phoneDim) els.phoneDim.style.opacity = String(gs.phoneOpen ? anim ? Math.min(1, phoneT * 1.2) : 1 : 0);
     if (rig.visible) {                                                     // 거울 3개를 프레임마다 돌아가며 하나씩 (각각 세 프레임에 한 번)
       mirFrame = (mirFrame + 1) % 3;
       const [rt, cam] = mirFrame === 0 ? [mirrorRT, mirrorCam] : [sideMirrors[mirFrame - 1].rt, sideMirrors[mirFrame - 1].cam];
@@ -605,6 +606,8 @@ export function createEngine(canvas: HTMLCanvasElement) {
       api.prepareReference(km); S.dir = Math.sign(direction) || 1; observerReference = { s: S.s, direction: S.dir };
     },
     inspectGlare: () => ({ ...glareDiagnostics }),
+    inspectVisor: () => ({ eye: { x: eyeLocal.x, y: eyeLocal.y, z: eyeLocal.z }, sun: { x: sunLocal.x, y: sunLocal.y, z: sunLocal.z },
+      progress: glareDiagnostics.visorProgress, transmission: glareDiagnostics.visorTransmission, darkCount: visorDark }),
     lightEffects: lightGlare,
     referenceMetadata: () => {
       camera.getWorldDirection(fwd);
@@ -615,7 +618,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
     toggleCam: () => { S.cam = S.cam === 'cockpit' ? 'chase' : 'cockpit'; },
     bankKm: BANK_KM, store: G, cockpit: CP, rig, world: W, renderer,
     dispose: () => {
-      voice.stop(); carAudio.stop(); cancelAnimationFrame(raf); unsubGfx();
+      voice.stop(); carAudio.dispose(); cancelAnimationFrame(raf); unsubGfx();
       removeEventListener('keydown', onKeyDown); removeEventListener('keyup', onKeyUp);
       removeEventListener('blur', releaseAll); document.removeEventListener('visibilitychange', onVis);
       removeEventListener('resize', resize);
