@@ -38,14 +38,20 @@ test('Disposing a driving sound stops every looping source and releases connecti
     createBuffer(channels, length) { return { getChannelData: () => new Float32Array(length) }; }
   }
   const previousWindow = globalThis.window;
-  globalThis.window = { AudioContext: FakeContext };
+  const previousNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  const browserNavigator = { audioSession: { type: 'auto' } };
+  globalThis.window = { AudioContext: FakeContext, navigator: browserNavigator };
+  // Node 20 has no navigator; newer Node versions expose a configurable getter.
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: browserNavigator });
   try {
     const audio = createCarAudio(); audio.start(); audio.update(true, 60, 1);
+    assert.equal(browserNavigator.audioSession.type, 'playback');
     assert.equal(sources.length, 4); audio.dispose(); audio.dispose();
     assert.ok(sources.every(s => s.stopped)); assert.ok(connections.every(n => n.disconnected));
     audio.start(); assert.equal(sources.length, 8, 'a fresh engine can build new sources'); audio.dispose();
     assert.ok(sources.every(s => s.stopped));
   } finally {
     if (previousWindow === undefined) delete globalThis.window; else globalThis.window = previousWindow;
+    if (previousNavigator === undefined) delete globalThis.navigator; else Object.defineProperty(globalThis, 'navigator', previousNavigator);
   }
 });
