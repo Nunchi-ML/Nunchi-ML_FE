@@ -3,6 +3,7 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
 import { BANK_KM, D, TOTAL, ROAD_W, LANE_COUNT, LANE_WIDTH, at, kmToS, laneOffset, locationLabel, nearestStation, riskAt, sToKm, stationLabel, type Dir } from './road';
 import { compass, hm, simDate, sunDir, sunPos } from './sun';
@@ -87,6 +88,9 @@ export function createEngine(canvas: HTMLCanvasElement) {
   const lightGlare = createLightGlare();
   lightGlare.maskBloom(bloom.materialHighPassFilter); lightGlare.maskBloom(bloom.blendMaterial);
   composer.addPass(bloom); composer.addPass(lightGlare.pass); composer.addPass(new OutputPass());
+  // 휴대폰 GPU는 HDR 화면의 MSAA를 못 하는 경우가 많아(samples 0) 건물·차선 경계가 계단처럼 보였다 → SMAA로 경계를 다듬는다.
+  const smaa = samples < 2 ? new SMAAPass(1, 1) : null;
+  if (smaa) composer.addPass(smaa);
 
   /* ---------- 주행 상태 ---------- */
   const S = {
@@ -120,13 +124,15 @@ export function createEngine(canvas: HTMLCanvasElement) {
     const hi = G.getState().settings.gfx === 'high';
     renderer.shadowMap.enabled = hi; W.buildings.forEach(b => b.castShadow = hi);
     // 후처리(눈부심 번짐) 화면도 같은 해상도로 그린다. 예전엔 처음 값(1배)에 머물러 휴대폰에서 흐릿했다.
-    const pr = Math.min(devicePixelRatio, hi ? 2 : 1.75) * autoScale;
+    const pr = Math.min(devicePixelRatio, 2) * autoScale;
     renderer.setPixelRatio(pr); composer.setPixelRatio(pr); resize();
+    G.setState({ render: { pixelRatio: Math.round(pr * 100) / 100, deviceRatio: devicePixelRatio, smoothing: smaa ? 'SMAA' : samples ? `MSAA ${samples}x` : '없음' } });
   }
-  // 느린 기기: 주행 중 초당 프레임이 계속 낮으면 해상도를 한 단계씩 낮춘다(최소 70%).
+  // 느린 기기: 주행 중 초당 프레임이 아주 낮을 때만 해상도를 조금 낮춘다(최소 85%).
+  // 예전 기준(28fps 미만 3초, 최소 70%)은 대부분의 휴대폰에서 바로 걸려 화질 개선이 사라졌다.
   function adaptResolution(fps: number) {
-    slowSec = fps < 28 ? slowSec + 1 : 0;
-    if (slowSec >= 3 && autoScale > .7) { autoScale = Math.max(.7, autoScale - .15); slowSec = 0; applyGfx(); }
+    slowSec = fps < 20 ? slowSec + 1 : 0;
+    if (slowSec >= 5 && autoScale > .85) { autoScale = .85; slowSec = 0; applyGfx(); }
   }
 
   const routeDir = (): Dir => G.getState().settings.endKm >= G.getState().settings.startKm ? 'E' : 'W';
