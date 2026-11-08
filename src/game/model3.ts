@@ -1,10 +1,11 @@
 /* 모델 ③ (밝기 전환 부담) — 터널 입구 순응 위험 하 · 중 · 상.
  * 서버: AI 저장소 src/tunnel/simulator_api (FastAPI). 요청서 v3 장면:
- *   입구 155m 전 알림(거리 숫자는 안 띄움) → 입구 통과 순간 화면 어두워짐 → 3 · 2 · 1 → 최소 시야 확보.
+ *   입구 155m 전 알림(거리 숫자는 안 띄움) → 입구 통과 순간 화면 어두워짐 → 3초에 걸쳐 평소 밝기.
+ * 요청서의 3 · 2 · 1 숫자는 넣지 않는다: 운전자에게 "3초면 괜찮다"로 읽히고, 3초는 실제 눈의 회복 시간이 아닌 연출 값이다.
  * 출구에는 알림을 띄우지 않는다. 사고 확률·"여기서 사고" 문구는 쓰지 않는다.
  */
 export type Model3Grade = '하' | '중' | '상';
-export interface ScreenEffect { start_dark_opacity: number; recover_s: number; countdown: number[]; curve: { t_s: number; dark_opacity: number }[] }
+export interface ScreenEffect { start_dark_opacity: number; recover_s: number; curve: { t_s: number; dark_opacity: number }[] }
 export type Model3Source = 'photo' | 'sun' | 'preset';
 export interface Model3Reading { grade: Model3Grade; warn_distance_m: number; screen_effect: ScreenEffect; source: Model3Source }
 export interface Model3Presets { alt0: number; alt1: number; clouds: number[]; grid: Record<string, string>; warn_distance_m: number; screen_effect: Record<string, ScreenEffect> }
@@ -34,7 +35,7 @@ function parseEffect(v: unknown): ScreenEffect {
       !e.curve.every(p => p && Number.isFinite(p.t_s) && Number.isFinite(p.dark_opacity) && p.dark_opacity >= 0 && p.dark_opacity <= 1)) {
     throw new Error('모델 ③ 응답의 screen_effect 형식이 올바르지 않아요.');
   }
-  return { start_dark_opacity: e.start_dark_opacity, recover_s: e.recover_s, countdown: Array.isArray(e.countdown) ? e.countdown : [3, 2, 1], curve: e.curve };
+  return { start_dark_opacity: e.start_dark_opacity, recover_s: e.recover_s, curve: e.curve };
 }
 export function parseModel3Reading(value: unknown, source: Model3Source): Model3Reading {
   const r = value as { grade?: unknown; warn_distance_m?: unknown; screen_effect?: unknown } | null;
@@ -90,13 +91,13 @@ export async function requestModel3(image: Blob | null, ctx: Model3Context, pres
 
 /* ── 지하차도 하나를 지나는 동안의 장면 순서 ─────────────────────────── */
 export interface Model3Section { s0: number; covered: boolean; toEntry: number; phase: string }
-export interface Model3View { alert: Model3Reading | null; dark: number; countdown: number | null; active: boolean; beep: boolean }
+export interface Model3View { alert: Model3Reading | null; dark: number; active: boolean; beep: boolean }
 type Phase = 'idle' | 'requested' | 'warned' | 'dark' | 'done';
 export function createModel3Scene(request: () => Promise<Model3Reading>) {
   let key: number | null = null, phase: Phase = 'idle', reading: Model3Reading | null = null, t = 0, token = 0;
   const reset = () => { key = null; phase = 'idle'; reading = null; t = 0; token++; };
   function update(section: Model3Section | null, dt: number, running = true): Model3View {
-    const none = { alert: null, dark: 0, countdown: null, active: false, beep: false };
+    const none = { alert: null, dark: 0, active: false, beep: false };
     if (!running) { reset(); return none; }
     if (!section || (section.s0 !== key && key !== null && phase !== 'dark')) reset();
     if (!section) return none;
@@ -115,9 +116,9 @@ export function createModel3Scene(request: () => Promise<Model3Reading>) {
       t += Math.max(0, Math.min(dt, .1));
       const e = reading.screen_effect;
       if (t >= e.recover_s) { phase = 'done'; return { ...none, active: true }; }
-      return { alert: null, dark: darkAt(e, t), countdown: Math.max(1, Math.ceil(e.recover_s - t)), active: true, beep: false };
+      return { alert: null, dark: darkAt(e, t), active: true, beep: false };
     }
-    if (phase === 'warned') return { alert: reading, dark: 0, countdown: null, active: true, beep };
+    if (phase === 'warned') return { alert: reading, dark: 0, active: true, beep };
     return { ...none, active: phase === 'done' && section.covered };
   }
   return { update, reset, get reading() { return reading; } };

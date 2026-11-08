@@ -49,7 +49,6 @@ export function Hud({ visible, bind }: { visible: boolean; bind: <K extends keyo
     {m3?.text && st.guidance && <div className="model3-alert" role="alert" style={{ borderColor: m3.color, color: m3.color }} title={`판정 근거: ${MODEL3_SOURCE_LABEL[m3.source]}`}>
       <i style={{ background: m3.color }} /><div><b>{m3.text}</b><small>{MODEL3_ALERT_NOTE[m3.grade]}</small></div>
     </div>}
-    {m3?.countdown != null && <div className="model3-countdown" aria-live="assertive"><b key={m3.countdown}>{m3.countdown}</b><span>시야 회복 중</span></div>}
     {mlGlare && <aside className="drive-adaptation" aria-label="태양광 눈부심 분류 모델 판정" style={{ borderColor: mlGlare.color }}>
       <div className="drive-eye" style={{ background: mlGlare.color }} />
       <div className="drive-adaptation-copy"><small>태양광 눈부심 판정 <span>선정 모델</span></small><b>{mlGlare.title}</b>
