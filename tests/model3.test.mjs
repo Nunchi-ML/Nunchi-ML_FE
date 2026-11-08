@@ -13,7 +13,7 @@ test('요청서 v3 어둡기 표: 상 85→38→9→0, 중 60→27→7→0, 하 
   const table = { 상: [.85, .38, .09, 0], 중: [.60, .27, .07, 0], 하: [.30, .13, .03, 0] };
   for (const [g, want] of Object.entries(table)) {
     const e = presets.screen_effect[g];
-    assert.equal(e.recover_s, 3); assert.deepEqual(e.countdown, [3, 2, 1]);
+    assert.equal(e.recover_s, 3);
     want.forEach((v, t) => assert.ok(Math.abs(M.darkAt(e, t) - v) < .006, `${g} ${t}s ${M.darkAt(e, t)}`));
     assert.ok(M.darkAt(e, .25) < e.start_dark_opacity && M.darkAt(e, .25) > M.darkAt(e, .5));
     assert.equal(M.darkAt(e, 9), 0);
@@ -58,7 +58,7 @@ test('판정 순서: 사진 → 해 높이·구름 → 미리 받아 둔 표', a
 });
 
 const tick = () => new Promise(r => setTimeout(r, 0));
-test('장면: 205m에서 판정 요청 → 155m 알림 · 경고음 1번 → 입구에서 어두워짐 · 3·2·1 → 3초 뒤 평소', async () => {
+test('장면: 205m에서 판정 요청 → 155m 알림 · 경고음 1번 → 입구에서 어두워짐 → 3초 뒤 평소 (숫자 없음)', async () => {
   let asked = 0;
   const scene = M.createModel3Scene(async () => { asked++; return reading('상'); });
   const sec = (toEntry, covered = false) => ({ s0: 1000, covered, toEntry, phase: covered ? 'inside' : toEntry > 0 ? 'approach' : 'exit' });
@@ -70,10 +70,10 @@ test('장면: 205m에서 판정 요청 → 155m 알림 · 경고음 1번 → 입
   assert.equal(scene.update(sec(60), .1).beep, false);
   const seen = [];
   let v = scene.update(sec(0, true), 0);
-  assert.equal(v.dark, .85); assert.equal(v.countdown, 3); assert.equal(v.alert, null);
-  for (let t = 0; t < 3.2; t += .1) { v = scene.update(sec(-5, true), .1); if (v.countdown) seen.push(v.countdown); }
-  assert.deepEqual([...new Set(seen)], [3, 2, 1]);
-  assert.equal(v.dark, 0); assert.equal(v.countdown, null);
+  assert.equal(v.dark, .85); assert.equal(v.alert, null); assert.ok(!('countdown' in v));
+  for (let t = 0; t < 3.2; t += .1) { v = scene.update(sec(-5, true), .1); seen.push(v.dark); }
+  assert.ok(seen.every((d, i) => i === 0 || d <= seen[i - 1]));
+  assert.equal(v.dark, 0);
   assert.equal(asked, 1);
 });
 
@@ -84,7 +84,7 @@ test('출구 쪽에서 시작하면 알림 없음, 판정을 못 받으면 연�
   fail.update({ s0: 2, covered: false, toEntry: 200, phase: 'approach' }, .1); await tick();
   assert.equal(fail.update({ s0: 2, covered: false, toEntry: 150, phase: 'approach' }, .1).alert, null);
   const inside = fail.update({ s0: 2, covered: true, toEntry: 0, phase: 'inside' }, .1);
-  assert.equal(inside.dark, 0); assert.equal(inside.countdown, null);
+  assert.equal(inside.dark, 0);
 });
 
 test('다음 지하차도는 새로 판정하고, 주행을 멈추면 초기화', async () => {

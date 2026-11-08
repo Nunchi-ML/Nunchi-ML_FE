@@ -502,11 +502,7 @@ button,summary{touch-action:manipulation}
 .model3-alert{position:absolute;top:96px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:10px 18px;border-radius:12px;background:#140f0ae6;border:2px solid;font-size:17px;letter-spacing:-.2px;white-space:nowrap;box-shadow:0 8px 24px #0006;animation:model3-in .35s ease-out}
 .model3-alert i{width:12px;height:12px;border-radius:50%;flex:none;animation:model3-blink 1s ease-in-out infinite}
 .model3-alert b{font-weight:700;display:block}.model3-alert small{display:block;margin-top:2px;font-size:13px;color:#f3ece2;font-weight:400}
-.model3-countdown{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:6px;color:#fff;text-shadow:0 2px 16px #000}
-.model3-countdown b{font-size:min(22vh,150px);line-height:1;font-weight:800;animation:model3-tick 1s ease-out}
-.model3-countdown span{font-size:15px;opacity:.85}
 @keyframes model3-in{from{opacity:0;transform:translate(-50%,-8px)}to{opacity:1;transform:translate(-50%,0)}}
 @keyframes model3-blink{50%{opacity:.35}}
-@keyframes model3-tick{from{transform:scale(1.25);opacity:.4}to{transform:scale(1);opacity:1}}
 @media(max-height:520px){.model3-alert{top:62px;font-size:14px;padding:7px 13px}}
-@media(prefers-reduced-motion:reduce){.model3-alert,.model3-alert i,.model3-countdown b{animation:none}}
+@media(prefers-reduced-motion:reduce){.model3-alert,.model3-alert i{animation:none}}
