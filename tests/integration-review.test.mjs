@@ -22,7 +22,7 @@ test('Python-exported cases keep their original per-cause grades and explicit sy
   const matched = M.parseIntegrationReports(fixture('matched'))[0].report;
   assert.equal(matched.components.model2.level, 0);
   assert.equal(matched.components.model3.level, 2);
-  assert.equal(M.guidanceSummary(matched).tone, 'attention');
+  assert.equal(M.driverGuidance(matched).tone, 'attention');
 });
 
 test('a normal first model never clears a missing second model', () => {
@@ -41,14 +41,14 @@ test('known warnings survive partial data without claiming complete observations
   assert.equal(r.current_level_is_lower_bound, true);
   assert.equal(r.requested_level, 2);
   assert.equal(r.components.model3.state, 'unknown');
-  assert.match(M.guidanceSummary(r).title, /경고 유지/);
+  assert.match(M.driverGuidance(r).unknownNote, /확인/);
 });
 
 test('mismatched and expired observations, and future ETA, remain unknown', () => {
   for (const id of ['different-photo', 'stale', 'future']) {
     const r = M.parseIntegrationReports(fixture(id))[0].report;
     assert.equal(r.requested_state, 'unknown', id);
-    assert.equal(M.guidanceSummary(r).tone, 'unknown', id);
+    assert.equal(M.driverGuidance(r).tone, 'unknown', id);
   }
   const future = M.parseIntegrationReports(fixture('future'))[0].report;
   assert.equal(future.components.model3.level, 2);
@@ -64,8 +64,6 @@ test('supports actual joint-runner envelopes, including rejected synthetic input
   assert.equal(r.imageSha256, 'a'.repeat(64));
   assert.equal(r.evidence, 'synthetic_contract');
   assert.deepEqual(wrapped, before);
-  assert.match(M.guidanceSummary(r.report, true).title, /사진/);
-  assert.equal(M.guidanceSummary(r.report, true).tone, 'unknown');
 });
 
 test('rejects inconsistent or unsupported reports instead of rendering successful guidance', () => {
@@ -83,8 +81,27 @@ test('rejects inconsistent or unsupported reports instead of rendering successfu
   for (const value of [null, [], [fixture('matched'), {}], { cases: [] }, Array(101).fill(fixture('matched'))]) assert.throws(() => M.parseIntegrationReports(value));
 });
 
-test('photo fingerprint checks exact bytes and bounds input size', async () => {
-  assert.equal(await M.photoFingerprint(new Blob(['test'])), '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08');
-  await assert.rejects(() => M.photoFingerprint(new Blob([])));
-  await assert.rejects(() => M.photoFingerprint(new Blob([new Uint8Array(M.REVIEW_FILE_LIMIT + 1)])));
+
+test('driver guidance keeps the cause and action relevant to each situation', () => {
+  const tunnel = M.driverGuidance(M.parseIntegrationReports(fixture('matched'))[0].report);
+  assert.equal(tunnel.glare, 0); assert.equal(tunnel.transition, 2);
+  assert.match(tunnel.title, /터널/); assert.match(tunnel.action, /진입 전 속도/);
+  const glare = M.driverGuidance(M.parseIntegrationReports(fixture('glare-only'))[0].report);
+  assert.equal(glare.glare, 2); assert.equal(glare.transition, 0);
+  assert.match(glare.title, /햇빛/); assert.doesNotMatch(glare.action, /터널/);
+  const both = M.driverGuidance(M.parseIntegrationReports(fixture('both'))[0].report);
+  assert.match(both.title, /눈부심과 터널/);
+  assert.match(both.action, /앞차/);
+});
+
+test('driver guidance never presents missing, future or mismatched information as clear', () => {
+  for (const id of ['missing', 'future', 'different-photo', 'stale']) {
+    const result = M.driverGuidance(M.parseIntegrationReports(fixture(id))[0].report);
+    assert.equal(result.tone, 'unknown', id);
+    assert.match(result.unknownNote, /확인/);
+  }
+  const partial = M.driverGuidance(M.parseIntegrationReports(fixture('warning-partial'))[0].report);
+  assert.equal(partial.tone, 'attention');
+  assert.equal(partial.glare, 2); assert.equal(partial.transition, null);
+  assert.match(partial.title, /햇빛/); assert.match(partial.unknownNote, /확인/);
 });

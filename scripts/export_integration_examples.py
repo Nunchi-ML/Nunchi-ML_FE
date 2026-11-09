@@ -57,6 +57,8 @@ cases = [case("matched", "같은 관측 · 눈부심 정상 / 입구 상"),
 cases[4]["model3"]["context"]["image_sha256"] = "c" * 64
 cases[5]["query"]["as_of"] = cases[5]["query"]["eta"] = "2026-11-06T08:01:00+09:00"
 cases[6]["query"]["eta"] = "2026-11-06T08:01:00+09:00"
+cases += [case("glare-only", "햇빛이 강한 길", 2, 0),
+          case("both", "햇빛과 터널 모두 주의", 2, 2)]
 results = module.run_cases(deepcopy(cases))
 payload = dict(schema_version="integration-review-examples-v1",
                generated_by="AI integration_probe.run_cases",

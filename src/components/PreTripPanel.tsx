@@ -15,6 +15,22 @@ export function PreTripPanel({ inPhone = false }: { inPhone?: boolean }) {
   const observation = row?.observation;
   const example = settings.observationMode === 'example';
   const model = routeAnalysisSummary(ROAD_ID, settings);
+  if (inPhone) return <section className="phone-route" aria-label="출발 전 경로 안내">
+    <div className="phone-route-summary"><small>선택한 코스</small><div className="phone-route-distance"><b>{metersLabel(p.route.distanceM)}</b><span>약 {Math.max(1, Math.ceil(p.route.durationSec / 60))}분</span></div>
+      <div className="phone-route-observation"><b>{p.observedM ? `주의 구간 ${metersLabel(p.cautionM)}` : '앞 구간 정보 미확인'}</b><span>{example ? '가상 관측 예시' : '도로변 사진 기준'} · 미확인 {metersLabel(p.unknownM)}</span></div>
+      {model && <div className="phone-route-observation"><b>{model.severeM ? `심한 눈부심 ${metersLabel(model.severeM)}` : model.glareM ? `눈부심 ${metersLabel(model.glareM)}` : '눈부심 낮음'}</b><span>저장된 시뮬레이터 사진 판정</span></div>}
+      <p>{p.observedM ? '주의 구간에 들어가기 전 속도를 줄이세요.' : '확인되지 않은 구간은 전방을 살피며 주행하세요.'}</p><span className="phone-caption">시간은 체험 속도 기준이며 실제 교통 정보는 연결되지 않았어요.</span>
+    </div>
+    <details className="phone-fold"><summary>구간별 자세히 보기</summary>
+      <div className="pretrip-timeline" aria-label="전 경로 구간 상태">{p.segments.map((s, i) => <button key={s.segment.id} className={`pretrip-segment ${s.state}${selected === i ? ' selected' : ''}`} aria-label={`${s.segment.km0.toFixed(2)}킬로미터 ${s.state === 'unknown' ? '미확인' : s.state === 'caution' ? '주의' : '눈부심 관측 없음'}`} onClick={() => choose(i)} />)}</div>
+      {row && <p><b>{row.state === 'unknown' ? UNKNOWN_LABELS[row.reason!] : row.level === 2 ? '눈부심 강함' : row.state === 'caution' ? '눈부심 주의' : '이 사진에서는 눈부심 관측 없음'}</b><br/>{row.segment.km0.toFixed(2)} → {row.segment.km1.toFixed(2)} km · 도착 예상 {clock(row.segment.eta)}</p>}
+      {observation && <img style={{width:'100%',borderRadius:9}} src={observation.photo.url} alt={example ? '가상 도로변 관측 예시' : '선택 구간의 도로변 관측 사진'} />}
+      <p>사진을 찍은 때와 도착할 때의 상태가 다를 수 있어요.</p>
+    </details>
+    <details className="phone-fold"><summary>안내 예시 살펴보기</summary><div className="phone-route-modes" role="group" aria-label="관측 입력 선택"><button aria-pressed={!example} onClick={()=>set({observationMode:'connected'})}>현재 연결 상태</button><button aria-pressed={example} onClick={()=>set({observationMode:'example'})}>가상 관측 예시</button></div>
+      {example && <><p>실제 도로 정보가 아닌 안내 흐름 체험이에요.</p><div className="phone-route-modes" role="group" aria-label="예시 관측 조건">{([['attention','주의 구간'],['stale','오래된 사진'],['direction','반대 방향'],['missing','정보 없음']] as const).map(([v,t])=><button key={v} aria-pressed={settings.exampleCondition===v} onClick={()=>set({exampleCondition:v})}>{t}</button>)}</div></>}
+    </details>
+  </section>;
   return <section className={`pretrip${inPhone ? ' in-phone' : ''}`} aria-label="출발 전 경로 안내">
     <div className="pretrip-heading"><div><small>눈부심 노출 비교 · 사전 인지</small><h3>출발 전 경로 안내</h3></div><span className={`pretrip-mode${example ? ' example' : ''}`}>{example ? '가상 관측 예시' : '입력 연결 상태'}</span></div>
     <p className="pretrip-purpose">도로변 사진과 사진을 찍은 때의 태양·방향·날씨를 함께 살펴 앞 구간을 안내해요.</p>

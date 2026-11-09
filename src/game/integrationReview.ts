@@ -17,7 +17,6 @@ export interface GuidanceReport {
   components: Record<ModelName, ReviewComponent>;
 }
 export interface ReviewRecord { report: GuidanceReport; evidence: string; imageSha256: string | null; caseId: string }
-export const REVIEW_FILE_LIMIT = 1024 * 1024;
 const MODELS = ['model2', 'model3'] as const;
 const HASH = /^[a-f0-9]{64}$/;
 const invalid = () => new Error('지원하는 통합 검수 보고서 형식이 아닙니다. 원본 결과 JSON을 확인해 주세요.');
@@ -78,26 +77,20 @@ export function parseIntegrationReports(value: unknown): ReviewRecord[] {
   if (!rows.length || rows.length > 100) throw invalid();
   return rows.map(parseOne);
 }
-export const MODEL_LABEL: Record<ModelName, string> = { model2: '태양광 눈부심', model3: '입구 밝기 대비' };
-export const LEVEL_LABEL: Record<ModelName, readonly string[]> = { model2: ['정상', '눈부심', '심한 눈부심'], model3: ['하', '중', '상'] };
-const REASONS: Record<string, string> = {
-  model_missing: '결과 없음', photo_mismatch: '다른 사진', observation_mismatch: '관측 ID 불일치', segment_mismatch: '다른 구간',
-  capture_time_mismatch: '촬영 시각 불일치', not_available_at_query: '조회 시점에 없는 관측', stale_photo: '유효시간이 지난 관측',
-  position_mismatch: '위치 불일치', direction_mismatch: '진행 방향 불일치', unsupported_source: '안내에 사용할 수 없는 입력 출처',
-  unsupported_status: '지원하지 않는 결과 상태', wrong_model_variant: '다른 모델 버전', wrong_target: '다른 예측 대상',
-  wrong_model_variant_or_target: '다른 모델 또는 예측 대상', unsupported_zone: '터널 입구 범위 밖', invalid_component: '잘못된 결과 형식',
-  future_state_unverified: '도착 시점의 상태는 미확인', past_eta: '이미 지난 도착 시각',
-};
-export const reasonLabel = (code: string) => REASONS[code] ?? '추가 확인이 필요한 결과';
-export function guidanceSummary(r: GuidanceReport, photoMismatch = false) {
-  if (photoMismatch) return { tone: 'unknown', title: '첨부한 사진이 다릅니다', detail: '이 사진의 통합 안내를 보류합니다.' };
-  if (r.requested_state === 'unknown') return { tone: 'unknown', title: '통합 안내 미확인', detail: '확인되지 않은 원인을 정상으로 채우지 않습니다.' };
-  if (r.completeness === 'partial') return { tone: 'attention', title: '확인된 경고 유지 · 일부 미확인', detail: '남아 있는 경고를 보존하고, 누락된 원인은 별도로 표시합니다.' };
-  if (r.requested_state === 'attention') return { tone: 'attention', title: '같은 관측의 원인별 주의 안내', detail: '각 모델의 원래 등급을 함께 보존합니다.' };
-  return { tone: 'complete', title: '보고서상 두 원인 모두 낮은 등급', detail: '이 관측의 결과이며, 이후 도착 시점이나 실제 안전을 보장하지 않습니다.' };
-}
-export async function photoFingerprint(file: Blob): Promise<string> {
-  if (!file.size || file.size > REVIEW_FILE_LIMIT) throw new Error('사진은 1 MiB 이하 파일을 선택해 주세요.');
-  const hash = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
-  return Array.from(new Uint8Array(hash), n => n.toString(16).padStart(2, '0')).join('');
+/** Driver-facing copy from the preserved, usable per-cause results. */
+export function driverGuidance(r: GuidanceReport) {
+  const usable = r.reasons.length === 0 && !(r.requested_state === 'unknown' && r.completeness === 'complete');
+  const glare = usable ? r.components.model2.level : null;
+  const transition = usable ? r.components.model3.level : null;
+  const unknownNote = glare === null || transition === null ? '확인되지 않은 빛 상태는 계속 확인이 필요해요.' : '';
+  const common = { glare, transition, unknownNote };
+  if (glare !== null && glare > 0 && transition !== null && transition > 0)
+    return { ...common, tone: 'attention', title: '눈부심과 터널의 밝기 변화에 주의하세요', action: '터널 진입 전 속도를 줄이고, 앞차와의 간격을 넓히세요.' };
+  if (transition !== null && transition > 0)
+    return { ...common, tone: 'attention', title: '터널에 들어가면\n앞이 어두워질 수 있어요', action: '진입 전 속도를 줄이고, 앞차와의 간격을 넓히세요.' };
+  if (glare !== null && glare > 0)
+    return { ...common, tone: 'attention', title: '강한 햇빛으로\n앞이 잘 안 보일 수 있어요', action: '속도를 줄이고, 앞차와의 간격을 넓히세요.' };
+  if (unknownNote)
+    return { ...common, tone: 'unknown', title: '앞 구간의 빛 정보를\n아직 확인하지 못했어요', action: '전방을 살피고, 앞차와의 간격을 유지하세요.' };
+  return { ...common, tone: 'complete', title: '큰 빛 변화는 확인되지 않았어요', action: '앞 구간을 살피며 주행하세요.' };
 }

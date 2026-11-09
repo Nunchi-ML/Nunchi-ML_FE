@@ -46,7 +46,7 @@ export function Hud({ visible, bind }: { visible: boolean; bind: <K extends keyo
       <div className="drive-time"><b>{hm(st.minutes % 1440)}</b><span>{st.date.slice(5).replace('-', '.')}<i />{WEATHER[st.weather]}</span></div>
     </header>
     <DriveToast />
-    <button className="integration-hud-open" type="button" onClick={() => useGame.setState({ integrationOpen: true })}>통합 안내 확인</button>
+    <button className="integration-hud-open" type="button" onClick={() => useGame.setState({ integrationOpen: true })}>빛 변화 안내 체험</button>
     {m3?.text && st.guidance && <div className="model3-alert" role="alert" style={{ borderColor: m3.color, color: m3.color }} title={`판정 근거: ${MODEL3_SOURCE_LABEL[m3.source]}`}>
       <i style={{ background: m3.color }} /><div><b>{m3.text}</b><small>{MODEL3_ALERT_NOTE[m3.grade]}</small></div>
     </div>}

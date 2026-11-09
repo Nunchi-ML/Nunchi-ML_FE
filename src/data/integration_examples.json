@@ -427,6 +427,129 @@
         "adaptation_time_validated": false,
         "future_state_validated": false
       }
+    },
+    {
+      "id": "glare-only",
+      "title": "햇빛이 강한 길",
+      "report": {
+        "case_id": "glare-only",
+        "evidence": "synthetic_contract_not_model_accuracy",
+        "version": "guidance-contract-probe-v1",
+        "status": "prototype",
+        "policy_validated": false,
+        "artifact_bytes_verified_by_probe": false,
+        "inference_provenance_verified_by_probe": false,
+        "observation_id": "example-entry-photo",
+        "segment_id": "example-entry",
+        "captured_at": "2026-11-06T08:00:00+09:00",
+        "eta": "2026-11-06T08:00:05+09:00",
+        "completeness": "complete",
+        "current_observation_level": 2,
+        "current_level_is_lower_bound": false,
+        "requested_level": 2,
+        "requested_state": "attention",
+        "reasons": [],
+        "missing_components": [],
+        "causes": [
+          "model2"
+        ],
+        "components": {
+          "model2": {
+            "state": "ready",
+            "level": 2,
+            "reasons": [],
+            "model_version": "photo-g-candidate-v1",
+            "target": "photo_glare_0_1_2",
+            "artifact_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "original_level": 2,
+            "joint_scores": [
+              0.19999999999999996,
+              0.15999999999999998,
+              0.6400000000000001
+            ]
+          },
+          "model3": {
+            "state": "ready",
+            "level": 0,
+            "reasons": [],
+            "model_version": "synthetic-model3-not-trained",
+            "target": "entrance_contrast_low_mid_high",
+            "artifact_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "original_level": 0,
+            "joint_scores": [
+              0.8,
+              0.16000000000000003,
+              0.04000000000000001
+            ]
+          }
+        },
+        "accident_probability": null,
+        "driver_visibility_validated": false,
+        "adaptation_time_validated": false,
+        "future_state_validated": false
+      }
+    },
+    {
+      "id": "both",
+      "title": "햇빛과 터널 모두 주의",
+      "report": {
+        "case_id": "both",
+        "evidence": "synthetic_contract_not_model_accuracy",
+        "version": "guidance-contract-probe-v1",
+        "status": "prototype",
+        "policy_validated": false,
+        "artifact_bytes_verified_by_probe": false,
+        "inference_provenance_verified_by_probe": false,
+        "observation_id": "example-entry-photo",
+        "segment_id": "example-entry",
+        "captured_at": "2026-11-06T08:00:00+09:00",
+        "eta": "2026-11-06T08:00:05+09:00",
+        "completeness": "complete",
+        "current_observation_level": 2,
+        "current_level_is_lower_bound": false,
+        "requested_level": 2,
+        "requested_state": "attention",
+        "reasons": [],
+        "missing_components": [],
+        "causes": [
+          "model2",
+          "model3"
+        ],
+        "components": {
+          "model2": {
+            "state": "ready",
+            "level": 2,
+            "reasons": [],
+            "model_version": "photo-g-candidate-v1",
+            "target": "photo_glare_0_1_2",
+            "artifact_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "original_level": 2,
+            "joint_scores": [
+              0.19999999999999996,
+              0.15999999999999998,
+              0.6400000000000001
+            ]
+          },
+          "model3": {
+            "state": "ready",
+            "level": 2,
+            "reasons": [],
+            "model_version": "synthetic-model3-not-trained",
+            "target": "entrance_contrast_low_mid_high",
+            "artifact_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "original_level": 2,
+            "joint_scores": [
+              0.19999999999999996,
+              0.15999999999999998,
+              0.6400000000000001
+            ]
+          }
+        },
+        "accident_probability": null,
+        "driver_visibility_validated": false,
+        "adaptation_time_validated": false,
+        "future_state_validated": false
+      }
     }
   ]
 }

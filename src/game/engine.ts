@@ -26,6 +26,7 @@ import { ROAD_ID, IS_SINCHEON } from './roadSelection';
 import { underpassAt } from './underpasses';
 import { adaptationScores, newAdaptation, resetAdaptation, sceneLuminance, stepAdaptation } from './adaptation';
 import { createLightGlare } from './lightGlare';
+import { forwardCameraCrop } from './cameraCapture';
 import { MODEL3_CLOUD, MODEL3_COLOR, createModel3Scene, model3AlertText, model3Beep, requestModel3, type Model3Presets } from './model3';
 import model3Presets from '../data/model3_presets.json';
 
@@ -468,8 +469,10 @@ export function createEngine(canvas: HTMLCanvasElement) {
     }
     const fovT = baseFov + (S.running ? Math.min(sportNow ? 12 : 7, S.v * (sportNow ? .22 : .17)) : 0);
     if (Math.abs(camera.fov - fovT) > 0.05) { camera.fov += (fovT - camera.fov) * Math.min(1, dt * 3); camera.updateProjectionMatrix(); }
-    visualSteer += (Math.max(-1.2, Math.min(1.2, -S.laneV * .15 - bend * 6)) - visualSteer) * (1 - Math.exp(-dt * 9));
+    const steeringInput = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + S.steerTouch;
+    visualSteer += (Math.max(-1.2, Math.min(1.2, -steeringInput * .95 - S.laneV * .08 - bend * 6)) - visualSteer) * (1 - Math.exp(-(running ? dt : 0) * 9));
     CP.steer(visualSteer);
+    W.me.frontWheelPivots.forEach(pivot => { pivot.rotation.y = -visualSteer * .42; });
     if (observerReference) {
       const q = at(observerReference.s), dir = observerReference.direction;
       const ahead = at(observerReference.s + dir * 65), rightX = -q.dz * dir, rightZ = q.dx * dir;
@@ -705,6 +708,25 @@ export function createEngine(canvas: HTMLCanvasElement) {
     referenceMetadata: () => {
       camera.getWorldDirection(fwd);
       return { latitude: 35.866 - camera.position.z / 110940, longitude: 128.59 + camera.position.x / (111320 * Math.cos(35.866 * Math.PI / 180)), headingDeg: (Math.atan2(fwd.x, -fwd.z) * 180 / Math.PI + 360) % 360, horizontalFovDeg: Math.atan(Math.tan(camera.fov * Math.PI / 360) * camera.aspect) * 360 / Math.PI };
+    },
+    captureCameraFrame: () => {
+      // Photograph the forward scene, excluding the animated phone/holding hand.
+      // Copy synchronously before restoring the on-screen cockpit pose.
+      const frame = document.createElement('canvas');
+      const source = renderer.domElement;
+      const horizontalFov = Math.atan(Math.tan(camera.fov * Math.PI / 360) * camera.aspect) * 360 / Math.PI;
+      const crop = forwardCameraCrop(source.width, source.height, horizontalFov);
+      frame.width = crop.sw; frame.height = crop.sh;
+      const context = frame.getContext('2d'); if (!context) return null;
+      try { CP.holdPhone(0); composer.render(); context.drawImage(source, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, crop.sw, crop.sh); }
+      finally { CP.holdPhone(phoneT); composer.render(); }
+      camera.getWorldDirection(fwd);
+      return { image: frame, metadata: {
+        latitude: 35.866 - camera.position.z / 110940,
+        longitude: 128.59 + camera.position.x / (111320 * Math.cos(35.866 * Math.PI / 180)),
+        headingDeg: (Math.atan2(fwd.x, -fwd.z) * 180 / Math.PI + 360) % 360,
+        horizontalFovDeg: crop.horizontalFovDeg,
+      } };
     },
     S, adaptation, els, startRun, toMenu, changeLane, toggleSport, toggleGlass, setSteer: (v: number) => { S.steerTouch = v; }, routeDir, routeHead, canvas: renderer.domElement,
     setPedal: (kind: 'throttle' | 'brake', v: number) => { S[kind] = v; },
