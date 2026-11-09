@@ -8,11 +8,11 @@ const presets = JSON.parse(await readFile(new URL('../src/data/model3_presets.js
 const code = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText;
 const M = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
 
-const reading = (grade = '상') => ({ grade, warn_distance_m: 155, screen_effect: presets.screen_effect[grade], source: 'preset' });
+const reading = (grade = '상') => ({ grade, warn_distance_m: presets.warn_distance_m, screen_effect: presets.screen_effect[grade], source: 'preset' });
 
-test('요청서 v4 어둡기 표: 회복 2초 (상 95→53→24→6→0, 중 65→37→16→4→0, 하 35→20→9→2→0)', () => {
+test('요청서 v4 어둡기 표: 회복 2초 (상 95→75→50→25→0, 중 65→37→16→4→0, 하 35→20→9→2→0)', () => {
   const table = {
-    상: [0.95, 0.53, 0.24, 0.06, 0],
+    상: [0.95, 0.75, 0.50, 0.25, 0],
     중: [0.65, 0.37, 0.16, 0.04, 0],
     하: [0.35, 0.20, 0.09, 0.02, 0],
   };
@@ -65,14 +65,14 @@ test('판정 순서: 사진 → 해 높이·구름 → 미리 받아 둔 표', a
 });
 
 const tick = () => new Promise(r => setTimeout(r, 0));
-test('장면: 205m에서 판정 요청 → 155m 알림 · 경고음 1번 → 입구에서 어두워짐 · 2·1 → 2초 뒤 평소', async () => {
+test('장면: 205m에서 판정 요청 → 알림 · 경고음 1번 → 입구에서 어두워짐 · 2초 뒤 평소', async () => {
   let asked = 0;
   const scene = M.createModel3Scene(async () => { asked++; return reading('상'); });
   const sec = (toEntry, covered = false) => ({ s0: 1000, covered, toEntry, phase: covered ? 'inside' : toEntry > 0 ? 'approach' : 'exit' });
   assert.equal(scene.update(sec(230), .1).alert, null); assert.equal(asked, 0);
   scene.update(sec(200), .1); assert.equal(asked, 1); await tick();
-  assert.equal(scene.update(sec(170), .1).alert, null);
-  const warn = scene.update(sec(150), .1);
+  assert.equal(scene.update(sec(presets.warn_distance_m + 15), .1).alert, null);
+  const warn = scene.update(sec(presets.warn_distance_m - 5), .1);
   assert.equal(warn.alert?.grade, '상'); assert.equal(warn.beep, true);
   assert.equal(scene.update(sec(60), .1).beep, false);
   const seen = [];
@@ -98,8 +98,8 @@ test('다음 지하차도는 새로 판정하고, 주행을 멈추면 초기화'
   let n = 0;
   const scene = M.createModel3Scene(async () => reading((['하', '상'][n++] ?? '상')));
   scene.update({ s0: 100, covered: false, toEntry: 190, phase: 'approach' }, .1); await tick();
-  assert.equal(scene.update({ s0: 100, covered: false, toEntry: 140, phase: 'approach' }, .1).alert?.grade, '하');
+  assert.equal(scene.update({ s0: 100, covered: false, toEntry: 80, phase: 'approach' }, .1).alert?.grade, '하');
   scene.update({ s0: 500, covered: false, toEntry: 190, phase: 'approach' }, .1); await tick();
-  assert.equal(scene.update({ s0: 500, covered: false, toEntry: 140, phase: 'approach' }, .1).alert?.grade, '상');
-  assert.equal(scene.update({ s0: 500, covered: false, toEntry: 140, phase: 'approach' }, .1, false).alert, null);
+  assert.equal(scene.update({ s0: 500, covered: false, toEntry: 80, phase: 'approach' }, .1).alert?.grade, '상');
+  assert.equal(scene.update({ s0: 500, covered: false, toEntry: 80, phase: 'approach' }, .1, false).alert, null);
 });

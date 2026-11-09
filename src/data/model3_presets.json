@@ -15,7 +15,7 @@
   "5": "llllllllllllllllllllllllllllllllllllllllllllllmmmmmmmmmmmmmmmmmmmmhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh",
   "9": "llllllllllllllllllllllllllllllllllllllllllllllllllllllmmmmmmmmmmmmmmmmmmmhhhhhhhhhhhhhhhhhhhhhhhhhhhh"
  },
- "warn_distance_m": 155,
+ "warn_distance_m": 90,
  "screen_effect": {
   "하": {
    "start_dark_opacity": 0.35,
@@ -91,15 +91,15 @@
     },
     {
      "t_s": 0.5,
-     "dark_opacity": 0.53
+     "dark_opacity": 0.75
     },
     {
      "t_s": 1,
-     "dark_opacity": 0.24
+     "dark_opacity": 0.5
     },
     {
      "t_s": 1.5,
-     "dark_opacity": 0.06
+     "dark_opacity": 0.25
     },
     {
      "t_s": 2,

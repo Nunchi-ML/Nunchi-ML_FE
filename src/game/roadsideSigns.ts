@@ -81,15 +81,12 @@ export function createRoadsideSigns(scene: THREE.Scene) {
         g.strokeStyle = '#26342e'; g.lineWidth = 8; g.strokeRect(18, 18, W - 36, 646);
         g.textAlign = 'center';
         if (message.underpassAhead) {
-          g.font = '600 46px "Noto Sans KR",sans-serif';
-          g.fillStyle = '#9fb0a8';
-          g.fillText('모델 ③', W / 2, 105);
-          g.font = '800 154px "Noto Sans KR",sans-serif';
+          g.font = '800 164px "Noto Sans KR",sans-serif';
           g.fillStyle = GRADE_COLOR[message.grade];
-          g.fillText(`지하차도 입구 순응 위험 ${message.grade}`, W / 2, 330, W - 120);
-          g.font = '700 132px "Noto Sans KR",sans-serif';
+          g.fillText(`지하차도 입구 순응 위험 ${message.grade}`, W / 2, 280, W - 120);
+          g.font = '700 142px "Noto Sans KR",sans-serif';
           g.fillStyle = '#ffffff';
-          g.fillText('속도를 줄이세요', W / 2, 535, W - 120);
+          g.fillText('속도를 줄이세요', W / 2, 490, W - 120);
         } else {
           const line1 = message.state === 'caution' ? '전방 태양광 눈부심 위험' : '전방 시야 양호';
           const line2 = message.state === 'caution' ? '속도를 줄이세요' : '안전 속도를 유지하세요';

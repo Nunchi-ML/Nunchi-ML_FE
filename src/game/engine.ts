@@ -5,7 +5,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
-import { BANK_KM, D, TOTAL, ROAD_W, LANE_COUNT, LANE_WIDTH, at, kmToS, laneOffset, locationLabel, nearestStation, riskAt, sToKm, stationLabel, type Dir } from './road';
+import { BANK_KM, D, TOTAL, ROAD_W, LANE_COUNT, LANE_WIDTH, UNDERPASSES, at, kmToS, laneOffset, locationLabel, nearestStation, riskAt, sToKm, stationLabel, type Dir } from './road';
 import { compass, hm, simDate, sunDir, sunPos } from './sun';
 import { createWorld, makeRand } from './world';
 import type { Vehicle } from './vehicles';
@@ -187,20 +187,31 @@ export function createEngine(canvas: HTMLCanvasElement) {
     exitGlare = 0;
     passageRecords.length = 0; currentPassage = null;
     S.dir = st.endKm >= st.startKm ? 1 : -1;
-    S.s = kmToS(st.startKm); S.v = IS_SINCHEON && !st.observationSpeed ? 19.5 : 0; S.lane = 1; S.laneX = S.targetX = laneOffset(1); S.laneV = 0; S.steerTouch = 0;
+    S.s = kmToS(st.startKm); S.v = 0; S.lane = 1; S.laneX = S.targetX = laneOffset(1); S.laneV = 0; S.steerTouch = 0;
     S.score = 100; S.glareTime = 0; S.glareMax = 0; S.t0 = performance.now(); S.lastStation = ''; S.minutes = st.minutes;
     S.segFrom = nearestStation(st.startKm).name; S.segT0 = S.t0; S.segS0 = S.s; S.segGlare = 0;
     W.traffic.forEach((t, i) => {
       t.lane = i % LANE_COUNT; t.x = laneOffset(t.lane);
-      t.s = IS_SINCHEON ? S.s + S.dir * (600 + i * 120) : S.s + S.dir * (40 + i * 70 + rand() * 40);
+      t.s = S.s + S.dir * (40 + i * 70 + rand() * 40);
       t.want = t.v = t.kind === 'bus' ? 10 : 11 + rand() * 6;
-      t.m.visible = !IS_SINCHEON;
+      t.m.visible = true;
+      t.brakeMat.emissiveIntensity = 0.5;
     });
+    if (IS_SINCHEON) {
+      const lead = W.traffic.find(t => t.kind === 'suv') ?? W.traffic[0];
+      const nextUp = UNDERPASSES.find(u => (S.dir > 0 ? u.s0 - S.s : S.s - u.s1) > 20);
+      if (lead && nextUp) {
+        lead.lane = S.lane; lead.x = laneOffset(S.lane);
+        lead.s = (S.dir > 0 ? nextUp.s0 : nextUp.s1) + S.dir * 26;
+        lead.want = lead.v = 30 / 3.6;
+        lead.m.visible = true;
+      }
+    }
     S.running = true;
     const a = locationLabel(st.startKm), b = locationLabel(st.endKm);
     const ticks = D.stations.filter(x => (x.km - st.startKm) * S.dir > 0 && (st.endKm - x.km) * S.dir > 0).map(x => Math.abs(x.km - st.startKm) / Math.abs(st.endKm - st.startKm));
-    G.setState({ screen: 'driving', phoneOpen: false, result: null, hud: { ...G.getState().hud, from: a, to: b, ticks, score: 100, warn: false, kmh: IS_SINCHEON && !st.observationSpeed ? 100 : 0 } });
-    if (!IS_SINCHEON) banner('출발', `${a} → ${b}`, `${hm(S.minutes)} · ${compass(routeHead())}쪽으로`);
+    G.setState({ screen: 'driving', phoneOpen: false, result: null, hud: { ...G.getState().hud, from: a, to: b, ticks, score: 100, warn: false, kmh: 0 } });
+    banner('출발', `${a} → ${b}`, `${hm(S.minutes)} · ${compass(routeHead())}쪽으로`);
   }
   function endRun() {
     voice.announce('navigation-arrival', '목적지에 도착했어요. 안내를 마칠게요.', performance.now(), true);
@@ -285,79 +296,63 @@ export function createEngine(canvas: HTMLCanvasElement) {
     const rawThrottle = keys.KeyW || keys.ArrowUp ? 1 : S.throttle;
     const rawBrake = keys.KeyS || keys.ArrowDown || keys.Space ? 1 : S.brake;
     updateDrivingFeel(drivingFeel, rawThrottle, rawBrake, S.v, S.laneV, dt, running);
-    const sincheonScene = IS_SINCHEON && !st.observationSpeed;
+    const scriptedDemo = (window as unknown as { __sincheonDemo?: boolean }).__sincheonDemo === true;
     let displayKmh = S.v * 3.6;
 
     if (running) {
-      if (sincheonScene) {
-        // 요청서 v4: 속도계 100 km/h 고정 + 입구 진입 2초 뒤 바로 코앞의 앞차(30 km/h) 발견 및 아슬아슬한 급감속(100 → 30 km/h) 후 지하차도 출구까지 통과
+      if (scriptedDemo) {
         const lead = W.traffic.find(t => t.kind === 'suv') ?? W.traffic[0];
         W.traffic.forEach((t, idx) => {
-          if (t !== lead) { t.m.visible = false; t.s = S.s + S.dir * (900 + idx * 100); }
+          if (t !== lead) { t.m.visible = false; t.s = 9800 + idx * 100; }
         });
         const secNow = underpassAt(S.s, S.dir);
-        const tIn = model3View.elapsed;
+        let tIn = 0;
+        if (secNow?.covered) {
+          (window as unknown as { __demoTin?: number }).__demoTin = ((window as unknown as { __demoTin?: number }).__demoTin ?? 0) + dt;
+          tIn = (window as unknown as { __demoTin?: number }).__demoTin!;
+        }
+        let leadV = 8.33;
         if (!secNow?.covered || tIn <= 0) {
           const exitedTunnel = S.s > 8395;
-          S.v = exitedTunnel ? 22 : 25.5;
+          S.v = exitedTunnel ? 24.5 : 25.0;
           displayKmh = exitedTunnel ? 45 : 100;
-          if (lead) {
-            lead.lane = S.lane; lead.x = laneOffset(S.lane);
-            lead.v = lead.want = 30 / 3.6;
-            lead.s = exitedTunnel ? (S.s + S.dir * 16) : ((secNow ? (S.dir > 0 ? secNow.s0 : secNow.s1) : S.s) + S.dir * 52);
-            lead.m.visible = exitedTunnel;
-            lead.brakeMat.emissiveIntensity = 1.5;
-          }
-        } else if (tIn < 2.2) {
+          leadV = exitedTunnel ? 25.5 : 2.8;
+        } else if (tIn < 1.92) {
+          // 0 ~ 1.92s inside tunnel: dark adaptation recovering while maintaining 100 km/h (closing from 58m down to 13.5m)
           S.v = 24.5;
           displayKmh = 100;
-          if (lead) {
-            lead.lane = S.lane; lead.x = laneOffset(S.lane);
-            lead.v = lead.want = 30 / 3.6;
-            const gap = tIn <= 2.0 ? (34 - 10 * tIn) : (14 - 22 * (tIn - 2.0));
-            lead.s = S.s + S.dir * Math.max(8.5, gap);
-            lead.m.visible = tIn >= 0.45;
-            lead.brakeMat.emissiveIntensity = 3.8;
-          }
-        } else if (tIn <= 4.0) {
-          const u = Math.min(1, (tIn - 2.2) / 1.5);
-          const ease = 1 - Math.pow(1 - u, 1.5);
+          leadV = 1.2;
+        } else if (tIn <= 2.92) {
+          // 1.92s ~ 2.92s (1.00s): Hard straight-line braking (100 -> 30 km/h) with emergency screen shake, closing right down to 5.8m!
+          const u = Math.min(1, (tIn - 1.92) / 1.00);
+          const ease = 1 - Math.pow(1 - u, 2.2);
+          S.v = 24.5 - (24.5 - 8.33) * ease;
           displayKmh = Math.round(100 - 70 * ease);
-          S.v = (30 / 3.6) + (23.0 - 30 / 3.6) * (1 - ease);
-          drivingFeel.pitch = -0.056 * Math.sin(u * Math.PI);
-          if (tIn < 2.95) {
-            shake = Math.max(shake, 0.22);
-            S.laneV = Math.sin((tIn - 2.2) * 10) * 1.1;
-          }
-          if (lead) {
-            lead.lane = S.lane; lead.x = laneOffset(S.lane);
-            lead.v = lead.want = 30 / 3.6;
-            const targetGap = 5.4 + 4.2 * Math.pow(1 - u, 2) + (tIn > 3.4 ? (tIn - 3.4) * 3.5 : 0);
-            lead.s = S.s + S.dir * targetGap;
-            lead.m.visible = true;
-            lead.brakeMat.emissiveIntensity = 4.2;
-          }
+          drivingFeel.pitch = -0.052 * Math.sin(u * Math.PI);
+          shake = Math.max(shake, 0.22);
+          leadV = 6.0;
+        } else if (tIn <= 3.55) {
+          // 2.92s ~ 3.55s: Hold steady at 30 km/h right behind the rear bumper (~5.8m -> 6.8m gap)
+          S.v = 9.5;
+          displayKmh = 30;
+          leadV = 11.2;
         } else {
-          const postT = tIn - 4.0;
-          const rampUp = Math.min(1, postT / 2.2);
-          displayKmh = Math.round(30 + 15 * rampUp);
-          S.v = 15.5 + 7.5 * rampUp;
-          if (lead) {
-            lead.lane = S.lane; lead.x = laneOffset(S.lane);
-            lead.v = S.v + 1.2;
-            const targetGap = Math.min(18, 7.5 + postT * 2.2);
-            lead.s = S.s + S.dir * targetGap;
-            lead.m.visible = true;
-            lead.brakeMat.emissiveIntensity = 1.6;
-          }
+          // 3.55s+: Smoothly traverse remaining underpass and exit out into daylight (s > 8405)
+          const postT = tIn - 3.55;
+          const ramp = Math.min(1, postT / 1.5);
+          S.v = 9.5 + (25.5 - 9.5) * ramp;
+          displayKmh = S.s > 8395 ? 45 : Math.round(30 + 15 * ramp);
+          leadV = S.v + 1.2;
         }
         S.s += S.dir * S.v * dt;
-        const k = 6 + Math.min(1, S.v / 15) * 5, c = 2 * Math.sqrt(k);
-        const steerIn = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + S.steerTouch;
-        if (steerIn && S.v > 0.5) S.targetX = Math.max(laneOffset(0) - 1.3, Math.min(laneOffset(LANE_COUNT - 1) + 1.3, S.targetX + steerIn * (2.6 + Math.min(4.6, S.v * 0.28)) * dt));
-        S.lane = Math.max(0, Math.min(LANE_COUNT - 1, Math.round((S.laneX - laneOffset(0)) / LANE_WIDTH)));
-        S.laneV += (k * (S.targetX - S.laneX) - c * S.laneV) * dt;
-        S.laneX += S.laneV * dt;
+        S.lane = 1; S.laneX = S.targetX = laneOffset(1); S.laneV = 0;
+        if (lead) {
+          lead.lane = 1; lead.x = laneOffset(1);
+          lead.v = lead.want = leadV;
+          lead.s += S.dir * lead.v * dt;
+          lead.m.visible = true;
+          lead.brakeMat.emissiveIntensity = (tIn >= 1.8 && tIn <= 3.5) ? 4.5 : 2.8;
+        }
         S.minutes += dt * st.flow / 60;
         if ((st.endKm - sToKm(S.s)) * S.dir <= 0) endRun();
       } else {
@@ -418,11 +413,10 @@ export function createEngine(canvas: HTMLCanvasElement) {
             }
           }
         });
-        displayKmh = S.v * 3.6;
       }
     }
 
-    if (running && !sincheonScene) separateTraffic(W.traffic, S.dir);
+    if (running && !scriptedDemo) separateTraffic(W.traffic, S.dir);
 
     // 위치 · 시점
     const p = at(S.s), hx = p.dx * S.dir, hz = p.dz * S.dir, rx = -hz, rz = hx;
@@ -482,7 +476,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
       rig.visible = false; W.me.m.visible = false;
     }
     camera.updateMatrixWorld(); rig.updateMatrixWorld();
-    const braking = keys.KeyS || keys.ArrowDown || S.brake > 0 || (sincheonScene && model3View.elapsed >= 2.0 && model3View.elapsed <= 3.5);
+    const braking = keys.KeyS || keys.ArrowDown || S.brake > 0;
     W.me.brakeMat.emissiveIntensity = braking ? 3 : 0.5;
     if (running) {
       W.me.wheels.forEach(w => { w.rotation.x = (w.rotation.x + S.v * dt / W.me.wheelRadius) % (Math.PI * 2); });
@@ -600,7 +594,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
       els.adaptationVeil.style.backgroundColor = '#080a10';
       els.adaptationVeil.style.opacity = String(model3Owns || IS_SINCHEON ? 0 : dark * .45);
     }
-    if (els.model3Veil) els.model3Veil.style.opacity = String(S.running ? model3View.dark * 0.72 : 0);
+    if (els.model3Veil) els.model3Veil.style.opacity = String(S.running ? model3View.dark : 0);
     if (els.adaptationVeil) {
       const cut = roadBottom * 100;
       els.adaptationVeil.style.clipPath = `inset(0 0 ${100 - cut}% 0)`;
@@ -609,7 +603,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
     }
     canvas.style.filter = '';
 
-    const kmh = sincheonScene ? displayKmh : S.v * 3.6;
+    const kmh = scriptedDemo ? displayKmh : S.v * 3.6;
     carAudio.update(running && st.carSound, kmh, rawThrottle);
     navT -= dt;
     if (navT <= 0) {
