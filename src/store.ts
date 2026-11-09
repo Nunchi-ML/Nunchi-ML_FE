@@ -28,8 +28,8 @@ export interface Hud {
   prog: number; remainKm: number; from: string; to: string; ticks: number[]; station: string; warn: boolean; fps: number;
   navigation?: { text: string; meters: number; source: string; voiceAvailable: boolean; inCab: boolean };
   analysis?: { level: 0 | 1 | 2; modelVersion: string; aheadMeters: number | null; aheadLevel?: 0 | 1 | 2 | null };
-  /** 모델 ③ 지하차도 입구 순응 위험: 155m 전 알림 문구 (입구 통과 뒤 어두워지는 동안은 text가 비어 있음) */
-  model3?: { grade: '하' | '중' | '상'; text: string; color: string; source: 'photo' | 'sun' | 'preset' };
+  /** 모델 ③ 지하차도 입구 순응 위험: 155m 전 알림 문구 및 입구 통과 후 2 · 1 카운트다운 */
+  model3?: { grade: '하' | '중' | '상'; text: string; color: string; source: 'photo' | 'sun' | 'preset'; countdown?: number | null };
   adaptation?: { name: string; phase: string; burden: number; score: number; entryScore: number; exitScore: number; pupil: number; distance: number; coveredSeconds: number };
 }
 

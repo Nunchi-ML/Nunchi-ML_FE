@@ -4,6 +4,7 @@ import { nearbyMapWays } from './navigationMap';
 import { ROAD_NAME } from './roadSelection';
 import { hm } from './sun';
 import { navigationCue, type NavigationZone } from './navigationGuidance';
+import type { Model3Grade } from './model3';
 
 const brandLogo = new Image();
 brandLogo.src = `${import.meta.env.BASE_URL}logo.png`;
@@ -11,7 +12,7 @@ brandLogo.src = `${import.meta.env.BASE_URL}logo.png`;
 const FONT = '"Noto Sans KR", sans-serif';
 export const isCompactNavigation = () => matchMedia('(any-pointer: coarse), (max-width: 900px) and (orientation: landscape)').matches;
 
-export function drawNavigationDisplay(canvas: HTMLCanvasElement, s: number, dir: number, startKm: number, endKm: number, kmh: number, zones: NavigationZone[], guidance: boolean, voice: boolean, voiceAvailable: boolean, running: boolean, minutes: number, night: boolean, leadMeters = 300) {
+export function drawNavigationDisplay(canvas: HTMLCanvasElement, s: number, dir: number, startKm: number, endKm: number, kmh: number, zones: NavigationZone[], guidance: boolean, voice: boolean, voiceAvailable: boolean, running: boolean, minutes: number, night: boolean, leadMeters = 300, model3Grade?: Model3Grade | null) {
   const compact = isCompactNavigation();
   const g = canvas.getContext('2d')!, W = canvas.width / 2, H = canvas.height / 2, split = 0, header = compact ? 132 : 100;
   g.setTransform(2, 0, 0, 2, 0, 0);
@@ -61,7 +62,7 @@ export function drawNavigationDisplay(canvas: HTMLCanvasElement, s: number, dir:
   path(Math.max(lo, s - 850), Math.min(hi, s + 850), '#ffffff', 21);
   path(Math.max(lo, s - 850), Math.min(hi, s + 850), '#eb861d', 14);
   // Missing roadside observations must not paint over a known warning layer.
-  if (guidance) for (const z of [...zones].sort((a,b) => Number(b.kind === 'unverified') - Number(a.kind === 'unverified'))) {
+  if (guidance) for (const z of [...zones].filter(z => z.kind !== 'exit').sort((a,b) => Number(b.kind === 'unverified') - Number(a.kind === 'unverified'))) {
     const a = Math.max(Math.min(z.start, z.end), s - 800), b = Math.min(Math.max(z.start, z.end), s + 800);
     g.setLineDash(z.kind === 'unverified' ? [13, 9] : []); path(a, b, z.kind === 'unverified' ? '#8c9294' : z.level === 2 ? '#d95051' : '#ed8d39', z.kind === 'unverified' ? 12 : 16); g.setLineDash([]);
     const q = T(at(z.start).x, at(z.start).z); g.fillStyle = '#fff5dc'; g.strokeStyle = '#dd8b38'; g.lineWidth = 2;
@@ -85,9 +86,11 @@ export function drawNavigationDisplay(canvas: HTMLCanvasElement, s: number, dir:
   const car = T(p.x, p.z); g.shadowColor = '#a54f1355'; g.shadowBlur = 12;
   g.fillStyle = '#ee7a1a'; g.strokeStyle = '#fff'; g.lineWidth = 4; g.beginPath(); g.moveTo(car.x, car.y - 27); g.lineTo(car.x - 22, car.y + 23); g.lineTo(car.x, car.y + 13); g.lineTo(car.x + 22, car.y + 23); g.closePath(); g.fill(); g.stroke(); g.shadowBlur = 0;
   g.textAlign = 'right'; g.font = `13px ${FONT}`; g.fillStyle = colors.text; g.fillText('© OpenStreetMap · 브이월드', W - 14, H - 84); g.restore();
-  const cue = guidance ? navigationCue(s, dir, kmToS(endKm), zones, leadMeters) : null;
-  const unverified = cue?.kind === 'unverified';
-  const urgent = !!cue && !unverified && (cue.level === 2 || cue.active || cue.meters <= 100), attention = !!cue && !unverified && (cue.active || cue.meters <= leadMeters);
+  const rawCue = guidance ? navigationCue(s, dir, kmToS(endKm), zones.filter(z => z.kind !== 'exit' && z.kind !== 'unverified'), leadMeters) : null;
+  const cue = rawCue;
+  const hasModel3 = Boolean(guidance && model3Grade);
+  const urgent = hasModel3 ? model3Grade === '상' : (!!cue && (cue.level === 2 || cue.active || cue.meters <= 100));
+  const attention = hasModel3 || (!!cue && (cue.active || cue.meters <= leadMeters));
   const accent = urgent ? '#ff7778' : attention ? '#ffd38a' : '#ffd45e';
   g.fillStyle = urgent ? '#3a2029' : attention ? '#393126' : '#261e17'; g.fillRect(split, 0, W - split, header);
   const navCenter = W / 2;
@@ -95,20 +98,30 @@ export function drawNavigationDisplay(canvas: HTMLCanvasElement, s: number, dir:
     g.drawImage(brandLogo, 18, 16, 34, 34);
   }
   g.textAlign = 'center'; g.font = `bold ${compact ? 60 : 42}px ${FONT}`; g.fillStyle = '#fff8e7';
-  const heading = cue ? unverified ? '전방 관측 미확인' : `${cue.active ? '지금' : `${cue.meters} m 앞`} · ${cue.kind === 'exit' ? '밝기 변화' : cue.text}` : running ? '경로를 따라 주행하세요' : '경로 안내 준비';
+  const heading = hasModel3
+    ? `모델 ③ · 순응 위험 ${model3Grade}`
+    : cue
+      ? `${cue.active ? '지금' : `${cue.meters} m 앞`} · ${cue.text}`
+      : running ? '경로를 따라 주행하세요' : '경로 안내 준비';
   g.fillText(heading, navCenter, compact ? 66 : 50, W - 125);
-  const sourceLabel = cue?.source === 'model' ? '시뮬레이션 사진 모델 판정' : cue?.source === 'roadside' ? '도로변 사진·태양·날씨' : cue?.source === 'example' ? '가상 관측 예시' : cue?.kind === 'glare' ? '현재 3D 햇빛 연출' : '밝기 변화 체험값';
+  const sourceLabel = hasModel3
+    ? '지하차도 입구 밝기 전환 판정'
+    : cue?.source === 'model' ? '시뮬레이션 사진 모델 판정' : cue?.source === 'roadside' ? '도로변 사진·태양·날씨' : cue?.source === 'example' ? '가상 관측 예시' : '현재 3D 햇빛 판정';
   g.font = `500 ${compact ? 42 : 29}px ${FONT}`; g.fillStyle = '#f0dfc5';
-  g.fillText(cue ? unverified ? '사진 정보 없음 · 전방을 확인하세요' : sourceLabel : `${ROAD_NAME} · ${guidance ? '주행 안내' : '시야 안내 꺼짐'}`, navCenter, compact ? 120 : 88, W - 64);
+  g.fillText(hasModel3 || cue ? sourceLabel : `${ROAD_NAME} · ${guidance ? '주행 안내' : '시야 안내 꺼짐'}`, navCenter, compact ? 120 : 88, W - 64);
   if (attention) {
     // The central map area stays visible beside the steering wheel.
     const width = W - 80, left = (W - width) / 2;
     g.fillStyle = urgent ? '#4c1420' : '#40301b'; g.beginPath(); g.roundRect(left, header + 12, width, compact ? 112 : 94, 16); g.fill();
     g.strokeStyle = urgent ? '#ff9399' : '#f3c67c'; g.lineWidth = 2; g.stroke();
     g.fillStyle = accent; g.textAlign = 'center'; g.font = `bold ${compact ? 52 : 38}px ${FONT}`;
-    g.fillText(cue!.level === 2 ? '눈부심 강함 · 감속하세요' : urgent ? '시야 주의 · 감속하세요' : '주의 구간 · 미리 감속', navCenter, header + (compact ? 69 : 54), width - 40);
+    const alertLine1 = hasModel3
+      ? `지하차도 입구 순응 위험 ${model3Grade}`
+      : cue!.level === 2 ? '눈부심 강함 · 감속하세요' : urgent ? '시야 주의 · 감속하세요' : '주의 구간 · 미리 감속';
+    const alertLine2 = hasModel3 ? '감속하세요 · 앞차와의 간격을 유지하세요' : '앞차와의 간격을 유지하세요';
+    g.fillText(alertLine1, navCenter, header + (compact ? 69 : 54), width - 40);
     g.font = `500 ${compact ? 36 : 27}px ${FONT}`; g.fillStyle = '#fff2e8';
-    g.fillText('앞차와의 간격을 유지하세요', navCenter, header + (compact ? 112 : 89), width - 40);
+    g.fillText(alertLine2, navCenter, header + (compact ? 112 : 89), width - 40);
   }
   // Small speed readout in the map corner; no instrument hidden by the wheel.
   g.fillStyle = '#211a13eb'; g.beginPath(); g.roundRect(W - 205, H - 173, 180, 78, 14); g.fill();

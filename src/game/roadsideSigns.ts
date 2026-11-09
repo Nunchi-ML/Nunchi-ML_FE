@@ -3,7 +3,10 @@ import { at, kmToS, ROAD_W, UNDERPASSES } from './road';
 import { navigationCue, type NavigationZone } from './navigationGuidance';
 import type { SegmentAssessment } from './preTrip';
 
-export function roadsideMessage(s: number, dir: number, end: number, zones: NavigationZone[], observations: SegmentAssessment[] = []) {
+export type SignGrade = '하' | '중' | '상';
+const GRADE_COLOR: Record<SignGrade, string> = { 하: '#3BA55C', 중: '#F2C230', 상: '#F2522E' };
+
+export function roadsideMessage(s: number, dir: number, end: number, zones: NavigationZone[], observations: SegmentAssessment[] = [], grade: SignGrade = '상') {
   const photo = navigationCue(s, dir, end, zones.filter(z => z.kind !== 'exit'), 700);
   const exit = navigationCue(s, dir, end, zones.filter(z => z.kind === 'exit'), 700);
   const caution = photo?.kind === 'glare';
@@ -17,12 +20,19 @@ export function roadsideMessage(s: number, dir: number, end: number, zones: Navi
   const distance = (target: number) => `전방 ${Math.max(10, Math.round((target - s) * dir / 10) * 10)} m`;
   const portal = transition && (transition.entryS - s) * dir > 0 ? transition.entryS : exit ? zones.find(z => z.id === exit.id)!.start : s;
   const photoSource = photo?.source === 'model' ? '시뮬레이션 사진 모델 판정 · 실제 도로 관측 아님' : (normal ? normal.assessment.example : photo?.source === 'example') ? '가상 사진 판정 예시' : caution || normal ? '전방 카메라 사진 + 태양·날씨 판정' : '전방 카메라 사진 미확인';
+  const underpassAhead = UNDERPASSES.some(u => {
+    const entry = dir > 0 ? u.s0 : u.s1;
+    const d = (entry - s) * dir;
+    return d >= -20 && d <= 260;
+  }) || Boolean(exit);
   return {
     state: caution ? 'caution' : normal ? 'observed' : photo?.kind === 'unverified' ? 'unknown' : 'information',
     title: caution ? `${photo.active ? '현재 구간' : `전방 ${photo.meters} m`} · ${photoZone?.level === 2 ? '눈부심 강함' : '눈부심 주의'}` : normal ? `${(normal.start - s) * dir > 0 ? distance(normal.start) : '현재 관측 구간'} · 눈부심 관측 없음` : photo?.kind === 'unverified' ? '전방 눈부심 · 관측 미확인' : '도로변 관측 안내',
     body: exit ? `${distance(portal)} ${transition && portal === transition.entryS ? '지하차도' : '출구'} · 미리 감속` : caution ? '관측 구간 앞 · 미리 감속' : '전방 주시 · 차간거리 유지',
     transition: transition ? `${transition.exit >= transition.entry ? '출구' : '진입'} 밝기 전환 부담 ${burden(Math.max(transition.entry, transition.exit))}` : exit ? '전방 지하차도 · 출구 밝기 변화' : '관측 당시 상태 · 도착 시 달라질 수 있음',
     source: `${photoSource}${transition ? ` · ${transition.source === 'model' ? '밝기 전환 모델 예상' : '밝기 전환 체험값'}` : ' · 도착 시 달라질 수 있음'}`,
+    underpassAhead,
+    grade,
   };
 }
 
@@ -30,7 +40,7 @@ export function roadsideMessage(s: number, dir: number, end: number, zones: Navi
 export function roadsidePlacements(start: number, end: number) {
   const dir = Math.sign(end - start) || 1, distance = Math.abs(end - start);
   if (distance < 100) return [];
-  const candidates = [start + dir * Math.min(70, distance / 3), ...UNDERPASSES.map(u => (dir > 0 ? u.s0 : u.s1) - dir * (u.ramp + 80))];
+  const candidates = [start + dir * Math.min(70, distance / 3), ...UNDERPASSES.map(u => (dir > 0 ? u.s0 : u.s1) - dir * (u.ramp + 72))];
   return candidates.filter(s => (s - start) * dir >= 30 && (end - s) * dir >= 30 && !UNDERPASSES.some(u => s >= u.s0 - u.ramp && s <= u.s1 + u.ramp))
     .sort((a, b) => (a - b) * dir).filter((s, i, all) => i === 0 || Math.abs(s - all[i - 1]) > 100);
 }
@@ -56,7 +66,7 @@ export function createRoadsideSigns(scene: THREE.Scene) {
   let routeKey = '', placements: number[] = [];
   return {
     slots,
-    update(s: number, dir: number, startKm: number, endKm: number, zones: NavigationZone[], running: boolean, observations: SegmentAssessment[] = []) {
+    update(s: number, dir: number, startKm: number, endKm: number, zones: NavigationZone[], running: boolean, observations: SegmentAssessment[] = [], grade: SignGrade = '상') {
       const start = kmToS(startKm), end = kmToS(endKm), key = `${start}|${end}|${dir}`;
       if (key !== routeKey) { routeKey = key; placements = roadsidePlacements(start, end); }
       const ahead = placements.filter(p => (p - s) * dir > -45 && (p - s) * dir < 1400);
@@ -64,18 +74,32 @@ export function createRoadsideSigns(scene: THREE.Scene) {
         const position = ahead[i]; slot.group.visible = running && position != null;
         if (!slot.group.visible) return;
         slot.s = position; const p = at(position); slot.group.position.set(p.x, p.y, p.z); slot.group.rotation.y = Math.atan2(-p.dx * dir, -p.dz * dir);
-        const message = roadsideMessage(position, dir, end, zones, observations), next = JSON.stringify(message); slot.message = message;
+        const message = roadsideMessage(position, dir, end, zones, observations, grade), next = JSON.stringify(message); slot.message = message;
         if (next === slot.key) return; slot.key = next;
         const g = slot.canvas.getContext('2d')!, W = slot.canvas.width;
         g.fillStyle = '#090e0c'; g.fillRect(0, 0, W, 682);
-        g.fillStyle = '#17241e'; g.fillRect(16, 16, W - 32, 78);
-        g.textAlign = 'center'; g.font = '500 42px "Noto Sans KR",sans-serif'; g.fillStyle = '#b7c9b4'; g.fillText('도로 전광판 · 연동 체험', W / 2, 70);
-        g.fillStyle = message.state === 'caution' ? '#ffbd49' : message.state === 'unknown' ? '#e1decf' : '#bce1ad';
-        g.font = 'bold 142px "Noto Sans KR",sans-serif'; g.fillText(message.title, W / 2, 262, W - 130);
-        g.font = 'bold 103px "Noto Sans KR",sans-serif'; g.fillStyle = '#ffe1a0'; g.fillText(message.body, W / 2, 405, W - 130);
-        g.font = '600 100px "Noto Sans KR",sans-serif'; g.fillStyle = '#e3e8d7'; g.fillText(message.transition, W / 2, 525, W - 130);
-        g.strokeStyle = '#43553b'; g.lineWidth = 3; g.beginPath(); g.moveTo(70, 563); g.lineTo(W - 70, 563); g.stroke();
-        g.font = '500 43px "Noto Sans KR",sans-serif'; g.fillStyle = '#a1b09a'; g.fillText(message.source, W / 2, 635, W - 130);
+        g.strokeStyle = '#26342e'; g.lineWidth = 8; g.strokeRect(18, 18, W - 36, 646);
+        g.textAlign = 'center';
+        if (message.underpassAhead) {
+          g.font = '600 46px "Noto Sans KR",sans-serif';
+          g.fillStyle = '#9fb0a8';
+          g.fillText('모델 ③', W / 2, 105);
+          g.font = '800 154px "Noto Sans KR",sans-serif';
+          g.fillStyle = GRADE_COLOR[message.grade];
+          g.fillText(`지하차도 입구 순응 위험 ${message.grade}`, W / 2, 330, W - 120);
+          g.font = '700 132px "Noto Sans KR",sans-serif';
+          g.fillStyle = '#ffffff';
+          g.fillText('속도를 줄이세요', W / 2, 535, W - 120);
+        } else {
+          const line1 = message.state === 'caution' ? '전방 태양광 눈부심 위험' : '전방 시야 양호';
+          const line2 = message.state === 'caution' ? '속도를 줄이세요' : '안전 속도를 유지하세요';
+          g.font = '800 150px "Noto Sans KR",sans-serif';
+          g.fillStyle = message.state === 'caution' ? '#F2522E' : '#3BA55C';
+          g.fillText(line1, W / 2, 305, W - 120);
+          g.font = '700 128px "Noto Sans KR",sans-serif';
+          g.fillStyle = '#ffffff';
+          g.fillText(line2, W / 2, 510, W - 120);
+        }
         slot.texture.needsUpdate = true;
       });
     },

@@ -1,7 +1,6 @@
 /* 모델 ③ (밝기 전환 부담) — 터널 입구 순응 위험 하 · 중 · 상.
- * 서버: AI 저장소 src/tunnel/simulator_api (FastAPI). 요청서 v3 장면:
- *   입구 155m 전 알림(거리 숫자는 안 띄움) → 입구 통과 순간 화면 어두워짐 → 3초에 걸쳐 평소 밝기.
- * 요청서의 3 · 2 · 1 숫자는 넣지 않는다: 운전자에게 "3초면 괜찮다"로 읽히고, 3초는 실제 눈의 회복 시간이 아닌 연출 값이다.
+ * 서버: AI 저장소 src/tunnel/simulator_api (FastAPI). 요청서 v4 장면:
+ *   입구 155m 전 알림(거리 숫자는 안 띄움) → 입구 통과 순간 0.1초 안에 화면 95% 어두워짐 + 숫자 2 → 1초에 숫자 1 → 2초에 평소 밝기 회복.
  * 출구에는 알림을 띄우지 않는다. 사고 확률·"여기서 사고" 문구는 쓰지 않는다.
  */
 export type Model3Grade = '하' | '중' | '상';
@@ -20,12 +19,12 @@ export const MODEL3_CAPTURE_M = 205;
 export const MODEL3_CLOUD: Record<string, number> = { clear: 0, cloud: 5, over: 9 };
 
 const GRADES = ['하', '중', '상'];
-/** 운전자에게 보이는 문구: 모델 번호·전문 용어(순응) 없이. 사고 확률 표현은 쓰지 않는다. */
-export const model3AlertText = (g: Model3Grade) => `전방 지하차도 입구 · 어둠 적응 위험 ${g}`;
+/** 운전자에게 보이는 문구: 요청서 v4 규격 ("모델 ③ · 지하차도 입구 순응 위험 상" + "감속하세요"). 사고 확률 표현은 쓰지 않는다. */
+export const model3AlertText = (g: Model3Grade) => `모델 ③ · 지하차도 입구 순응 위험 ${g}`;
 export const MODEL3_ALERT_NOTE: Record<Model3Grade, string> = {
-  상: '들어가면 한동안 앞이 잘 안 보여요 · 미리 속도를 줄이세요',
-  중: '들어가면 잠깐 앞이 어두워요 · 속도를 줄이세요',
-  하: '밝기 차이가 크지 않아요 · 앞차 간격을 유지하세요',
+  상: '감속하세요 · 진입 후 2초 동안 시야가 급격히 어두워집니다',
+  중: '감속하세요 · 진입 후 잠깐 앞이 어두워집니다',
+  하: '앞차 간격을 유지하세요',
 };
 
 function parseEffect(v: unknown): ScreenEffect {
@@ -91,13 +90,13 @@ export async function requestModel3(image: Blob | null, ctx: Model3Context, pres
 
 /* ── 지하차도 하나를 지나는 동안의 장면 순서 ─────────────────────────── */
 export interface Model3Section { s0: number; covered: boolean; toEntry: number; phase: string }
-export interface Model3View { alert: Model3Reading | null; dark: number; active: boolean; beep: boolean }
+export interface Model3View { alert: Model3Reading | null; dark: number; countdown: number | null; elapsed: number; active: boolean; beep: boolean }
 type Phase = 'idle' | 'requested' | 'warned' | 'dark' | 'done';
 export function createModel3Scene(request: () => Promise<Model3Reading>) {
   let key: number | null = null, phase: Phase = 'idle', reading: Model3Reading | null = null, t = 0, token = 0;
   const reset = () => { key = null; phase = 'idle'; reading = null; t = 0; token++; };
   function update(section: Model3Section | null, dt: number, running = true): Model3View {
-    const none = { alert: null, dark: 0, active: false, beep: false };
+    const none: Model3View = { alert: null, dark: 0, countdown: null, elapsed: 0, active: false, beep: false };
     if (!running) { reset(); return none; }
     if (!section || (section.s0 !== key && key !== null && phase !== 'dark')) reset();
     if (!section) return none;
@@ -115,11 +114,16 @@ export function createModel3Scene(request: () => Promise<Model3Reading>) {
     if (phase === 'dark' && reading) {
       t += Math.max(0, Math.min(dt, .1));
       const e = reading.screen_effect;
-      if (t >= e.recover_s) { phase = 'done'; return { ...none, active: true }; }
-      return { alert: null, dark: darkAt(e, t), active: true, beep: false };
+      if (t >= e.recover_s) { phase = 'done'; return { ...none, elapsed: t, active: true }; }
+      const countdown = Math.max(1, Math.ceil(e.recover_s - t));
+      return { alert: null, dark: darkAt(e, t), countdown, elapsed: t, active: true, beep: false };
     }
-    if (phase === 'warned') return { alert: reading, dark: 0, active: true, beep };
-    return { ...none, active: phase === 'done' && section.covered };
+    if (phase === 'done' && section.covered) {
+      t += Math.max(0, Math.min(dt, .1));
+      return { ...none, elapsed: t, active: true };
+    }
+    if (phase === 'warned') return { alert: reading, dark: 0, countdown: null, elapsed: 0, active: true, beep };
+    return { ...none, active: false };
   }
   return { update, reset, get reading() { return reading; } };
 }

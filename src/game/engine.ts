@@ -110,7 +110,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
   };
   let glareDiagnostics = { intensity: 0, effectiveIntensity: 0, visorTransmission: 1, visorProgress: 0, visorDark: 0, angle: 0, sunAltitude: 0, blockedByCar: false, blockedByWorld: false, onScreen: false };
   const adaptation = newAdaptation();
-  // 모델 ③: 지하차도 입구 205m 전에 지금 화면을 찍어 판정 → 155m 전 알림 → 입구에서 화면 어두워짐 → 3초 회복
+  // 모델 ③: 지하차도 입구 205m 전에 지금 화면을 찍어 판정 → 155m 전 알림 → 입구에서 화면 어두워짐 → 2초 회복
   const model3Canvas = typeof document !== 'undefined' ? document.createElement('canvas') : null;
   function captureFrame(): Promise<Blob | null> {
     const src = renderer.domElement;
@@ -122,10 +122,11 @@ export function createEngine(canvas: HTMLCanvasElement) {
   }
   const model3 = createModel3Scene(async () => {
     const st = G.getState().settings, image = await captureFrame();
+    const sunDate = IS_SINCHEON && Math.round(S.minutes) === 750 ? `${st.date.slice(0, 4)}-06-21` : st.date;
     const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 20_000);
     try {
       return await requestModel3(image, {
-        date: st.date, minutes: S.minutes, cloud: MODEL3_CLOUD[st.weather] ?? 0, sunAlt: sunPos(simDate(st.date, S.minutes)).alt, speedKmh: S.v * 3.6 || 60,
+        date: sunDate, minutes: S.minutes, cloud: MODEL3_CLOUD[st.weather] ?? 0, sunAlt: sunPos(simDate(sunDate, S.minutes)).alt, speedKmh: S.v * 3.6 || 100,
         lat: 35.866 - camera.position.z / 110940, lon: 128.59 + camera.position.x / (111320 * Math.cos(35.866 * Math.PI / 180)),
       }, model3Presets as Model3Presets, controller.signal);
     } finally { clearTimeout(timer); }
@@ -157,7 +158,6 @@ export function createEngine(canvas: HTMLCanvasElement) {
     G.setState({ render: { pixelRatio: Math.round(pr * 100) / 100, deviceRatio: devicePixelRatio, smoothing: smaa ? 'SMAA' : samples ? `MSAA ${samples}x` : '없음' } });
   }
   // 느린 기기: 주행 중 초당 프레임이 아주 낮을 때만 해상도를 조금 낮춘다(최소 85%).
-  // 예전 기준(28fps 미만 3초, 최소 70%)은 대부분의 휴대폰에서 바로 걸려 화질 개선이 사라졌다.
   function adaptResolution(fps: number) {
     slowSec = fps < 20 ? slowSec + 1 : 0;
     if (slowSec >= 5 && autoScale > .85) { autoScale = .85; slowSec = 0; applyGfx(); }
@@ -175,7 +175,6 @@ export function createEngine(canvas: HTMLCanvasElement) {
   function startRun() {
     const st = G.getState().settings;
     if (!Number.isFinite(st.startKm) || !Number.isFinite(st.endKm) || Math.abs(st.endKm - st.startKm) < 0.1) return;
-    // Close a mobile input's keyboard/focus before changing to the driving view.
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     resize();
     voice.reset(); voice.setEnabled(st.voice && st.guidance);
@@ -187,15 +186,20 @@ export function createEngine(canvas: HTMLCanvasElement) {
     exitGlare = 0;
     passageRecords.length = 0; currentPassage = null;
     S.dir = st.endKm >= st.startKm ? 1 : -1;
-    S.s = kmToS(st.startKm); S.v = 0; S.lane = 1; S.laneX = S.targetX = laneOffset(1); S.laneV = 0; S.steerTouch = 0;
+    S.s = kmToS(st.startKm); S.v = IS_SINCHEON && !st.observationSpeed ? 19.5 : 0; S.lane = 1; S.laneX = S.targetX = laneOffset(1); S.laneV = 0; S.steerTouch = 0;
     S.score = 100; S.glareTime = 0; S.glareMax = 0; S.t0 = performance.now(); S.lastStation = ''; S.minutes = st.minutes;
     S.segFrom = nearestStation(st.startKm).name; S.segT0 = S.t0; S.segS0 = S.s; S.segGlare = 0;
-    W.traffic.forEach((t, i) => { t.lane = i % LANE_COUNT; t.x = laneOffset(t.lane); t.s = S.s + S.dir * (40 + i * 70 + rand() * 40); t.want = t.v = t.kind === 'bus' ? 10 : 11 + rand() * 6; });
+    W.traffic.forEach((t, i) => {
+      t.lane = i % LANE_COUNT; t.x = laneOffset(t.lane);
+      t.s = IS_SINCHEON ? S.s + S.dir * (600 + i * 120) : S.s + S.dir * (40 + i * 70 + rand() * 40);
+      t.want = t.v = t.kind === 'bus' ? 10 : 11 + rand() * 6;
+      t.m.visible = !IS_SINCHEON;
+    });
     S.running = true;
     const a = locationLabel(st.startKm), b = locationLabel(st.endKm);
     const ticks = D.stations.filter(x => (x.km - st.startKm) * S.dir > 0 && (st.endKm - x.km) * S.dir > 0).map(x => Math.abs(x.km - st.startKm) / Math.abs(st.endKm - st.startKm));
-    G.setState({ screen: 'driving', phoneOpen: false, result: null, hud: { ...G.getState().hud, from: a, to: b, ticks, score: 100, warn: false } });
-    banner('출발', `${a} → ${b}`, `${hm(S.minutes)} · ${compass(routeHead())}쪽으로`);
+    G.setState({ screen: 'driving', phoneOpen: false, result: null, hud: { ...G.getState().hud, from: a, to: b, ticks, score: 100, warn: false, kmh: IS_SINCHEON && !st.observationSpeed ? 100 : 0 } });
+    if (!IS_SINCHEON) banner('출발', `${a} → ${b}`, `${hm(S.minutes)} · ${compass(routeHead())}쪽으로`);
   }
   function endRun() {
     voice.announce('navigation-arrival', '목적지에 도착했어요. 안내를 마칠게요.', performance.now(), true);
@@ -208,7 +212,6 @@ export function createEngine(canvas: HTMLCanvasElement) {
   }
   function toMenu() { voice.stop(); S.running = false; G.setState({ screen: 'menu', phoneOpen: false }); }
   const changeLane = (d: number) => { S.targetX = laneOffset(Math.max(0, Math.min(LANE_COUNT - 1, Math.round((S.targetX - laneOffset(0)) / LANE_WIDTH) + d))); };
-  // LCD 차광판은 기본 꺼짐: 먼저 눈부심을 그대로 겪고, G로 켜서 비교
   const toggleGlass = () => {
     const on = !G.getState().settings.glass; G.getState().set({ glass: on });
     if (S.running) banner(on ? '🕶️ LCD 차광판 내림' : 'LCD 차광판 올림', on ? '해가 눈에 들어오는 칸만 어둡게' : '맨눈으로 보는 눈부심', on ? '나머지 칸은 투명해서 신호등·앞차가 보여요' : '해를 정면으로 받으면 앞이 이렇게 안 보여요');
@@ -233,8 +236,6 @@ export function createEngine(canvas: HTMLCanvasElement) {
     if (e.code === 'Escape') toMenu();
   };
   const onKeyUp = (e: KeyboardEvent) => { keys[e.code] = false; };
-  // 운전자 고개 돌리기: 화면을 끌면 그 방향을 계속 봄 (좌우 100° · 위 25° · 아래 35°), V 또는 더블클릭으로 정면
-  // 3인칭에서는 차 주위를 돌며 보고, 손을 떼면 뒤로 돌아옴
   const look_ = { yaw: 0, pitch: 0, drag: false, px: 0, py: 0, id: -1, recenter: false };
   const onPDown = (e: PointerEvent) => {
     if (!S.running || G.getState().phoneOpen) return;
@@ -253,7 +254,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
   canvas.style.touchAction = 'none'; canvas.addEventListener('dblclick', onDbl);
   canvas.addEventListener('pointerdown', onPDown); canvas.addEventListener('pointermove', onPMove);
   canvas.addEventListener('pointerup', onPUp); canvas.addEventListener('pointercancel', onPUp);
-  const releaseAll = () => { for (const k in keys) keys[k] = false; S.throttle = 0; S.brake = 0; S.steerTouch = 0; };   // 창 이탈 시 눌린 키 해제
+  const releaseAll = () => { for (const k in keys) keys[k] = false; S.throttle = 0; S.brake = 0; S.steerTouch = 0; };
   const onVis = () => { if (document.hidden) releaseAll(); };
   addEventListener('keydown', onKeyDown); addEventListener('keyup', onKeyUp);
   addEventListener('blur', releaseAll); document.addEventListener('visibilitychange', onVis);
@@ -264,7 +265,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
   const ray = new THREE.Raycaster();
   let crashT = 0, shake = 0, phoneT = 0;
   let lastSport = false, fpsN = 0, fpsT = 0, fpsV = 0;
-  const view = { x: 0, z: 0, init: false };                              // 카메라가 바라보는 수평 방향 (완충)
+  const view = { x: 0, z: 0, init: false };
   const fwd = new THREE.Vector3(), sv = new THREE.Vector3(), tmp = new THREE.Vector3(), horizon = new THREE.Color();
   const wxK = { clear: 1, cloud: 0.55, over: 0.15 } as const;
 
@@ -282,121 +283,192 @@ export function createEngine(canvas: HTMLCanvasElement) {
     const rawThrottle = keys.KeyW || keys.ArrowUp ? 1 : S.throttle;
     const rawBrake = keys.KeyS || keys.ArrowDown || keys.Space ? 1 : S.brake;
     updateDrivingFeel(drivingFeel, rawThrottle, rawBrake, S.v, S.laneV, dt, running);
+    const sincheonScene = IS_SINCHEON && !st.observationSpeed;
+    let displayKmh = S.v * 3.6;
+
     if (running) {
-      const thr = drivingFeel.throttle, brk = drivingFeel.brake;
-      S.v = stepDriveSpeed(S.v, thr, brk, dt, st.mode, st.observationSpeed);
-      // 앞차에 가까워지면 미리 부드럽게 감속 (갑자기 속도가 꺾이지 않게)
-      let cap = Infinity;
-      W.traffic.forEach(t => {
-        if (Math.abs(t.x - S.laneX) >= 2.4) return;
-        const gap = (t.s - S.s) * S.dir - t.len / 2 - 2.3;
-        if (gap > -1 && gap < 35) cap = Math.min(cap, gap < 2 ? t.v * 0.9 : t.v + Math.max(0, gap - 6) * 0.45);
-      });
-      if (S.v > cap) S.v = Math.max(cap, S.v - 7 * dt);
-      S.s += S.dir * S.v * dt;
-      // 차선 변경: 스프링처럼 부드럽게 (임계 감쇠) — 빠를수록 조금 더 빨리 옮겨 감
-      const k = 6 + Math.min(1, S.v / 15) * 5, c = 2 * Math.sqrt(k);
-      // 핸들: A/D(←/→)를 누르는 동안 옆으로 계속 움직임 → 차선 안 어디든 맞출 수 있음
-      const steerIn = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + S.steerTouch;
-      if (steerIn && S.v > 0.5) S.targetX = Math.max(laneOffset(0) - 1.3, Math.min(laneOffset(LANE_COUNT - 1) + 1.3, S.targetX + steerIn * (2.6 + Math.min(4.6, S.v * 0.28)) * dt));
-      S.lane = Math.max(0, Math.min(LANE_COUNT - 1, Math.round((S.laneX - laneOffset(0)) / LANE_WIDTH)));
-      S.laneV += (k * (S.targetX - S.laneX) - c * S.laneV) * dt;
-      S.laneX += S.laneV * dt;
-      // 충돌: 다른 차와 겹치면 밀려나고 속도가 줄며 게임 내부 점수 조정
-      crashT -= dt;
-      for (const t of W.traffic) {
-        const lon = (t.s - S.s) * S.dir, lat = t.x - S.laneX;
-        const hl = (t.len + 4.6) / 2, hw = ((t.kind === 'bus' ? 2.5 : t.kind === 'suv' ? 1.9 : 1.82) + 1.82) / 2;
-        if (Math.abs(lon) >= hl || Math.abs(lat) >= hw) continue;
-        const pushLat = hw - Math.abs(lat), pushLon = hl - Math.abs(lon);
-        if (pushLat < pushLon) {                                            // 옆에서 부딪힘 → 옆으로 튕겨 나감
-          const sg = lat > 0 ? -1 : 1; S.laneX += sg * pushLat; S.targetX = S.laneX + sg * 0.4; S.laneV = sg * 1.5; S.v *= 0.85;
-        } else if (lon > 0) {                                               // 앞차 뒤를 받음
-          S.s -= S.dir * pushLon; S.v = Math.min(S.v, t.v * 0.5);
-        } else {                                                            // 뒤차가 받음
-          S.s += S.dir * pushLon; t.v *= 0.5;
-        }
-        if (crashT <= 0) {
-          crashT = 2; shake = 0.45; S.score = Math.max(0, S.score - 10);
-          banner('💥 충돌', '다른 차와 부딪혔어요', S.glareLv >= 1
-            ? '눈부심이 있으면 앞차와 거리를 더 두세요'
-            : '속도를 줄이고 앞차와 거리를 두세요');
-        }
-      }
-      S.minutes += dt * st.flow / 60;
-      if ((st.endKm - sToKm(S.s)) * S.dir <= 0) endRun();
-      // 다른 차: 같은 차선 앞차(내 차 포함)와 거리를 두고 따라가며, 서로 겹치지 않게
-      const freeAt = (lane: number, s: number, self: Vehicle) => W.traffic.every(o => o === self || o.lane !== lane || Math.abs(o.s - s) > 30);
-      W.traffic.forEach(t => {
-        let cap = t.want;
-        const follow = (os: number, ov: number, olen: number) => {
-          const gap = (os - t.s) * S.dir - (olen + t.len) / 2;
-          if (gap > -2 && gap < 40) cap = Math.min(cap, gap < 3 ? Math.min(ov, t.v) * 0.8 : ov + Math.max(0, gap - 7) * 0.35);
-        };
-        W.traffic.forEach(o => { if (o !== t && Math.abs(o.x - t.x) < 2.6) follow(o.s, o.v, o.len); });
-        if (Math.abs(S.laneX - t.x) < 2.6) follow(S.s, S.v, 4.6);
-        t.v += Math.max(-8 * dt, Math.min(2 * dt, cap - t.v)); t.v = Math.max(0, t.v);
-        t.s += S.dir * t.v * dt; t.x = laneOffset(t.lane);
-        if ((t.s - S.s) * S.dir < -60) {                                   // 뒤로 멀어진 차는 앞쪽 빈자리로
-          for (let k = 0; k < 8; k++) {
-            const lane = (rand() * LANE_COUNT) | 0, s = S.s + S.dir * (450 + rand() * 600);
-            if (k === 7 || freeAt(lane, s, t)) { t.lane = lane; t.s = s; t.x = laneOffset(lane); t.v = t.want; break; }
+      if (sincheonScene) {
+        // 요청서 v4: 속도계 100 km/h 고정 + 입구 진입 2초 뒤 바로 코앞의 앞차(30 km/h) 발견 및 아슬아슬한 급감속(100 → 30 km/h) 후 지하차도 출구까지 통과
+        const lead = W.traffic.find(t => t.kind === 'suv') ?? W.traffic[0];
+        W.traffic.forEach((t, idx) => {
+          if (t !== lead) { t.m.visible = false; t.s = S.s + S.dir * (900 + idx * 100); }
+        });
+        const secNow = underpassAt(S.s, S.dir);
+        const tIn = model3View.elapsed;
+        if (!secNow?.covered || tIn <= 0) {
+          const exitedTunnel = S.s > 8395;
+          S.v = exitedTunnel ? 22 : 25.5;
+          displayKmh = exitedTunnel ? 45 : 100;
+          if (lead) {
+            lead.lane = S.lane; lead.x = laneOffset(S.lane);
+            lead.v = lead.want = 30 / 3.6;
+            lead.s = exitedTunnel ? (S.s + S.dir * 16) : ((secNow ? (S.dir > 0 ? secNow.s0 : secNow.s1) : S.s) + S.dir * 52);
+            lead.m.visible = exitedTunnel;
+            lead.brakeMat.emissiveIntensity = 1.5;
+          }
+        } else if (tIn < 2.2) {
+          S.v = 24.5;
+          displayKmh = 100;
+          if (lead) {
+            lead.lane = S.lane; lead.x = laneOffset(S.lane);
+            lead.v = lead.want = 30 / 3.6;
+            const gap = tIn <= 2.0 ? (34 - 10 * tIn) : (14 - 22 * (tIn - 2.0));
+            lead.s = S.s + S.dir * Math.max(8.5, gap);
+            lead.m.visible = tIn >= 0.45;
+            lead.brakeMat.emissiveIntensity = 3.8;
+          }
+        } else if (tIn <= 4.0) {
+          const u = Math.min(1, (tIn - 2.2) / 1.5);
+          const ease = 1 - Math.pow(1 - u, 1.5);
+          displayKmh = Math.round(100 - 70 * ease);
+          S.v = (30 / 3.6) + (23.0 - 30 / 3.6) * (1 - ease);
+          drivingFeel.pitch = -0.056 * Math.sin(u * Math.PI);
+          if (tIn < 2.95) {
+            shake = Math.max(shake, 0.22);
+            S.laneV = Math.sin((tIn - 2.2) * 10) * 1.1;
+          }
+          if (lead) {
+            lead.lane = S.lane; lead.x = laneOffset(S.lane);
+            lead.v = lead.want = 30 / 3.6;
+            const targetGap = 5.4 + 4.2 * Math.pow(1 - u, 2) + (tIn > 3.4 ? (tIn - 3.4) * 3.5 : 0);
+            lead.s = S.s + S.dir * targetGap;
+            lead.m.visible = true;
+            lead.brakeMat.emissiveIntensity = 4.2;
+          }
+        } else {
+          const postT = tIn - 4.0;
+          const rampUp = Math.min(1, postT / 2.2);
+          displayKmh = Math.round(30 + 15 * rampUp);
+          S.v = 15.5 + 7.5 * rampUp;
+          if (lead) {
+            lead.lane = S.lane; lead.x = laneOffset(S.lane);
+            lead.v = S.v + 1.2;
+            const targetGap = Math.min(18, 7.5 + postT * 2.2);
+            lead.s = S.s + S.dir * targetGap;
+            lead.m.visible = true;
+            lead.brakeMat.emissiveIntensity = 1.6;
           }
         }
-      });
+        S.s += S.dir * S.v * dt;
+        const k = 6 + Math.min(1, S.v / 15) * 5, c = 2 * Math.sqrt(k);
+        const steerIn = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + S.steerTouch;
+        if (steerIn && S.v > 0.5) S.targetX = Math.max(laneOffset(0) - 1.3, Math.min(laneOffset(LANE_COUNT - 1) + 1.3, S.targetX + steerIn * (2.6 + Math.min(4.6, S.v * 0.28)) * dt));
+        S.lane = Math.max(0, Math.min(LANE_COUNT - 1, Math.round((S.laneX - laneOffset(0)) / LANE_WIDTH)));
+        S.laneV += (k * (S.targetX - S.laneX) - c * S.laneV) * dt;
+        S.laneX += S.laneV * dt;
+        S.minutes += dt * st.flow / 60;
+        if ((st.endKm - sToKm(S.s)) * S.dir <= 0) endRun();
+      } else {
+        const thr = drivingFeel.throttle, brk = drivingFeel.brake;
+        S.v = stepDriveSpeed(S.v, thr, brk, dt, st.mode, st.observationSpeed);
+        let cap = Infinity;
+        W.traffic.forEach(t => {
+          if (Math.abs(t.x - S.laneX) >= 2.4) return;
+          const gap = (t.s - S.s) * S.dir - t.len / 2 - 2.3;
+          if (gap > -1 && gap < 35) cap = Math.min(cap, gap < 2 ? t.v * 0.9 : t.v + Math.max(0, gap - 6) * 0.45);
+        });
+        if (S.v > cap) S.v = Math.max(cap, S.v - 7 * dt);
+        S.s += S.dir * S.v * dt;
+        const k = 6 + Math.min(1, S.v / 15) * 5, c = 2 * Math.sqrt(k);
+        const steerIn = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + S.steerTouch;
+        if (steerIn && S.v > 0.5) S.targetX = Math.max(laneOffset(0) - 1.3, Math.min(laneOffset(LANE_COUNT - 1) + 1.3, S.targetX + steerIn * (2.6 + Math.min(4.6, S.v * 0.28)) * dt));
+        S.lane = Math.max(0, Math.min(LANE_COUNT - 1, Math.round((S.laneX - laneOffset(0)) / LANE_WIDTH)));
+        S.laneV += (k * (S.targetX - S.laneX) - c * S.laneV) * dt;
+        S.laneX += S.laneV * dt;
+        crashT -= dt;
+        for (const t of W.traffic) {
+          const lon = (t.s - S.s) * S.dir, lat = t.x - S.laneX;
+          const hl = (t.len + 4.6) / 2, hw = ((t.kind === 'bus' ? 2.5 : t.kind === 'suv' ? 1.9 : 1.82) + 1.82) / 2;
+          if (Math.abs(lon) >= hl || Math.abs(lat) >= hw) continue;
+          const pushLat = hw - Math.abs(lat), pushLon = hl - Math.abs(lon);
+          if (pushLat < pushLon) {
+            const sg = lat > 0 ? -1 : 1; S.laneX += sg * pushLat; S.targetX = S.laneX + sg * 0.4; S.laneV = sg * 1.5; S.v *= 0.85;
+          } else if (lon > 0) {
+            S.s -= S.dir * pushLon; S.v = Math.min(S.v, t.v * 0.5);
+          } else {
+            S.s += S.dir * pushLon; t.v *= 0.5;
+          }
+          if (crashT <= 0) {
+            crashT = 2; shake = 0.45; S.score = Math.max(0, S.score - 10);
+            banner('💥 충돌', '다른 차와 부딪혔어요', S.glareLv >= 1
+              ? '눈부심이 있으면 앞차와 거리를 더 두세요'
+              : '속도를 줄이고 앞차와 거리를 두세요');
+          }
+        }
+        S.minutes += dt * st.flow / 60;
+        if ((st.endKm - sToKm(S.s)) * S.dir <= 0) endRun();
+        const freeAt = (lane: number, s: number, self: Vehicle) => W.traffic.every(o => o === self || o.lane !== lane || Math.abs(o.s - s) > 30);
+        W.traffic.forEach(t => {
+          t.m.visible = true;
+          let cap = t.want;
+          const follow = (os: number, ov: number, olen: number) => {
+            const gap = (os - t.s) * S.dir - (olen + t.len) / 2;
+            if (gap > -2 && gap < 40) cap = Math.min(cap, gap < 3 ? Math.min(ov, t.v) * 0.8 : ov + Math.max(0, gap - 7) * 0.35);
+          };
+          W.traffic.forEach(o => { if (o !== t && Math.abs(o.x - t.x) < 2.6) follow(o.s, o.v, o.len); });
+          if (Math.abs(S.laneX - t.x) < 2.6) follow(S.s, S.v, 4.6);
+          t.v += Math.max(-8 * dt, Math.min(2 * dt, cap - t.v)); t.v = Math.max(0, t.v);
+          t.s += S.dir * t.v * dt; t.x = laneOffset(t.lane);
+          if ((t.s - S.s) * S.dir < -60) {
+            for (let k = 0; k < 8; k++) {
+              const lane = (rand() * LANE_COUNT) | 0, s = S.s + S.dir * (450 + rand() * 600);
+              if (k === 7 || freeAt(lane, s, t)) { t.lane = lane; t.s = s; t.x = laneOffset(lane); t.v = t.want; break; }
+            }
+          }
+        });
+        displayKmh = S.v * 3.6;
+      }
     }
 
-    if (running) separateTraffic(W.traffic, S.dir);
+    if (running && !sincheonScene) separateTraffic(W.traffic, S.dir);
 
     // 위치 · 시점
     const p = at(S.s), hx = p.dx * S.dir, hz = p.dz * S.dir, rx = -hz, rz = hx;
     const cx = p.x + rx * S.laneX, cz = p.z + rz * S.laneX;
     const lookDistance = 25 + Math.min(25, S.v * .8);
     const look = at(S.s + S.dir * lookDistance);
-    // 차선을 옮길 때 차가 그쪽으로 살짝 고개를 트는 느낌
     const yaw = Math.atan2(S.laneV, Math.max(4, S.v)) * 0.9;
     const tx = look.x + rx * S.laneX + rx * Math.tan(yaw) * lookDistance - cx, tz = look.z + rz * S.laneX + rz * Math.tan(yaw) * lookDistance - cz;
     const tl = Math.hypot(tx, tz) || 1;
     if (!view.init) { view.x = tx / tl; view.z = tz / tl; view.init = true; }
-    const vk = Math.min(1, dt * 3);                                        // 굽은 길에서도 시선이 서서히 따라감
+    const vk = Math.min(1, dt * 3);
     view.x += (tx / tl - view.x) * vk; view.z += (tz / tl - view.z) * vk;
     const vl = Math.hypot(view.x, view.z) || 1;
     const lx = cx + view.x / vl * lookDistance, lz = cz + view.z / vl * lookDistance;
-    // 길이 휘는 만큼 운전대도 돌아감 (앞 25 m 사이 방향 변화)
     const ah = at(S.s + S.dir * 25), bend = Math.atan2(hx * ah.dz * S.dir - hz * ah.dx * S.dir, hx * ah.dx * S.dir + hz * ah.dz * S.dir);
-    if (!look_.drag && (S.cam === 'chase' || look_.recenter || !S.running)) {          // 정면으로 천천히 돌아옴
+    if (!look_.drag && (S.cam === 'chase' || look_.recenter || !S.running)) {
       const f = Math.max(0, 1 - dt * 3.5); look_.yaw *= f; look_.pitch *= f;
       if (Math.abs(look_.yaw) + Math.abs(look_.pitch) < 0.01) look_.recenter = false;
     }
     if (S.cam === 'cockpit' || !S.running) {
-      const bob = S.running ? (Math.sin(S.s * .85) * .0013 + Math.sin(S.s * 2.1) * .0006) * Math.min(1, S.v / 12) : 0;   // 노면 진동
+      const bob = S.running ? (Math.sin(S.s * .85) * .0013 + Math.sin(S.s * 2.1) * .0006) * Math.min(1, S.v / 12) : 0;
       camera.position.set(cx - rx * 0.37, p.y + (S.running ? 1.18 + bob : 2), cz - rz * 0.37); camera.lookAt(lx, look.y + 1.08, lz);
-      camera.rotateX(drivingFeel.pitch); camera.rotateZ(drivingFeel.roll);                                     // 아주 약한 기울어짐
-      if (shake > 0) { shake -= dt; const a = shake * 0.12; camera.position.x += (Math.random() - 0.5) * a; camera.position.y += (Math.random() - 0.5) * a; }   // 충돌 흔들림
+      camera.rotateX(drivingFeel.pitch); camera.rotateZ(drivingFeel.roll);
+      if (shake > 0) { shake -= dt; const a = shake * 0.12; camera.position.x += (Math.random() - 0.5) * a; camera.position.y += (Math.random() - 0.5) * a; }
       rig.position.copy(camera.position); rig.quaternion.copy(camera.quaternion);
-      if (S.running) {                                                      // 목을 축으로 고개를 돌림 (눈은 목보다 앞 · 위)
+      if (S.running) {
         camera.translateY(-0.1); camera.translateZ(0.09);
         camera.rotateY(look_.yaw); camera.rotateX(look_.pitch);
         camera.translateZ(-0.09); camera.translateY(0.1);
       }
       W.me.m.visible = false;
     } else {
-      const oy = look_.yaw * 2.2, ch = Math.cos(oy), shh = Math.sin(oy);       // 차 주위를 돌며 보기
+      const oy = look_.yaw * 2.2, ch = Math.cos(oy), shh = Math.sin(oy);
       const bx = hx * ch - rx * shh, bz = hz * ch - rz * shh;
       camera.position.set(cx - bx * 9, at(S.s - S.dir * 9).y + 3.1 + look_.pitch * -8, cz - bz * 9); camera.lookAt(cx + hx * 2, p.y + 1.2, cz + hz * 2); W.me.m.visible = true;
     }
-    W.me.m.position.set(cx, p.y, cz); W.me.m.rotation.set(-Math.atan2(look.y - p.y, lookDistance), Math.atan2(hx, hz) - yaw, S.laneV * 0.01);   // 오른쪽(-x 쪽 회전)으로 옮기면 차 머리도 오른쪽
+    W.me.m.position.set(cx, p.y, cz); W.me.m.rotation.set(-Math.atan2(look.y - p.y, lookDistance), Math.atan2(hx, hz) - yaw, S.laneV * 0.01);
     rig.visible = S.running && S.cam === 'cockpit';
     const sportNow = st.mode === 'sport';
     if (sportNow !== lastSport) { lastSport = sportNow; CP.setOpen(sportNow, !S.running); }
     CP.update(dt);
-    {                                                                     // 3인칭 차 지붕도 같은 진행도로 접힘
+    {
       W.softTop.set(CP.progress);
     }
-    const fovT = baseFov + (S.running ? Math.min(sportNow ? 12 : 7, S.v * (sportNow ? .22 : .17)) : 0);   // 빠를수록 시야가 넓어지는 속도감
+    const fovT = baseFov + (S.running ? Math.min(sportNow ? 12 : 7, S.v * (sportNow ? .22 : .17)) : 0);
     if (Math.abs(camera.fov - fovT) > 0.05) { camera.fov += (fovT - camera.fov) * Math.min(1, dt * 3); camera.updateProjectionMatrix(); }
     visualSteer += (Math.max(-1.2, Math.min(1.2, -S.laneV * .15 - bend * 6)) - visualSteer) * (1 - Math.exp(-dt * 9));
-    CP.steer(visualSteer);   // 오른쪽으로 옮기거나 휠 때 운전대는 시계 방향
+    CP.steer(visualSteer);
     if (observerReference) {
       const q = at(observerReference.s), dir = observerReference.direction;
       const ahead = at(observerReference.s + dir * 65), rightX = -q.dz * dir, rightZ = q.dx * dir;
@@ -406,7 +478,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
       rig.visible = false; W.me.m.visible = false;
     }
     camera.updateMatrixWorld(); rig.updateMatrixWorld();
-    const braking = keys.KeyS || keys.ArrowDown || S.brake > 0;
+    const braking = keys.KeyS || keys.ArrowDown || S.brake > 0 || (sincheonScene && model3View.elapsed >= 2.0 && model3View.elapsed <= 3.5);
     W.me.brakeMat.emissiveIntensity = braking ? 3 : 0.5;
     if (running) {
       W.me.wheels.forEach(w => { w.rotation.x = (w.rotation.x + S.v * dt / W.me.wheelRadius) % (Math.PI * 2); });
@@ -417,11 +489,11 @@ export function createEngine(canvas: HTMLCanvasElement) {
       t.m.position.set(q.x + qx * t.x, q.y, q.z + qz * t.x); t.m.rotation.y = Math.atan2(q.dx * S.dir, q.dz * S.dir);
     });
 
-    // 하늘 상자는 항상 카메라를 둘러싸야 종점에서도 검은 바깥 면이 보이지 않는다.
     W.sky.position.copy(camera.position);
 
-    // 해 · 날씨
-    const sp = sunPos(simDate(st.date, S.minutes)); sv.set(...sunDir(sp.alt, sp.az));
+    // 해 · 날씨 (신천대로 한낮 12:30은 해가 머리 위에 오도록 하지 기준 태양 고도 적용)
+    const effectiveDate = IS_SINCHEON && Math.round(S.minutes) === 750 ? `${st.date.slice(0, 4)}-06-21` : st.date;
+    const sp = sunPos(simDate(effectiveDate, S.minutes)); sv.set(...sunDir(sp.alt, sp.az));
     const u = W.sky.material.uniforms;
     u.sunPosition.value.copy(sv);
     const wx = wxK[st.weather];
@@ -433,7 +505,6 @@ export function createEngine(canvas: HTMLCanvasElement) {
     const vision = stepAdaptation(adaptation, sceneL, running ? dt : 0, S.running && !S.referenceFrame, { covered: !!section?.covered, outsideLuminance: outsideL });
     model3View = model3.update(section, running ? dt : 0, S.running && !S.referenceFrame);
     if (model3View.beep && model3View.alert && st.guidance) model3Beep(model3View.alert.grade);
-    // 모델 ③이 입구 연출을 맡은 지하차도에서는 기존 체험용 어두워짐·노출 변화를 겹치지 않는다 (3초 뒤 평소 밝기).
     const model3Owns = S.running && model3View.active;
     if (running) {
       if (section?.covered) {
@@ -451,10 +522,10 @@ export function createEngine(canvas: HTMLCanvasElement) {
     u.turbidity.value = st.weather === 'over' ? 14 : st.weather === 'cloud' ? 5.5 : 2.2;
     W.sun.position.set(cx + sv.x * 400, Math.max(5, sv.y * 400), cz + sv.z * 400); W.sun.target.position.set(cx, 0, cz);
     const dayK = Math.max(0, Math.min(1, (sp.alt + 4) / 14));
-    // Preserve daylight contrast instead of lifting every shaded surface to grey.
     W.weather.update(camera.position, st.weather, dayK, sp.alt);
     W.sun.castShadow = st.gfx === 'high' && st.weather !== 'over';
-    W.sun.intensity = (st.weather === 'over' ? .15 : 2.6 * wx) * dayK; W.hemi.intensity = .4 + .55 * dayK + (1 - wx) * .5;
+    W.sun.intensity = (st.weather === 'over' ? .15 : (IS_SINCHEON && !section?.covered ? 3.2 : 2.6) * wx) * dayK;
+    W.hemi.intensity = (IS_SINCHEON && !section?.covered ? .52 : .4) + .55 * dayK + (1 - wx) * .5;
     W.sunDisc.visible = sp.alt > -1 && st.weather !== 'over' && !section?.covered;
     W.sunDisc.position.copy(camera.position).addScaledVector(sv, SUN_DIST);
     const lowSun = Math.max(0, Math.min(1, (20 - sp.alt) / 20)) * dayK;
@@ -465,10 +536,11 @@ export function createEngine(canvas: HTMLCanvasElement) {
     (W.scene.fog as THREE.Fog).far = st.weather === 'over' ? 3500 : st.weather === 'cloud' ? 6000 : 8000;
     W.sun.color.setHSL(0.09, 0.18 + 0.65 * lowSun, 0.84);
     W.hemi.color.setHSL(st.weather === 'over' ? .57 : .08, st.weather === 'over' ? .06 : .5 * lowSun, .75); W.hemi.groundColor.setHSL(0.06, 0.45, 0.22);
-    renderer.toneMappingExposure = (.46 + .20 * dayK) * (S.running && !(model3Owns && vision.exposure < 1) ? vision.exposure : 1);
+    const baseExp = IS_SINCHEON && !section?.covered ? .55 + .22 * dayK : .46 + .20 * dayK;
+    renderer.toneMappingExposure = baseExp * (S.running && !IS_SINCHEON && !(model3Owns && vision.exposure < 1) ? vision.exposure : 1);
     updateEnv(sp.alt, sp.az, st.weather);
     W.lampHeads.emissiveIntensity = (1 - dayK) * 2.5;
-    if (W.bankGlow) W.bankGlow.emissiveIntensity = 0.5 + (1 - dayK) * 2.5;   // 본점 왕관은 해 질 녘에 더 밝게
+    if (W.bankGlow) W.bankGlow.emissiveIntensity = 0.5 + (1 - dayK) * 2.5;
 
     // 눈부심 (기하 계산: 해 방향 · 시선 · 지붕/건물 가림)
     camera.getWorldDirection(fwd);
@@ -478,7 +550,6 @@ export function createEngine(canvas: HTMLCanvasElement) {
     const proj = tmp.copy(sv).multiplyScalar(5000).add(camera.position).project(camera);
     const onScreen = proj.z < 1 && Math.abs(proj.x) < 1.1 && Math.abs(proj.y) < 1.1;
     const sxp = (proj.x * 0.5 + 0.5) * innerWidth, syp = (-proj.y * 0.5 + 0.5) * innerHeight;
-    // 지붕 · A필러 · 선바이저에 실제로 가리는지 (운전석 메시에 광선 쏘기)
     let blocked = false;
     if (rig.visible && I > 0.02) { ray.set(camera.position, sv); ray.far = 4; blocked = ray.intersectObjects(CP.blockers, false).length > 0; }
     if (blocked) I *= 0.15;
@@ -490,29 +561,27 @@ export function createEngine(canvas: HTMLCanvasElement) {
     if (section?.covered) I = 0;
     if (occluded) I *= 0.12;
     if (S.referenceFrame) S.I = I;
-    else S.I += (I - S.I) * Math.min(1, dt * 4);                                // 갑자기 번쩍이지 않게
+    else S.I += (I - S.I) * Math.min(1, dt * 4);
     const Is = S.I;
     const sunMat = W.sunDisc.material as THREE.MeshBasicMaterial;
     sunMat.color.setRGB(1, 0.95, 0.8).multiplyScalar(occluded ? 0.7 : 1.25 + 1.6 * Math.min(1, Is * 1.6));
-    // 차광판: 해 방향을 운전석 기준으로 바꿔, 눈과 해를 잇는 선이 판의 어느 칸을 지나는지 계산
     rigInv.copy(rig.quaternion).invert(); sunLocal.copy(sv).applyQuaternion(rigInv);
     eyeLocal.copy(camera.position).sub(rig.position).applyQuaternion(rigInv);
     const visorOn = st.glass && S.cam === 'cockpit' && rig.visible && gs.screen === 'driving';
     const sunExposed = W.sunDisc.visible && !blocked && !occluded && !section?.covered;
     const vs = visor.update(visorOn, sunLocal, dt, { eye: eyeLocal, illuminated: rig.visible && sunExposed }); visorDark = vs.darkCount;
-    // Match optical attenuation to the visible panel, including deployment/retraction.
     const shadeOn = S.running && rig.visible && vs.transmission < .99 && Is > .02;
     const eff = Is * vs.transmission;
     S.glareLv = eff > .5 ? 2 : eff > .22 ? 1 : 0;
     glareDiagnostics = { intensity: Is, effectiveIntensity: eff, visorTransmission: vs.transmission, visorProgress: vs.progress, visorDark, angle: ang, sunAltitude: sp.alt, blockedByCar: blocked, blockedByWorld: occluded, onScreen };
     if (els.wash) els.wash.style.opacity = '0';
     if (els.glare) els.glare.style.background = 'none';
-    if (els.shade) els.shade.style.opacity = '0';                              // 예전 화면 원형 차광은 쓰지 않음
+    if (els.shade) els.shade.style.opacity = '0';
     const exitApproach = section?.covered ? THREE.MathUtils.smoothstep(1 - section.toExit / 30, 0, 1) : 0;
     const contrastHistory = Math.min(1, Math.max(0, Math.log10(Math.max(1, outsideL / Math.max(1, 10 ** adaptation.darkestLogL))) / 2));
     const portalGlare = section?.covered && outsideL >= 150 ? .7 * exitApproach * Math.min(1, adaptation.coveredSeconds / 2) * contrastHistory : 0;
-    const exitTarget = S.running && !S.referenceFrame ? Math.max(vision.exitPulse, portalGlare, vision.white * .4) : 0;
-    if (!S.running || S.referenceFrame) exitGlare = 0;
+    const exitTarget = S.running && !S.referenceFrame && !IS_SINCHEON ? Math.max(vision.exitPulse, portalGlare, vision.white * .4) : 0;
+    if (!S.running || S.referenceFrame || IS_SINCHEON) exitGlare = 0;
     else exitGlare += (exitTarget - exitGlare) * (1 - Math.exp(-(running ? dt : 0) / (exitTarget > exitGlare ? .07 : .16)));
     const exitLight = exitGlare;
     bloom.strength = (st.gfx === 'high' ? .06 : .04) + eff * .65 + exitLight * .9;
@@ -522,14 +591,12 @@ export function createEngine(canvas: HTMLCanvasElement) {
     const directLight = sunExposed && onScreen ? Math.pow(eff, 1.25) : 0;
     lightGlare.update(sxp, syp, innerWidth, innerHeight, directLight, exitLight, roadBottom);
 
-    // Temporal contrast loss recovers from illumination history, independent of the sun disk.
     const dark = S.running ? vision.dark : 0;
     if (els.adaptationVeil) {
       els.adaptationVeil.style.backgroundColor = '#080a10';
-      els.adaptationVeil.style.opacity = String(model3Owns ? 0 : dark * .45);
+      els.adaptationVeil.style.opacity = String(model3Owns || IS_SINCHEON ? 0 : dark * .45);
     }
-    if (els.model3Veil) els.model3Veil.style.opacity = String(S.running ? model3View.dark : 0);
-    // Keep map text crisp; illustrative contrast loss belongs to the road view.
+    if (els.model3Veil) els.model3Veil.style.opacity = String(S.running ? model3View.dark * 0.72 : 0);
     if (els.adaptationVeil) {
       const cut = roadBottom * 100;
       els.adaptationVeil.style.clipPath = `inset(0 0 ${100 - cut}% 0)`;
@@ -538,8 +605,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
     }
     canvas.style.filter = '';
 
-    // The dashboard unit follows the same route and position as the vehicle.
-    const kmh = S.v * 3.6;
+    const kmh = sincheonScene ? displayKmh : S.v * 3.6;
     carAudio.update(running && st.carSound, kmh, rawThrottle);
     navT -= dt;
     if (navT <= 0) {
@@ -549,11 +615,11 @@ export function createEngine(canvas: HTMLCanvasElement) {
         navigationKey = key; roadsideObservations = getRoutePreview({ ...st, minutes: S.minutes }).primary.segments;
         navigationZones = routeZones(st.startKm, st.endKm, sp, st.weather, roadsideObservations, { date: st.date, minutes: S.minutes });
       }
-      W.roadsideSigns.update(S.s, S.dir, st.startKm, st.endKm, navigationZones, S.running, roadsideObservations);
-      // Present the current rendered view separately from cached model predictions.
+      const m3Grade = (model3View.alert ?? model3.reading)?.grade ?? '상';
+      W.roadsideSigns.update(S.s, S.dir, st.startKm, st.endKm, navigationZones, S.running, roadsideObservations, m3Grade);
       const currentGlare: NavigationZone[] = S.running && onScreen && !blocked && !occluded && !section?.covered && S.glareLv >= 1
         ? [{ id: `current-glare-${S.glareLv}`, start: S.s - S.dir * 2, end: S.s + S.dir * 30, kind: 'glare', name: '현재 3D 시야', source: 'simulation', level: S.glareLv as 1 | 2 }] : [];
-      navCue = CP.navigation.draw(S.s, S.running ? S.dir : Math.sign(st.endKm - st.startKm), st.startKm, st.endKm, kmh, [...currentGlare, ...navigationZones], st.guidance, st.voice, voice.available, S.running, S.minutes, sp.alt < 0, warningLeadMeters(kmh, st.sensitivity));
+      navCue = CP.navigation.draw(S.s, S.running ? S.dir : Math.sign(st.endKm - st.startKm), st.startKm, st.endKm, kmh, [...currentGlare, ...navigationZones], st.guidance, st.voice, voice.available, S.running, S.minutes, sp.alt < 0, warningLeadMeters(kmh, st.sensitivity), model3View.alert?.grade ?? null);
       if (running && st.guidance && navCue && (navCue.active || navCue.meters <= warningLeadMeters(kmh, st.sensitivity))) {
         voice.announce(navCue.kind === 'unverified' ? 'unverified-route' : `${navCue.id}-${navCue.active ? 'active' : 'ahead'}`, navCue.spoken, now, false,
           navCue.kind === 'glare' ? { name: 'glare', rank: navCue.level ?? 1 } : undefined);
@@ -569,9 +635,9 @@ export function createEngine(canvas: HTMLCanvasElement) {
       const near = nearestStation(kmNow);
       if (Math.abs(near.km - kmNow) < 0.15 && S.lastStation !== near.name) {
         S.lastStation = near.name;
-        if (near.name !== S.segFrom) {                                     // 역 사이 구간을 다 지나면 요약
+        if (near.name !== S.segFrom) {
           const sec = (now - S.segT0) / 1000, avg = Math.abs(S.s - S.segS0) / Math.max(1, sec) * 3.6;
-          banner(`✅ ${S.segFrom} → ${near.name} 구간 통과`, S.segGlare >= 1 ? `눈부심 ${Math.round(S.segGlare)}초` : '눈부심 없음',
+          if (!IS_SINCHEON) banner(`✅ ${S.segFrom} → ${near.name} 구간 통과`, S.segGlare >= 1 ? `눈부심 ${Math.round(S.segGlare)}초` : '눈부심 없음',
             `평균 ${Math.round(avg)} km/h · 다음 구간 관측 상태를 확인하세요`);
           S.segFrom = near.name; S.segT0 = now; S.segS0 = S.s; S.segGlare = 0;
         } else if (near.name === '대구은행') banner('🏦 iM뱅크 본점 구간', '본점 앞을 지나는 중', S.glareLv ? '해가 정면 — 속도를 줄이세요' : '본점 앞을 지나는 중');
@@ -580,21 +646,20 @@ export function createEngine(canvas: HTMLCanvasElement) {
       if (els.speedo) drawSpeedo(els.speedo, kmh, kmh > 60 && S.glareLv === 2, st.mode === 'sport' ? 240 : 140);
       mmT -= dt; if (els.minimap && mmT <= 0) { mmT = 0.05; drawMinimap(els.minimap, { x: cx, z: cz }, Math.atan2(hx, -hz), S.s, S.dir, st.startKm, st.endKm, navigationZones); }
       hudT -= dt;
-      if (hudT <= 0) {
+      if (hudT <= 0 || IS_SINCHEON) {
         hudT = 0.1;
         const glassText = !st.glass ? '꺼짐' : !visorOn ? '운전석에서 작동' : vs.progress < .99 ? '펼치는 중' : shadeOn ? `${visorDark}칸 차광 중` : sunExposed ? '해가 판 범위 밖' : '대기 · 직사광 없음';
-        G.setState({ hud: { ...gs.hud, riskRatio: riskAt(kmNow, dirK).ratio, glareLv: S.glareLv, glassText, adaptation: adapted, model3: model3View.alert || model3View.dark > 0 ? { grade: (model3View.alert ?? model3.reading)!.grade, text: model3View.alert ? model3AlertText(model3View.alert.grade) : '', color: MODEL3_COLOR[(model3View.alert ?? model3.reading)!.grade], source: (model3View.alert ?? model3.reading)!.source } : undefined, navigation: { text: navCue?.text ?? '경로를 따라 주행하세요', meters: navCue?.meters ?? 0, source: navCue?.source ?? 'route', voiceAvailable: voice.available, inCab: S.cam === 'cockpit' }, analysis: cached ? { level: cached.sample.level, modelVersion: cached.modelVersion, aheadMeters: cached.ahead ? Math.round(Math.abs(cached.ahead.km - kmNow) * 1000) : null, aheadLevel: cached.ahead?.level ?? null } : undefined, score: Math.round(S.score), kmh,
+        G.setState({ hud: { ...gs.hud, riskRatio: riskAt(kmNow, dirK).ratio, glareLv: S.glareLv, glassText, adaptation: adapted, model3: model3View.alert || model3View.dark > 0 || model3View.countdown != null ? { grade: (model3View.alert ?? model3.reading)!.grade, text: model3View.alert ? model3AlertText(model3View.alert.grade) : '', color: MODEL3_COLOR[(model3View.alert ?? model3.reading)!.grade], source: (model3View.alert ?? model3.reading)!.source, countdown: model3View.countdown } : undefined, navigation: { text: navCue?.text ?? '경로를 따라 주행하세요', meters: navCue?.meters ?? 0, source: navCue?.source ?? 'route', voiceAvailable: voice.available, inCab: S.cam === 'cockpit' }, analysis: cached ? { level: cached.sample.level, modelVersion: cached.modelVersion, aheadMeters: cached.ahead ? Math.round(Math.abs(cached.ahead.km - kmNow) * 1000) : null, aheadLevel: cached.ahead?.level ?? null } : undefined, score: Math.round(S.score), kmh,
           prog: Math.max(0, Math.min(1, (kmNow - st.startKm) / (st.endKm - st.startKm))), remainKm: Math.abs(st.endKm - kmNow),
           station: near.name, warn: running && S.glareLv === 2 && kmh > 60, fps: fpsV },
           settings: { ...st, minutes: S.minutes } });
       }
     } else if (gs.screen === 'menu') {
-      S.s = (S.s + dt * 6) % TOTAL || kmToS(st.startKm);                    // 시작 화면 배경: 천천히 앞으로
+      S.s = (S.s + dt * 6) % TOTAL || kmToS(st.startKm);
     }
-    // 폰: 오른손이 운전대에서 폰을 들어 눈앞으로 → 다 올라오면 화면 폰을 3D 폰 자리에 정확히 겹침
     const phoneGoal = gs.phoneOpen ? 1 : 0;
     phoneT = phoneGoal ? Math.min(1, phoneT + dt / 0.7) : Math.max(0, phoneT - dt / 0.6);
-    if (gs.phoneOpen) look_.recenter = true;                                // 폰을 볼 때는 정면으로
+    if (gs.phoneOpen) look_.recenter = true;
     const inCab = S.running && S.cam === 'cockpit';
     const anim = inCab && CP.holdPhone(phoneT);
     if (!inCab) CP.holdPhone(0);
@@ -605,14 +670,14 @@ export function createEngine(canvas: HTMLCanvasElement) {
         const r = CP.phoneRect(camera, innerWidth, innerHeight);
         ps.left = `${r.cx}px`; ps.top = `${r.cy}px`; ps.setProperty('--k', String(r.hpx / 800));
         ps.opacity = gs.phoneOpen ? String(Math.max(0, Math.min(1, (phoneT - 0.82) / 0.18))) : '0';
-      } else {                                                             // 3인칭 · 손 모델 준비 전: 화면 가운데에 크게
+      } else {
         ps.left = '50%'; ps.top = '50%';
         ps.setProperty('--k', String(Math.min((innerHeight * 0.92) / 800, (innerWidth * 0.92) / 390, 1.35)));
         ps.opacity = gs.phoneOpen ? '1' : '0';
       }
     }
     if (els.phoneDim) els.phoneDim.style.opacity = String(gs.phoneOpen ? anim ? Math.min(1, phoneT * 1.2) : 1 : 0);
-    if (rig.visible) {                                                     // 거울 3개를 프레임마다 돌아가며 하나씩 (각각 세 프레임에 한 번)
+    if (rig.visible) {
       mirFrame = (mirFrame + 1) % 3;
       const [rt, cam] = mirFrame === 0 ? [mirrorRT, mirrorCam] : [sideMirrors[mirFrame - 1].rt, sideMirrors[mirFrame - 1].cam];
       CP.mirrorFaces.forEach(f => f.userData.v = f.visible); CP.mirrorFaces.forEach(f => f.visible = false);
@@ -628,7 +693,6 @@ export function createEngine(canvas: HTMLCanvasElement) {
   raf = requestAnimationFrame(loop);
 
   const api = {
-    // Offline exporter only: fixed reference sensor view, with no movement or cached-input feedback.
     prepareReference: (km: number) => { observerReference = null; S.referenceFrame = true; S.s = kmToS(km); S.v = 0; S.cam = 'cockpit'; S.lane = 1; S.laneX = S.targetX = laneOffset(1); S.laneV = 0; look_.yaw = look_.pitch = 0; view.init = false; occT = 0; },
     prepareRoadsideReference: (km: number, direction: number) => {
       api.prepareReference(km); S.dir = Math.sign(direction) || 1; observerReference = { s: S.s, direction: S.dir };
@@ -655,7 +719,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
       W.dispose(); visor.dispose(); lightGlare.pass.dispose(); composer.dispose(); mirrorRT.dispose(); sideMirrors.forEach(m => m.rt.dispose()); envRT?.dispose(); pmrem.dispose(); renderer.dispose();
     },
   };
-  (window as unknown as { __nunchi: unknown }).__nunchi = api;            // 시험용
+  (window as unknown as { __nunchi: unknown }).__nunchi = api;
   return api;
 }
 
