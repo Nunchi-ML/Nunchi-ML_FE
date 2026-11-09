@@ -91,19 +91,15 @@
     },
     {
      "t_s": 0.5,
-     "dark_opacity": 0.94
+     "dark_opacity": 0.75
     },
     {
      "t_s": 1,
-     "dark_opacity": 0.92
+     "dark_opacity": 0.5
     },
     {
      "t_s": 1.5,
-     "dark_opacity": 0.88
-    },
-    {
-     "t_s": 1.85,
-     "dark_opacity": 0.82
+     "dark_opacity": 0.25
     },
     {
      "t_s": 2,

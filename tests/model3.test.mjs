@@ -10,9 +10,9 @@ const M = await import(`data:text/javascript;base64,${Buffer.from(code).toString
 
 const reading = (grade = '상') => ({ grade, warn_distance_m: 155, screen_effect: presets.screen_effect[grade], source: 'preset' });
 
-test('요청서 v4 어둡기 표: 회복 2초 (상 95→94→92→88→0, 중 65→37→16→4→0, 하 35→20→9→2→0)', () => {
+test('요청서 v4 어둡기 표: 회복 2초 (상 95→75→50→25→0, 중 65→37→16→4→0, 하 35→20→9→2→0)', () => {
   const table = {
-    상: [0.95, 0.94, 0.92, 0.88, 0],
+    상: [0.95, 0.75, 0.50, 0.25, 0],
     중: [0.65, 0.37, 0.16, 0.04, 0],
     하: [0.35, 0.20, 0.09, 0.02, 0],
   };
