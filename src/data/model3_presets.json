@@ -15,7 +15,7 @@
   "5": "llllllllllllllllllllllllllllllllllllllllllllllmmmmmmmmmmmmmmmmmmmmhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh",
   "9": "llllllllllllllllllllllllllllllllllllllllllllllllllllllmmmmmmmmmmmmmmmmmmmhhhhhhhhhhhhhhhhhhhhhhhhhhhh"
  },
- "warn_distance_m": 110,
+ "warn_distance_m": 90,
  "screen_effect": {
   "하": {
    "start_dark_opacity": 0.35,

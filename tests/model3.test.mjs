@@ -98,8 +98,8 @@ test('다음 지하차도는 새로 판정하고, 주행을 멈추면 초기화'
   let n = 0;
   const scene = M.createModel3Scene(async () => reading((['하', '상'][n++] ?? '상')));
   scene.update({ s0: 100, covered: false, toEntry: 190, phase: 'approach' }, .1); await tick();
-  assert.equal(scene.update({ s0: 100, covered: false, toEntry: 100, phase: 'approach' }, .1).alert?.grade, '하');
+  assert.equal(scene.update({ s0: 100, covered: false, toEntry: 80, phase: 'approach' }, .1).alert?.grade, '하');
   scene.update({ s0: 500, covered: false, toEntry: 190, phase: 'approach' }, .1); await tick();
-  assert.equal(scene.update({ s0: 500, covered: false, toEntry: 100, phase: 'approach' }, .1).alert?.grade, '상');
-  assert.equal(scene.update({ s0: 500, covered: false, toEntry: 100, phase: 'approach' }, .1, false).alert, null);
+  assert.equal(scene.update({ s0: 500, covered: false, toEntry: 80, phase: 'approach' }, .1).alert?.grade, '상');
+  assert.equal(scene.update({ s0: 500, covered: false, toEntry: 80, phase: 'approach' }, .1, false).alert, null);
 });
