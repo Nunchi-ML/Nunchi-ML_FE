@@ -83,7 +83,7 @@ export function createTunnelLighting(scene: THREE.Scene) {
       const distance = (u: typeof UNDERPASSES[number]) => Math.max(u.s0 - s, s - u.s1, 0);
       const section = UNDERPASSES.filter(u => s >= u.s0 - u.ramp - 280 && s <= u.s1 + u.ramp + 280).sort((a,b)=>distance(a)-distance(b))[0];
       uniforms.tunnelEnabled.value = section ? 1 : 0;
-      const inside = Boolean(section && s >= section.s0 - 0.5 && s <= section.s1 + 0.5);
+      const inside = Boolean(section && s >= section.s0 && s <= section.s1);
       uniforms.observerInside.value = inside ? 1 : 0;
       if (lightMat) lightMat.color.setHex(inside ? 0xffe3b1 : 0x050608);
       if (portalVeil) {

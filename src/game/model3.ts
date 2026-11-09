@@ -108,7 +108,7 @@ export function createModel3Scene(request: () => Promise<Model3Reading>) {
     if (key !== section.s0 && phase !== 'dark') return none;
     let beep = false;
     if (phase === 'requested' && reading && section.phase === 'approach' && section.toEntry <= reading.warn_distance_m) { phase = 'warned'; beep = true; }
-    if ((phase === 'warned' || phase === 'requested') && section.covered) {
+    if ((phase === 'warned' || phase === 'requested') && (section.covered || section.toEntry <= 0)) {
       if (reading) { phase = 'dark'; t = 0; } else phase = 'done';
     }
     if (phase === 'dark' && reading) {

@@ -302,8 +302,14 @@ export function createEngine(canvas: HTMLCanvasElement) {
     if (running) {
       if (scriptedDemo) {
         const lead = W.traffic.find(t => t.kind === 'suv') ?? W.traffic[0];
+        const carAhead = W.traffic.find(t => t !== lead && t.kind === 'sedan') ?? W.traffic[1];
+        const carSide = W.traffic.find(t => t !== lead && t !== carAhead) ?? W.traffic[2];
         W.traffic.forEach((t, idx) => {
-          if (t !== lead) { t.m.visible = false; t.s = 9800 + idx * 100; }
+          if (t !== lead && t !== carAhead && t !== carSide) {
+            t.m.visible = false;
+            t.s = 9800 + idx * 100;
+            t.v = 0;
+          }
         });
         const secNow = underpassAt(S.s, S.dir);
         let tIn = 0;
@@ -311,48 +317,129 @@ export function createEngine(canvas: HTMLCanvasElement) {
           (window as unknown as { __demoTin?: number }).__demoTin = ((window as unknown as { __demoTin?: number }).__demoTin ?? 0) + dt;
           tIn = (window as unknown as { __demoTin?: number }).__demoTin!;
         }
-        let leadV = 8.33;
+
+        // 1. 내 차 (플레이어 차량)
         if (!secNow?.covered || tIn <= 0) {
           const exitedTunnel = S.s > 8395;
           S.v = exitedTunnel ? 24.5 : 25.0;
           displayKmh = exitedTunnel ? 45 : 100;
-          leadV = exitedTunnel ? 25.5 : 2.8;
         } else if (tIn < 1.92) {
-          // 0 ~ 1.92s inside tunnel: dark adaptation recovering while maintaining 100 km/h (closing from 58m down to 13.5m)
+          // 0 ~ 1.92s: 암순응으로 시야가 95%~82% 어두운 상태로 주행
           S.v = 24.5;
           displayKmh = 100;
-          leadV = 1.2;
-        } else if (tIn <= 2.92) {
-          // 1.92s ~ 2.92s (1.00s): Hard straight-line braking (100 -> 30 km/h) with emergency screen shake, closing right down to 5.8m!
-          const u = Math.min(1, (tIn - 1.92) / 1.00);
+        } else if (tIn <= 2.85) {
+          // 1.92s ~ 2.85s: 시야 회복 직후 앞차들의 연쇄 급정거 발견! 강력한 비상 제동 (화면 흔들림 및 노즈다운)
+          const u = Math.min(1, (tIn - 1.92) / 0.93);
           const ease = 1 - Math.pow(1 - u, 2.2);
-          S.v = 24.5 - (24.5 - 8.33) * ease;
-          displayKmh = Math.round(100 - 70 * ease);
-          drivingFeel.pitch = -0.052 * Math.sin(u * Math.PI);
-          shake = Math.max(shake, 0.22);
-          leadV = 6.0;
-        } else if (tIn <= 3.55) {
-          // 2.92s ~ 3.55s: Hold steady at 30 km/h right behind the rear bumper (~5.8m -> 6.8m gap)
-          S.v = 9.5;
-          displayKmh = 30;
-          leadV = 11.2;
+          S.v = 24.5 - (24.5 - 1.5) * ease;
+          displayKmh = Math.round(100 - 90 * ease);
+          drivingFeel.pitch = -0.065 * Math.sin(u * Math.PI);
+          shake = Math.max(shake, 0.35);
+        } else if (tIn <= 3.80) {
+          // 2.85s ~ 3.80s: 비상 정지 상태 유지 (SUV 후방 약 3m 안전 여유를 두고 극적인 근접 정지)
+          S.v = 1.5;
+          displayKmh = 10;
         } else {
-          // 3.55s+: Smoothly traverse remaining underpass and exit out into daylight (s > 8405)
-          const postT = tIn - 3.55;
-          const ramp = Math.min(1, postT / 1.5);
-          S.v = 9.5 + (25.5 - 9.5) * ramp;
-          displayKmh = S.s > 8395 ? 45 : Math.round(30 + 15 * ramp);
-          leadV = S.v + 1.2;
+          // 3.80s+: 앞차들이 먼저 출발하여 거리를 벌린 뒤, 안전하게 서행하며 터널 통과
+          const postT = tIn - 3.80;
+          const ramp = Math.min(1, postT / 2.0);
+          S.v = 1.5 + (11.0 - 1.5) * ramp; // 최대 11.0 m/s (~40 km/h)로 안전하게 주행
+          displayKmh = Math.round(10 + 32 * ramp);
         }
         S.s += S.dir * S.v * dt;
         S.lane = 1; S.laneX = S.targetX = laneOffset(1); S.laneV = 0;
-        if (lead) {
-          lead.lane = 1; lead.x = laneOffset(1);
-          lead.v = lead.want = leadV;
-          lead.s += S.dir * lead.v * dt;
-          lead.m.visible = true;
-          lead.brakeMat.emissiveIntensity = (tIn >= 1.8 && tIn <= 3.5) ? 4.5 : 2.8;
+
+        // 2. 앞선 세단 (Car 1, carAhead in Lane 1)
+        // 터널 입구(8239.5) 진입 직후 암순응 충격으로 먼저 급감속하여 s ≈ 8299에 정지
+        if (carAhead) {
+          carAhead.m.visible = true;
+          carAhead.lane = 1;
+          carAhead.x = laneOffset(1);
+          if (carAhead.s < 8239.5) {
+            carAhead.v = 25.0;
+            carAhead.brakeMat.emissiveIntensity = 0.5;
+          } else if (carAhead.s < 8299.0) {
+            const distIn = carAhead.s - 8239.5;
+            const k = Math.min(1, distIn / 59.5);
+            carAhead.v = 25.0 * (1 - k * 0.93);
+            carAhead.brakeMat.emissiveIntensity = 4.8;
+          } else if (tIn <= 3.20) {
+            carAhead.v = 1.5;
+            carAhead.brakeMat.emissiveIntensity = 4.8;
+          } else {
+            // 가장 먼저 출발하여 앞서나감 (최대 13.0 m/s)
+            const postT = tIn - 3.20;
+            const ramp = Math.min(1, postT / 1.8);
+            carAhead.v = 1.5 + 11.5 * ramp;
+            carAhead.brakeMat.emissiveIntensity = 0.6;
+          }
+          carAhead.s += S.dir * carAhead.v * dt;
         }
+
+        // 3. 바로 앞 SUV (Car 2, lead in Lane 1)
+        // 진입 후 Car 1을 뒤늦게 발견하고 급제동하여 s ≈ 8292.0에 정지 (내 차와 7.8m 간격, 범퍼 여유 3m)
+        if (lead) {
+          lead.m.visible = true;
+          lead.lane = 1;
+          lead.x = laneOffset(1);
+          if (lead.s < 8239.5) {
+            lead.v = 25.0;
+            lead.brakeMat.emissiveIntensity = 0.5;
+          } else if (lead.s < 8268.0) {
+            lead.v = 25.0;
+            lead.brakeMat.emissiveIntensity = 0.5;
+          } else if (lead.s < 8292.0) {
+            const distBrake = lead.s - 8268.0;
+            const k = Math.min(1, distBrake / 24.0);
+            lead.v = 25.0 * (1 - k * 0.93);
+            lead.brakeMat.emissiveIntensity = 5.2;
+          } else if (tIn <= 3.50) {
+            lead.v = 1.5;
+            lead.brakeMat.emissiveIntensity = 5.0;
+          } else {
+            // Car 1 다음으로 출발하여 안전거리 유지 (최대 12.2 m/s)
+            const postT = tIn - 3.50;
+            const ramp = Math.min(1, postT / 1.8);
+            lead.v = 1.5 + 10.7 * ramp;
+            lead.brakeMat.emissiveIntensity = 0.6;
+          }
+          lead.s += S.dir * lead.v * dt;
+        }
+
+        // 4. 좌측 차로 차량 (Car 3, carSide in Lane 0)
+        // 1차로 안에서 함께 급감속 및 서행
+        if (carSide) {
+          carSide.m.visible = true;
+          carSide.lane = 0;
+          carSide.x = laneOffset(0);
+          if (carSide.s < 8239.5) {
+            carSide.v = 24.8;
+            carSide.brakeMat.emissiveIntensity = 0.5;
+          } else if (carSide.s < 8295.0) {
+            const distIn = carSide.s - 8239.5;
+            const k = Math.min(1, distIn / 55.5);
+            carSide.v = 24.8 * (1 - k * 0.92);
+            carSide.brakeMat.emissiveIntensity = 4.6;
+          } else if (tIn <= 3.60) {
+            carSide.v = 1.6;
+            carSide.brakeMat.emissiveIntensity = 4.6;
+          } else {
+            const postT = tIn - 3.60;
+            const ramp = Math.min(1, postT / 1.8);
+            carSide.v = 1.6 + 10.8 * ramp;
+            carSide.brakeMat.emissiveIntensity = 0.6;
+          }
+          carSide.s += S.dir * carSide.v * dt;
+        }
+
+        // 충돌 방지 안전 잠금장치 (물리적 접촉/겹침 원천 차단)
+        if (lead) {
+          lead.s = Math.max(lead.s, S.s + 7.8); // 내 차와 SUV 범퍼 간격 약 3.0m 극적 근접 확보 (접촉 없음)
+        }
+        if (carAhead && lead) {
+          carAhead.s = Math.max(carAhead.s, lead.s + 6.8); // SUV와 선행 세단 간격 약 2.0m 확보 (접촉 없음)
+        }
+
         S.minutes += dt * st.flow / 60;
         if ((st.endKm - sToKm(S.s)) * S.dir <= 0) endRun();
       } else {
