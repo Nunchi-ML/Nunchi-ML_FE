@@ -21,6 +21,7 @@ import type { NavigationZone } from './navigationGuidance';
 import { drawMinimap, drawSpeedo } from './gauges';
 import { isTouch, useGame, type PassageRecord } from '../store';
 import { separateTraffic } from './trafficSpacing';
+import { resolvePlayerContacts } from './vehicleCollision';
 import { lookupRouteAnalysis } from './routeAnalysis';
 import { ROAD_ID, IS_SINCHEON } from './roadSelection';
 import { underpassAt } from './underpasses';
@@ -182,6 +183,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
     voice.announce('navigation-start', '안내를 시작할게요.', performance.now(), true);
     carAudio.start();
     navigationKey = ''; navT = 0; drivingFeel = newDrivingFeel(); visualSteer = 0;
+    crashT = 0; shake = 0; collisionContacts.clear();
     S.referenceFrame = false; observerReference = null;
     resetAdaptation(adaptation); model3.reset();
     exitGlare = 0;
@@ -277,6 +279,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
   let last = performance.now(), mmT = 0, hudT = 0, occT = 0, occluded = false, raf = 0;
   const ray = new THREE.Raycaster();
   let crashT = 0, shake = 0, phoneT = 0;
+  let collisionContacts = new Set<Vehicle>();
   let lastSport = false, fpsN = 0, fpsT = 0, fpsV = 0;
   const view = { x: 0, z: 0, init: false };
   const fwd = new THREE.Vector3(), sv = new THREE.Vector3(), tmp = new THREE.Vector3(), horizon = new THREE.Color();
@@ -372,26 +375,6 @@ export function createEngine(canvas: HTMLCanvasElement) {
         S.lane = Math.max(0, Math.min(LANE_COUNT - 1, Math.round((S.laneX - laneOffset(0)) / LANE_WIDTH)));
         S.laneV += (k * (S.targetX - S.laneX) - c * S.laneV) * dt;
         S.laneX += S.laneV * dt;
-        crashT -= dt;
-        for (const t of W.traffic) {
-          const lon = (t.s - S.s) * S.dir, lat = t.x - S.laneX;
-          const hl = (t.len + 4.6) / 2, hw = ((t.kind === 'bus' ? 2.5 : t.kind === 'suv' ? 1.9 : 1.82) + 1.82) / 2;
-          if (Math.abs(lon) >= hl || Math.abs(lat) >= hw) continue;
-          const pushLat = hw - Math.abs(lat), pushLon = hl - Math.abs(lon);
-          if (pushLat < pushLon) {
-            const sg = lat > 0 ? -1 : 1; S.laneX += sg * pushLat; S.targetX = S.laneX + sg * 0.4; S.laneV = sg * 1.5; S.v *= 0.85;
-          } else if (lon > 0) {
-            S.s -= S.dir * pushLon; S.v = Math.min(S.v, t.v * 0.5);
-          } else {
-            S.s += S.dir * pushLon; t.v *= 0.5;
-          }
-          if (crashT <= 0) {
-            crashT = 2; shake = 0.45; S.score = Math.max(0, S.score - 10);
-            banner('💥 충돌', '다른 차와 부딪혔어요', S.glareLv >= 1
-              ? '눈부심이 있으면 앞차와 거리를 더 두세요'
-              : '속도를 줄이고 앞차와 거리를 두세요');
-          }
-        }
         S.minutes += dt * st.flow / 60;
         if ((st.endKm - sToKm(S.s)) * S.dir <= 0) endRun();
         const freeAt = (lane: number, s: number, self: Vehicle) => W.traffic.every(o => o === self || o.lane !== lane || Math.abs(o.s - s) > 30);
@@ -416,7 +399,19 @@ export function createEngine(canvas: HTMLCanvasElement) {
       }
     }
 
-    if (running && !scriptedDemo) separateTraffic(W.traffic, S.dir);
+    if (running && !scriptedDemo) {
+      separateTraffic(W.traffic, S.dir);
+      // Resolve against this frame's final traffic positions, before rendering.
+      const collision = resolvePlayerContacts(S, W.traffic, S.dir, collisionContacts);
+      collisionContacts = collision.contacts;
+      crashT -= dt;
+      if (collision.impactSpeed > .5 && crashT <= 0) {
+        crashT = 2; shake = .45; S.score = Math.max(0, S.score - 10);
+        banner('💥 충돌', '다른 차와 부딪혔어요', S.glareLv >= 1
+          ? '눈부심이 있으면 앞차와 거리를 더 두세요'
+          : '속도를 줄이고 앞차와 거리를 두세요');
+      }
+    }
 
     // 위치 · 시점
     const p = at(S.s), hx = p.dx * S.dir, hz = p.dz * S.dir, rx = -hz, rz = hx;
