@@ -321,12 +321,13 @@ export function createEngine(canvas: HTMLCanvasElement) {
           displayKmh = 100;
           leadV = 1.2;
         } else if (tIn <= 2.92) {
-          // 1.92s ~ 2.92s (1.00s): Crisp, hard, shake-free straight-line braking (100 -> 30 km/h), closing from 13.5m right down to 5.8m!
+          // 1.92s ~ 2.92s (1.00s): Hard straight-line braking (100 -> 30 km/h) with emergency screen shake, closing right down to 5.8m!
           const u = Math.min(1, (tIn - 1.92) / 1.00);
           const ease = 1 - Math.pow(1 - u, 2.2);
           S.v = 24.5 - (24.5 - 8.33) * ease;
           displayKmh = Math.round(100 - 70 * ease);
           drivingFeel.pitch = -0.052 * Math.sin(u * Math.PI);
+          shake = Math.max(shake, 0.22);
           leadV = 6.0;
         } else if (tIn <= 3.55) {
           // 2.92s ~ 3.55s: Hold steady at 30 km/h right behind the rear bumper (~5.8m -> 6.8m gap)
@@ -589,7 +590,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
       els.adaptationVeil.style.backgroundColor = '#080a10';
       els.adaptationVeil.style.opacity = String(model3Owns || IS_SINCHEON ? 0 : dark * .45);
     }
-    if (els.model3Veil) els.model3Veil.style.opacity = String(S.running ? model3View.dark * 0.72 : 0);
+    if (els.model3Veil) els.model3Veil.style.opacity = String(S.running ? model3View.dark : 0);
     if (els.adaptationVeil) {
       const cut = roadBottom * 100;
       els.adaptationVeil.style.clipPath = `inset(0 0 ${100 - cut}% 0)`;
