@@ -33,7 +33,8 @@ test('미리 받아 둔 표(해 높이 · 구름): 한낮 맑은 날은 상, 밤
   assert.equal(M.presetReading(presets, -5, 0).grade, '하');
   for (const g of ['하', '중', '상']) {
     const text = M.model3AlertText(g);
-    assert.match(text, new RegExp(`지하차도 입구.*위험 ${g}`));
+    assert.match(text, /지하차도 진입 · 밝기 변화/);
+    assert.doesNotMatch(text, /모델|순응/);
     assert.doesNotMatch(text + M.MODEL3_ALERT_NOTE[g], /사고|확률|%/);
   }
 });

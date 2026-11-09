@@ -8,11 +8,13 @@ import { loadRoad } from './helpers/road.mjs';
 const transpile = s => ts.transpileModule(s, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText;
 const moduleUrl = s => `data:text/javascript;base64,${Buffer.from(transpile(s)).toString('base64')}`;
 const guidance = moduleUrl(await readFile(new URL('../src/game/navigationGuidance.ts', import.meta.url), 'utf8'));
+const brightness = moduleUrl(await readFile(new URL('../src/game/model3.ts', import.meta.url), 'utf8'));
 const require = createRequire(import.meta.url);
 async function load(isSincheon) {
   const { road, url } = await loadRoad(isSincheon);
   const source = (await readFile(new URL('../src/game/roadsideSigns.ts', import.meta.url), 'utf8'))
     .replace("from './road'", `from '${url}'`).replace("from './navigationGuidance'", `from '${guidance}'`)
+    .replace("from './model3'", `from '${brightness}'`)
     .replace("from 'three'", `from '${pathToFileURL(require.resolve('three')).href}'`);
   return { road, ...await import(moduleUrl(source)) };
 }

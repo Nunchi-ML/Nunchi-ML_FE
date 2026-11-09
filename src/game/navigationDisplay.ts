@@ -4,7 +4,7 @@ import { nearbyMapWays } from './navigationMap';
 import { ROAD_NAME } from './roadSelection';
 import { hm } from './sun';
 import { navigationCue, type NavigationZone } from './navigationGuidance';
-import type { Model3Grade } from './model3';
+import { BRIGHTNESS_CHANGE, type Model3Grade } from './model3';
 
 const brandLogo = new Image();
 brandLogo.src = `${import.meta.env.BASE_URL}logo.png`;
@@ -99,7 +99,7 @@ export function drawNavigationDisplay(canvas: HTMLCanvasElement, s: number, dir:
   }
   g.textAlign = 'center'; g.font = `bold ${compact ? 60 : 42}px ${FONT}`; g.fillStyle = '#fff8e7';
   const heading = hasModel3
-    ? `모델 ③ · 순응 위험 ${model3Grade}`
+    ? `밝기 변화 ${BRIGHTNESS_CHANGE[model3Grade!]}`
     : cue
       ? `${cue.active ? '지금' : `${cue.meters} m 앞`} · ${cue.text}`
       : running ? '경로를 따라 주행하세요' : '경로 안내 준비';
@@ -116,7 +116,7 @@ export function drawNavigationDisplay(canvas: HTMLCanvasElement, s: number, dir:
     g.strokeStyle = urgent ? '#ff9399' : '#f3c67c'; g.lineWidth = 2; g.stroke();
     g.fillStyle = accent; g.textAlign = 'center'; g.font = `bold ${compact ? 52 : 38}px ${FONT}`;
     const alertLine1 = hasModel3
-      ? `지하차도 입구 순응 위험 ${model3Grade}`
+      ? '지하차도 진입 전 · 속도를 줄이세요'
       : cue!.level === 2 ? '눈부심 강함 · 감속하세요' : urgent ? '시야 주의 · 감속하세요' : '주의 구간 · 미리 감속';
     const alertLine2 = hasModel3 ? '감속하세요 · 앞차와의 간격을 유지하세요' : '앞차와의 간격을 유지하세요';
     g.fillText(alertLine1, navCenter, header + (compact ? 69 : 54), width - 40);

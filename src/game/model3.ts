@@ -19,8 +19,9 @@ export const MODEL3_CAPTURE_M = 205;
 export const MODEL3_CLOUD: Record<string, number> = { clear: 0, cloud: 5, over: 9 };
 
 const GRADES = ['하', '중', '상'];
-/** 운전자에게 보이는 문구: 요청서 v4 규격 ("모델 ③ · 지하차도 입구 순응 위험 상" + "감속하세요"). 사고 확률 표현은 쓰지 않는다. */
-export const model3AlertText = (g: Model3Grade) => `모델 ③ · 지하차도 입구 순응 위험 ${g}`;
+export const BRIGHTNESS_CHANGE: Record<Model3Grade, string> = { 상: '큼', 중: '보통', 하: '작음' };
+/** 운전자에게는 분석 번호 대신 도로 상황과 밝기 변화를 안내한다. */
+export const model3AlertText = (g: Model3Grade) => `지하차도 진입 · 밝기 변화 ${BRIGHTNESS_CHANGE[g]}`;
 export const MODEL3_ALERT_NOTE: Record<Model3Grade, string> = {
   상: '감속하세요 · 진입 후 2초 동안 시야가 급격히 어두워집니다',
   중: '감속하세요 · 진입 후 잠깐 앞이 어두워집니다',
@@ -32,14 +33,14 @@ function parseEffect(v: unknown): ScreenEffect {
   if (!e || typeof e.start_dark_opacity !== 'number' || !(e.start_dark_opacity >= 0 && e.start_dark_opacity <= 1) ||
       typeof e.recover_s !== 'number' || !(e.recover_s > 0 && e.recover_s <= 10) || !Array.isArray(e.curve) || e.curve.length < 2 ||
       !e.curve.every(p => p && Number.isFinite(p.t_s) && Number.isFinite(p.dark_opacity) && p.dark_opacity >= 0 && p.dark_opacity <= 1)) {
-    throw new Error('모델 ③ 응답의 screen_effect 형식이 올바르지 않아요.');
+    throw new Error('밝기 변화 분석 결과를 확인하지 못했어요.');
   }
   return { start_dark_opacity: e.start_dark_opacity, recover_s: e.recover_s, curve: e.curve };
 }
 export function parseModel3Reading(value: unknown, source: Model3Source): Model3Reading {
   const r = value as { grade?: unknown; warn_distance_m?: unknown; screen_effect?: unknown } | null;
   if (!r || typeof r !== 'object' || !GRADES.includes(r.grade as string) || typeof r.warn_distance_m !== 'number' || !(r.warn_distance_m > 0 && r.warn_distance_m < 1000)) {
-    throw new Error('모델 ③ 응답 형식이 올바르지 않아요.');
+    throw new Error('밝기 변화 분석 결과를 확인하지 못했어요.');
   }
   return { grade: r.grade as Model3Grade, warn_distance_m: r.warn_distance_m, screen_effect: parseEffect(r.screen_effect), source };
 }
