@@ -224,6 +224,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
 
   /* ---------- 입력 ---------- */
   const onKeyDown = (e: KeyboardEvent) => {
+    if (G.getState().integrationOpen) return;
     if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
     keys[e.code] = true;
     if (!S.running) return;
@@ -238,7 +239,7 @@ export function createEngine(canvas: HTMLCanvasElement) {
   const onKeyUp = (e: KeyboardEvent) => { keys[e.code] = false; };
   const look_ = { yaw: 0, pitch: 0, drag: false, px: 0, py: 0, id: -1, recenter: false };
   const onPDown = (e: PointerEvent) => {
-    if (!S.running || G.getState().phoneOpen) return;
+    if (!S.running || G.getState().phoneOpen || G.getState().integrationOpen) return;
     look_.drag = true; look_.px = e.clientX; look_.py = e.clientY; look_.id = e.pointerId; canvas.setPointerCapture(e.pointerId);
   };
   const onPMove = (e: PointerEvent) => {
@@ -275,8 +276,8 @@ export function createEngine(canvas: HTMLCanvasElement) {
     fpsN++; fpsT += (now - last) / 1000; if (fpsT >= 1) { fpsV = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; if (S.running && !G.getState().phoneOpen) adaptResolution(fpsV); }
     last = now;
     const gs = G.getState(), st = gs.settings;
-    const running = S.running && !gs.phoneOpen && !S.referenceFrame;
-    voice.setEnabled(st.voice && st.guidance && !gs.phoneOpen && gs.screen !== 'menu' && !S.referenceFrame);
+    const running = S.running && !gs.phoneOpen && !gs.integrationOpen && !S.referenceFrame;
+    voice.setEnabled(st.voice && st.guidance && !gs.phoneOpen && !gs.integrationOpen && gs.screen !== 'menu' && !S.referenceFrame);
     if (!S.running) S.minutes = st.minutes;
     if (!S.running || S.referenceFrame) view.init = false;
 

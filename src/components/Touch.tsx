@@ -27,6 +27,7 @@ function HoldButton({ action, label, children, pressed, on }: {
 export function Touch() {
   const enabled = useTouchControls();
   const phoneOpen = useGame(s => s.phoneOpen), glass = useGame(s => s.settings.glass);
+  const integrationOpen = useGame(s => s.integrationOpen);
   const voice = useGame(s => s.settings.voice), set = useGame(s => s.set);
   const sport = useGame(s => s.settings.mode === 'sport'), guidance = useGame(s => s.settings.guidance);
   const speed = useGame(s => s.hud.kmh);
@@ -49,8 +50,8 @@ export function Touch() {
     const onVisibility = () => { if (document.hidden) release(); };
     release(); window.addEventListener('blur', release); document.addEventListener('visibilitychange', onVisibility);
     return () => { release(); window.removeEventListener('blur', release); document.removeEventListener('visibilitychange', onVisibility); };
-  }, [enabled, phoneOpen]);
-  if (!enabled || phoneOpen) return null;
+  }, [enabled, phoneOpen, integrationOpen]);
+  if (!enabled || phoneOpen || integrationOpen) return null;
   const button = (action: Action, label: string, content: React.ReactNode) =>
     <HoldButton action={action} label={label} pressed={pressed.includes(action)} on={change}>{content}</HoldButton>;
   return <div id="touch">
