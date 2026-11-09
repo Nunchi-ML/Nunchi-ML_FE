@@ -17,27 +17,35 @@ export function createLightGlare() {
         vec4 scene=texture2D(tDiffuse,vUv);
         float roadMask=smoothstep(1.-roadBottom,1.-roadBottom+.09,vUv.y);
         vec2 d=(vUv-sunUv)*vec2(aspect,1.);
-        float r=length(d), angle=atan(d.y,d.x+.000001);
+        float r=length(d);
         float core=.00016/(r*r+.00016);
-        float corona=exp(-r*18.);
-        float rays=pow(abs(cos(angle*3.+.18)),32.)*exp(-r*22.);
-        float scatter=sunlight*(core*11.+corona*1.5+rays*1.1)*exp(-r*r/.09)*roadMask;
-        // The light source and forward road lose contrast together. The mask
-        // excludes the dashboard/navigation and remains zero without direct sun.
+        float corona=exp(-r*14.);
+        float scatter=sunlight*(core*9.+corona*.85)*exp(-r*r/.12)*roadMask;
+        // A smooth source-centred veil preserves silhouettes away from the sun.
+        // Avoid a near-opaque patch fixed to the centre of the windscreen.
         float severe=smoothstep(.22,.72,sunlight);
-        vec2 forwardUv=mix(sunUv,vec2(.5,max(1.-roadBottom+.16,.48)),.55);
+        vec2 forwardUv=mix(sunUv,vec2(.5,max(1.-roadBottom+.16,.48)),.35);
         vec2 ahead=(vUv-forwardUv)*vec2(aspect,1.);
-        float sourceVeil=exp(-dot(d/vec2(.35,.25),d/vec2(.35,.25)));
-        float forwardVeil=exp(-dot(ahead/vec2(.42,.21),ahead/vec2(.42,.21)));
-        float veil=severe*min(.96,sourceVeil*.80+forwardVeil*.90)*roadMask;
+        float sourceVeil=exp(-dot(d/vec2(.32,.25),d/vec2(.32,.25)));
+        float forwardVeil=exp(-dot(ahead/vec2(.46,.23),ahead/vec2(.46,.23)));
+        float veil=severe*(1.-exp(-(sourceVeil*.95+forwardVeil*.65)))*roadMask;
         if(veil>.002){
-          vec2 radius=vec2(.009/aspect,.009);
-          vec3 diffuse=texture2D(tDiffuse,vUv+radius).rgb+texture2D(tDiffuse,vUv-radius).rgb;
+          // A small weighted kernel softens glare without duplicated edges.
+          vec2 radius=vec2(.003/aspect,.003)*(.5+veil);
+          vec3 diffuse=scene.rgb*4.;
+          diffuse+=2.*texture2D(tDiffuse,vUv+vec2(radius.x,0.)).rgb;
+          diffuse+=2.*texture2D(tDiffuse,vUv-vec2(radius.x,0.)).rgb;
+          diffuse+=2.*texture2D(tDiffuse,vUv+vec2(0.,radius.y)).rgb;
+          diffuse+=2.*texture2D(tDiffuse,vUv-vec2(0.,radius.y)).rgb;
+          diffuse+=texture2D(tDiffuse,vUv+radius).rgb+texture2D(tDiffuse,vUv-radius).rgb;
           diffuse+=texture2D(tDiffuse,vUv+vec2(radius.x,-radius.y)).rgb;
           diffuse+=texture2D(tDiffuse,vUv+vec2(-radius.x,radius.y)).rgb;
-          scene.rgb=mix(scene.rgb,diffuse*.25,veil*.65);
+          scene.rgb=mix(scene.rgb,diffuse/16.,veil*.3);
         }
-        scene.rgb=mix(scene.rgb,vec3(2.2,2.03,1.65),veil);
+        // Near-white light lifts dark detail gradually; warmth stays close to
+        // the source, instead of tinting the whole road yellow.
+        vec3 veilColor=mix(vec3(1.5,1.5,1.46),vec3(1.85,1.7,1.42),sourceVeil*.4);
+        scene.rgb=mix(scene.rgb,veilColor,veil);
         // Bright outdoor surfaces overexpose first at an exit. Dark objects
         // and the dashboard retain their contrast instead of turning milky.
         float luminance=dot(scene.rgb,vec3(.2126,.7152,.0722));

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { at, kmToS, ROAD_W, UNDERPASSES } from './road';
 import { navigationCue, type NavigationZone } from './navigationGuidance';
 import type { SegmentAssessment } from './preTrip';
+import { BRIGHTNESS_CHANGE } from './model3';
 
 export type SignGrade = '하' | '중' | '상';
 const GRADE_COLOR: Record<SignGrade, string> = { 하: '#3BA55C', 중: '#F2C230', 상: '#F2522E' };
@@ -83,7 +84,7 @@ export function createRoadsideSigns(scene: THREE.Scene) {
         if (message.underpassAhead) {
           g.font = '800 164px "Noto Sans KR",sans-serif';
           g.fillStyle = GRADE_COLOR[message.grade];
-          g.fillText(`지하차도 입구 순응 위험 ${message.grade}`, W / 2, 280, W - 120);
+          g.fillText(`지하차도 진입 · 밝기 변화 ${BRIGHTNESS_CHANGE[message.grade]}`, W / 2, 280, W - 120);
           g.font = '700 142px "Noto Sans KR",sans-serif';
           g.fillStyle = '#ffffff';
           g.fillText('속도를 줄이세요', W / 2, 490, W - 120);
