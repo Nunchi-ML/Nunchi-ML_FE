@@ -28,9 +28,10 @@ export function createTunnelLighting(scene: THREE.Scene) {
     });
     if (scene.children.length > 2) {
       const veilGeo = new THREE.PlaneGeometry(ROAD_W + 2.2, 6.2);
-      const veilMat = new THREE.MeshBasicMaterial({ color: 0x040508, side: THREE.DoubleSide, transparent: true, opacity: 0.96, depthWrite: true });
+      const veilMat = new THREE.MeshBasicMaterial({ color: 0x05070c, side: THREE.DoubleSide, transparent: true, opacity: 0.72, depthWrite: false });
       portalVeil = new THREE.Mesh(veilGeo, veilMat);
       portalVeil.name = 'underpass-portal-blackhole';
+      portalVeil.renderOrder = 5;
       portalVeil.visible = false;
       scene.add(portalVeil);
     }
@@ -91,6 +92,8 @@ export function createTunnelLighting(scene: THREE.Scene) {
           const p = at(portalS);
           portalVeil.position.set(p.x, p.y + section.clearance / 2 - 0.1, p.z);
           portalVeil.rotation.y = Math.atan2(p.dx, p.dz);
+          const distToPortal = Math.abs(portalS - s);
+          (portalVeil.material as THREE.MeshBasicMaterial).opacity = Math.min(0.76, Math.max(0.28, (distToPortal - 4) / 38));
           portalVeil.visible = true;
         } else {
           portalVeil.visible = false;
