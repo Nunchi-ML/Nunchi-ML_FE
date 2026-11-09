@@ -50,7 +50,7 @@ export function createNavigator() {
   const chassis = new THREE.Mesh(new THREE.ExtrudeGeometry(panelShape(.70,.315,.023),{depth:.023,bevelEnabled:true,bevelSegments:3,steps:1,bevelSize:.005,bevelThickness:.004}),new THREE.MeshPhysicalMaterial({color:0x080c11,roughness:.32,metalness:.25,clearcoat:1}));
   chassis.position.z=-.023; group.add(chassis);
   const canvas=document.createElement('canvas'); canvas.width=2112; canvas.height=896;
-  const texture=new THREE.CanvasTexture(canvas); texture.colorSpace=THREE.SRGBColorSpace; texture.anisotropy=16; texture.generateMipmaps=false; texture.minFilter=THREE.LinearFilter; texture.magFilter=THREE.LinearFilter;
+  const texture=new THREE.CanvasTexture(canvas); texture.colorSpace=THREE.SRGBColorSpace; texture.anisotropy=16; texture.generateMipmaps=true; texture.minFilter=THREE.LinearMipmapLinearFilter; texture.magFilter=THREE.LinearFilter;
   const geo=new THREE.ShapeGeometry(panelShape(.66,.28,.015));
   const pos=geo.getAttribute('position'),uv=geo.getAttribute('uv');
   for(let i=0;i<pos.count;i++)uv.setXY(i,(pos.getX(i)+.33)/.66,(pos.getY(i)+.14)/.28);

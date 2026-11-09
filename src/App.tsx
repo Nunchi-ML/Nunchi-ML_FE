@@ -6,12 +6,14 @@ import { Result } from './components/Result';
 import { Touch } from './components/Touch';
 import { Phone } from './phone/Phone';
 import { useGame } from './store';
+import { IntegrationReview } from './components/IntegrationReview';
 
 export default function App() {
   const canvas = useRef<HTMLCanvasElement>(null);
   const el = useRef<Els>({});
   const [ready, setReady] = useState(false);
   const screen = useGame(s => s.screen);
+  const integrationOpen = useGame(s => s.integrationOpen);
 
   useEffect(() => {
     const e = createEngine(canvas.current!);
@@ -41,6 +43,7 @@ export default function App() {
           {screen === 'menu' && <Menu />}
           {screen === 'result' && <Result />}
           <Phone />
+          {integrationOpen && <IntegrationReview />}
         </>
       )}
       <div id="rotate"><div><div className="title">가로로 돌려 주세요</div><p>눈치 드라이브는 가로 화면에서 달려요.</p></div></div>

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 
-/** Authored HDR scatter before tone mapping, without a full-screen white veil. */
+/** Authored glare reduces forward-road visibility while preserving the cockpit. */
 export function createLightGlare() {
   const pass = new ShaderPass({
     uniforms: {
@@ -22,12 +22,22 @@ export function createLightGlare() {
         float corona=exp(-r*18.);
         float rays=pow(abs(cos(angle*3.+.18)),32.)*exp(-r*22.);
         float scatter=sunlight*(core*11.+corona*1.5+rays*1.1)*exp(-r*r/.09)*roadMask;
-        // Strong direct sunlight veils the forward detail near the light source.
-        // Keep the peripheral road and cockpit intact; this is authored glare,
-        // independent of the cached photo classifier's grade.
-        float severe=smoothstep(.26,.72,sunlight);
-        float veil=severe*exp(-dot(d/vec2(.25,.20),d/vec2(.25,.20))*1.4)*roadMask;
-        scene.rgb=mix(scene.rgb,vec3(1.55,1.37,1.02),veil*.8);
+        // The light source and forward road lose contrast together. The mask
+        // excludes the dashboard/navigation and remains zero without direct sun.
+        float severe=smoothstep(.22,.72,sunlight);
+        vec2 forwardUv=mix(sunUv,vec2(.5,max(1.-roadBottom+.16,.48)),.55);
+        vec2 ahead=(vUv-forwardUv)*vec2(aspect,1.);
+        float sourceVeil=exp(-dot(d/vec2(.35,.25),d/vec2(.35,.25)));
+        float forwardVeil=exp(-dot(ahead/vec2(.42,.21),ahead/vec2(.42,.21)));
+        float veil=severe*min(.96,sourceVeil*.80+forwardVeil*.90)*roadMask;
+        if(veil>.002){
+          vec2 radius=vec2(.009/aspect,.009);
+          vec3 diffuse=texture2D(tDiffuse,vUv+radius).rgb+texture2D(tDiffuse,vUv-radius).rgb;
+          diffuse+=texture2D(tDiffuse,vUv+vec2(radius.x,-radius.y)).rgb;
+          diffuse+=texture2D(tDiffuse,vUv+vec2(-radius.x,radius.y)).rgb;
+          scene.rgb=mix(scene.rgb,diffuse*.25,veil*.65);
+        }
+        scene.rgb=mix(scene.rgb,vec3(2.2,2.03,1.65),veil);
         // Bright outdoor surfaces overexpose first at an exit. Dark objects
         // and the dashboard retain their contrast instead of turning milky.
         float luminance=dot(scene.rgb,vec3(.2126,.7152,.0722));

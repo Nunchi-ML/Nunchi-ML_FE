@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { alloyWheel, sculptedBody } from './vehicleGeometry';
 
 /** 차 한 대. 모델은 +z가 앞쪽, 바닥이 y = 0 */
-export interface Vehicle { m: THREE.Group; kind: Kind; len: number; s: number; lane: number; x: number; v: number; want: number; brakeMat: THREE.MeshStandardMaterial; wheels: THREE.Group[]; wheelRadius: number }
+export interface Vehicle { m: THREE.Group; kind: Kind; len: number; s: number; lane: number; x: number; v: number; want: number; brakeMat: THREE.MeshStandardMaterial; wheels: THREE.Group[]; frontWheelPivots: THREE.Group[]; wheelRadius: number }
 type Kind = 'sedan' | 'suv' | 'bus';
 
 /** 옆모습 윤곽(z, y)을 폭만큼 밀어낸 몸체 — 상자보다 차처럼 보이게 */
@@ -100,12 +100,14 @@ export function createVehicles(scene: THREE.Scene, rand: () => number) {
       bp.position.set(0, (top + bot) / 2, gl[1][0] * 0.35 + gl[2][0] * 0.65); glass.add(bp);
     }
     g.add(body, glass);
-    const wheels: THREE.Group[] = [];
+    const wheels: THREE.Group[] = [], frontWheelPivots: THREE.Group[] = [];
     for (const z of sp.wheelZ) for (const sx of [-1, 1]) {
-      const wheel = new THREE.Group(); wheel.position.set(sx * (sp.w / 2 - 0.12), sp.wheelR, z);
+      const pivot = new THREE.Group(); pivot.position.set(sx * (sp.w / 2 - 0.12), sp.wheelR, z);
+      const wheel = new THREE.Group(); pivot.add(wheel);
       const tire = new THREE.Mesh(sh.wheel, tireMat); tire.castShadow = true; wheel.add(tire);
       const rim = new THREE.Mesh(sh.rim, rimMat); rim.position.x = sx * .14; wheel.add(rim);
-      g.add(wheel); wheels.push(wheel);
+      g.add(pivot); wheels.push(wheel);
+      if (z === Math.max(...sp.wheelZ)) { pivot.name = 'front-wheel-steering'; frontWheelPivots.push(pivot); }
       const arch = new THREE.Mesh(sh.arch, trimMat); arch.position.set(sx * (sp.w / 2 + 0.005), sp.wheelR, z); g.add(arch);
     }
     const brakeMat = new THREE.MeshStandardMaterial({ color: 0x5a0d08, emissive: 0xff2a10, emissiveIntensity: 0.5 });
@@ -130,7 +132,7 @@ export function createVehicles(scene: THREE.Scene, rand: () => number) {
     part(new THREE.PlaneGeometry(0.52, 0.12), plateMat, 0, 0.5, fz + 0.04);                                     // 앞 번호판
     part(new THREE.PlaneGeometry(0.52, 0.12), plateMat, 0, sp.lightY - 0.12, -fz - 0.04).rotation.y = Math.PI; // 뒤 번호판
     scene.add(g);
-    return { m: g, kind, len: sp.len, s: 0, lane: 0, x: 0, v: 0, want: 0, brakeMat, wheels, wheelRadius: sp.wheelR };
+    return { m: g, kind, len: sp.len, s: 0, lane: 0, x: 0, v: 0, want: 0, brakeMat, wheels, frontWheelPivots, wheelRadius: sp.wheelR };
   };
 
   const me = make('sedan', 0xf2522e);

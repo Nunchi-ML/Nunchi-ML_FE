@@ -212,6 +212,7 @@ export function Menu() {
           </button>
         </div>
         </div>
+        <button className="integration-review-open" type="button" onClick={() => useGame.setState({ integrationOpen: true })}><b>빛 변화 안내 체험</b><small>눈부심과 터널 밝기 변화를 함께 알려드려요</small></button>
         <div className="menu-selected">
         <div className="sect">선택한 코스</div>
         <div className="selected-course" aria-live="polite">

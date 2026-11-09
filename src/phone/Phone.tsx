@@ -12,10 +12,10 @@ import { SettingsApp } from './SettingsApp';
 const APPS: [AppId, string, string, string][] = [
   ['cam', '📷', '전방 사진','linear-gradient(145deg,#FFD45E,#FF8A1F)'],
   ['map', '🗺️', '경로 안내', 'linear-gradient(145deg,#7fd6a6,#2f9d6a)'],
-  ['res', 'ℹ️', '연결 상태', 'linear-gradient(145deg,#ffb199,#F2522E)'],
+  ['res', 'ℹ️', '안내 도움말', 'linear-gradient(145deg,#ffb199,#F2522E)'],
   ['set', '⚙️', '설정', 'linear-gradient(145deg,#d7d2cb,#8f877d)'],
 ];
-const GLARE = ['정상', '눈부심', '많이 눈부심'];
+const GLARE = ['눈부심 낮음', '눈부심', '많이 눈부심'];
 const BASE_W = 390, BASE_H = 800;                       // 폰 기준 크기 (px) — 화면에 맞춰 통째로 확대
 
 export function Back() {
@@ -76,9 +76,9 @@ export function Phone() {
                 <div className="glasswidget">
                   <div className="wl">📍 {ROAD_NAME} · {stationLabel(h.station)} 부근</div>
                   <div className="wrow">
-                    <div><small>앞 구간 관측</small><b>{h.navigation?.source === 'example' ? '예시' : h.navigation?.source === 'roadside' ? '관측 있음' : '미확인'}</b><em>도로변 사진 기준</em></div>
-                    <div><small>현재 사진</small><b>{current.state === 'ready' && current.level != null ? GLARE[current.level] : '미분석'}</b><em>사진 1장 시범 분석</em></div>
-                    <div><small>밝기 변화</small><b>{h.adaptation ? '체험 중' : '구간 대기'}</b><em>순응 연출</em></div>
+                    <div><small>앞 구간 정보</small><b>{h.navigation?.source === 'example' ? '안내 예시' : h.navigation?.source === 'roadside' ? '확인됨' : '미확인'}</b></div>
+                    <div><small>현재 사진</small><b>{current.state === 'ready' && current.level != null ? GLARE[current.level] : '분석 전'}</b></div>
+                    <div><small>밝기 변화 체험</small><b>{h.model3?.text ? h.model3.grade : h.adaptation ? '체험 중' : '대기 중'}</b></div>
                   </div>
                 </div>
                 <div className="icons">

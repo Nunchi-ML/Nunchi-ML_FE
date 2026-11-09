@@ -17,17 +17,17 @@ export function drawNavigationDisplay(canvas: HTMLCanvasElement, s: number, dir:
   const g = canvas.getContext('2d')!, W = canvas.width / 2, H = canvas.height / 2, split = 0, header = compact ? 132 : 100;
   g.setTransform(2, 0, 0, 2, 0, 0);
   g.textBaseline = 'alphabetic';
-  const p = at(s), f = { x: p.dx * dir, z: p.dz * dir }, scale = .95;
+  const p = at(s), f = { x: p.dx * dir, z: p.dz * dir }, scale = 1.15;
   const T = (x: number, z: number) => ({ x: W / 2 + ((x - p.x) * -f.z + (z - p.z) * f.x) * scale,
     y: 290 - ((x - p.x) * f.x + (z - p.z) * f.z) * scale });
-  const colors = night ? { land: '#26221c', building: '#39342c', edge: '#4e463b', road: '#655d50', roadEdge: '#322c24', park: '#233e35', water: '#274e61', text: '#d0c5b4' }
-    : { land: '#eff0e8', building: '#d9ddd5', edge: '#c4cbc1', road: '#ffffff', roadEdge: '#d1d8cf', park: '#d6e4c9', water: '#b5d9e9', text: '#697b81' };
+  const colors = night ? { land: '#19252e', building: '#46545f', edge: '#71818b', road: '#80929b', roadEdge: '#111a23', park: '#284b3d', water: '#285e80', text: '#f2f3e9' }
+    : { land: '#f5f3e8', building: '#c3cebf', edge: '#8fa28f', road: '#ffffff', roadEdge: '#96aa99', park: '#c5dfb2', water: '#8bc6e2', text: '#334c50' };
   g.fillStyle = '#181513'; g.fillRect(0, 0, W, H);
   g.save(); g.beginPath(); g.rect(split, header, W - split, H - header - 76); g.clip();
   g.fillStyle = colors.land; g.fillRect(split, header, W - split, H - header - 76);
   const polygon = (points: [number, number][], fill: string, stroke?: string) => {
     g.beginPath(); points.forEach(([x, z], i) => { const q = T(x, z); if (i) g.lineTo(q.x, q.y); else g.moveTo(q.x, q.y); }); g.closePath();
-    g.fillStyle = fill; g.fill(); if (stroke) { g.strokeStyle = stroke; g.lineWidth = .9; g.stroke(); }
+    g.fillStyle = fill; g.fill(); if (stroke) { g.strokeStyle = stroke; g.lineWidth = 1.3; g.stroke(); }
   };
   const context = nearbyMapWays(p.x, p.z);
   context.parks.forEach(park => polygon(park.p, colors.park));
@@ -73,7 +73,7 @@ export function drawNavigationDisplay(canvas: HTMLCanvasElement, s: number, dir:
   for (const road of context.roads.filter(r => r.rank === 3 && r.name && r.name !== ROAD_NAME)) {
     const q = T(...road.p[Math.floor(road.p.length / 2)]);
     if (q.x < split + 80 || q.x > W - 100 || q.y < 120 || q.y > H - 105 || labels.some(l => Math.hypot(l.x - q.x, l.y - q.y) < 160)) continue;
-    g.font = `500 19px ${FONT}`; g.fillStyle = colors.text; g.textAlign = 'center'; g.fillText(road.name, q.x, q.y - 16); labels.push(q); if (labels.length >= 4) break;
+    g.font = `700 24px ${FONT}`; g.fillStyle = colors.text; g.textAlign = 'center'; g.strokeStyle = colors.land; g.lineWidth = 4; g.strokeText(road.name, q.x, q.y - 16); g.fillText(road.name, q.x, q.y - 16); labels.push(q); if (labels.length >= 4) break;
   }
   if (BANK_POS && Math.hypot(BANK_POS.x - p.x, BANK_POS.z - p.z) < 750) {
     const q = T(BANK_POS.x, BANK_POS.z); g.fillStyle = '#098775'; g.beginPath(); g.arc(q.x, q.y, 11, 0, 7); g.fill();
