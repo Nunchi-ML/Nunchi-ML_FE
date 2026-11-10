@@ -160,7 +160,7 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
 #result{position:fixed;inset:0;z-index:25;background:rgba(14,10,8,.82);display:flex;align-items:center;justify-content:center}
 #result .box{width:min(520px,92vw);padding:26px 30px;border-radius:16px;background:#1d1612;border:1px solid var(--panel-line)}
 #result h2{margin:0 0 4px;font-family:"Black Han Sans";font-weight:400;font-size:36px;color:var(--sun)}
-#result .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}
+#result .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:16px 0}
 #result .grid div{padding:10px 12px;border-radius:10px;background:rgba(255,248,231,.06)}
 #result .grid b{display:block;font-family:"Black Han Sans";font-weight:400;font-size:24px}
 #result button{width:100%;padding:12px;border:0;border-radius:10px;font:inherit;font-weight:700;cursor:pointer;margin-top:6px}
@@ -252,7 +252,7 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
 .seglist .r{display:flex;justify-content:space-between;padding:6px 10px;border-radius:10px;background:#fff;border:1px solid #EADBC8}
 .seglist .r.me{outline:2px solid var(--red)}
 .set{display:flex;flex-direction:column;gap:12px;font-size:14px}
-.set .row label{color:#8A6A55}
+.set .row label{color:#8A6A55;flex:0 0 76px;white-space:nowrap}
 .set .seg button{border-color:#EADBC8;color:var(--ink)}
 .set .seg button.on{background:var(--ink);color:var(--cream)}
 .small{font-size:11px;color:#8A6A55}
@@ -458,7 +458,7 @@ button,summary{touch-action:manipulation}
  #menu .right{padding:12px 12px 12px 0}#menu #sumbar .slab{padding:6px 8px}#menu #sumbar .v{font-size:11px}#menu #maptip{font-size:10px;padding:5px 8px}
 }
 @media(max-width:900px) and (orientation:portrait){
- #menu{display:flex;flex-direction:column;gap:16px;padding:20px 20px calc(120px + env(safe-area-inset-bottom));overflow-y:auto;background:radial-gradient(ellipse at top left,#4d321e55,transparent 60%),#181511}
+ #menu{display:flex;flex-direction:column;gap:16px;padding:20px 20px calc(230px + env(safe-area-inset-bottom));overflow-y:auto;background:radial-gradient(ellipse at top left,#4d321e55,transparent 60%),#181511}
  #menu .left,.menu-scroll{display:contents}
  .menu-brand{order:0;flex-shrink:0}.menu-course-choice{order:1;flex-shrink:0}.menu-selected{order:2;flex-shrink:0}.menu-options{order:4;flex-shrink:0;gap:8px}
  .menu-start{position:fixed;left:0;right:0;bottom:0;padding:12px max(20px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left));z-index:23}
@@ -481,7 +481,7 @@ button,summary{touch-action:manipulation}
 
 /* 메인 화면: 눈부심 카메라 바로 쓰기 (보조 입구) */
 .menu-camera{margin-top:8px;width:100%;padding:9px 12px;border:1px solid rgba(255,212,94,.45);border-radius:12px;background:rgba(255,212,94,.08);color:var(--cream);font:inherit;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:2px}
-.menu-camera b{font-size:15px}.menu-camera small{font-size:11.5px;color:#d9c6a8}
+.menu-camera b{font-size:15px}.menu-camera small{font-size:11.5px;color:#d9c6a8;word-break:keep-all}
 .menu-camera:hover{background:rgba(255,212,94,.16)}
 @media (max-height:520px){.menu-camera{margin-top:6px;padding:7px 10px}.menu-camera small{display:none}.menu-camera b{font-size:13.5px}}
 /* 카메라 앱: 버튼 · 카메라 · 판정 결과 묶음 */
