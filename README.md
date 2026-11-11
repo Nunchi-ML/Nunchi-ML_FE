@@ -29,6 +29,23 @@
 | 도로 · 건물 | OpenStreetMap 데이터 (달구벌대로 · 신천대로) |
 | 배포 | Vercel — https://nunchi-drive.vercel.app (GitHub Actions 자동 배포) |
 
+## 📸 미리 보기
+
+<table>
+  <tr>
+    <td width="50%"><img src="https://raw.githubusercontent.com/Nunchi-ML/.github/main/profile/assets/sim/sim_route.jpg" alt="🗺️ 출발 전 · 코스를 미리 판정해 눈부신 구간을 보여 줍니다"/><br/><sub>🗺️ 출발 전 · 코스를 미리 판정해 눈부신 구간을 보여 줍니다</sub></td>
+    <td width="50%"><img src="https://raw.githubusercontent.com/Nunchi-ML/.github/main/profile/assets/sim/sim_glare.jpg" alt="☀️ 주행 중 · 정면 눈부심을 판정하고 감속을 안내합니다"/><br/><sub>☀️ 주행 중 · 정면 눈부심을 판정하고 감속을 안내합니다</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="https://raw.githubusercontent.com/Nunchi-ML/.github/main/profile/assets/sim/sim_sign.jpg" alt="🪧 도로 전광판 · 앞 구간 눈부심을 미리 알립니다"/><br/><sub>🪧 도로 전광판 · 앞 구간 눈부심을 미리 알립니다</sub></td>
+    <td width="50%"><img src="https://raw.githubusercontent.com/Nunchi-ML/.github/main/profile/assets/sim/sim_camera.jpg" alt="📱 카메라 앱 · 지금 사진을 보내 바로 판정합니다"/><br/><sub>📱 카메라 앱 · 지금 사진을 보내 바로 판정합니다</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="https://raw.githubusercontent.com/Nunchi-ML/.github/main/profile/assets/sim/sim_tunnel.jpg" alt="🚇 지하차도 · 입구와 출구의 밝기 변화를 체험합니다"/><br/><sub>🚇 지하차도 · 입구와 출구의 밝기 변화를 체험합니다</sub></td>
+    <td width="50%"><img src="https://raw.githubusercontent.com/Nunchi-ML/.github/main/profile/assets/sim/sim_visor.jpg" alt="🕶️ 스마트 선바이저 · 해가 들어오는 칸만 가립니다"/><br/><sub>🕶️ 스마트 선바이저 · 해가 들어오는 칸만 가립니다</sub></td>
+  </tr>
+</table>
+
 ## 🎨 화면 — 노션 「웹사이트 명세」가 정본
 
 | 화면 ID | 화면 | 보이는 것 |
